@@ -32,10 +32,11 @@ Angular 22 (standalone components + signals, zoneless), pnpm, PrimeNG, Transloco
 - **Shared state lives in NgRx Signals stores** (signal store); plain signals are
   fine for local component state.
 - **Module boundaries are enforced by Sheriff** (`sheriff.config.ts`, wired into
-  ESLint). App code is structured as `src/app/<scope>/<type>` — bounded contexts
-  with the library categories from the ng-review-architecture skill (`feature`,
-  `ui`, `data-access`, `domain`, `util`, `shell`). Inspect with
-  `pnpm exec sheriff list`; the dependency rules live in the config.
+  ESLint). App code is structured as `src/app/core` (app-wide infrastructure),
+  `src/app/shared` (shared kernel), and `src/app/domains/<domain>/<type>` —
+  bounded contexts with the categories `api` (public surface, routes),
+  `feat-<name>` (one folder per feature), `ui`, `data`, and `model`. Inspect
+  with `pnpm exec sheriff list`; the dependency rules live in the config.
 
 ## Style guide
 

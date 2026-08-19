@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ApplicationRef, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
-import { Case } from '../domain/case';
+import { Case } from '../model/case';
 import { CasesStore } from './cases-store';
 
 describe('CasesStore', () => {
