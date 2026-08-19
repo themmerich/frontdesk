@@ -1,0 +1,56 @@
+import { provideZonelessChangeDetection } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { TranslocoTestingModule } from '@jsverse/transloco';
+
+import { CaseList, CaseListEntry } from './case-list';
+
+const translations = {
+  cases: {
+    sender: 'From',
+    subject: 'Subject',
+    receivedAt: 'Received',
+    empty: 'No cases yet',
+  },
+};
+
+describe('CaseList', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [
+        CaseList,
+        TranslocoTestingModule.forRoot({
+          langs: { en: translations },
+          translocoConfig: { availableLangs: ['en'], defaultLang: 'en' },
+          preloadLangs: true,
+        }),
+      ],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  function createFixture(cases: CaseListEntry[]) {
+    const fixture = TestBed.createComponent(CaseList);
+    fixture.componentRef.setInput('cases', cases);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('renders one row per case', () => {
+    const fixture = createFixture([
+      { sender: 'anna@example.com', subject: 'Delivery status', receivedAt: '2026-08-19T08:30:00Z' },
+      { sender: 'ben@example.com', subject: 'Invoice copy', receivedAt: '2026-08-19T09:15:00Z' },
+    ]);
+
+    const text = (fixture.nativeElement as HTMLElement).textContent;
+    expect(text).toContain('anna@example.com');
+    expect(text).toContain('Delivery status');
+    expect(text).toContain('ben@example.com');
+    expect(text).toContain('Invoice copy');
+  });
+
+  it('shows the empty message when there are no cases', () => {
+    const fixture = createFixture([]);
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('No cases yet');
+  });
+});

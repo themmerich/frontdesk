@@ -1,3 +1,8 @@
+# Explicit project name: without it Compose derives the project from the
+# directory name ("backend"), sharing containers — and their database state —
+# with every other checkout whose backend lives in a "backend" folder.
+name: frontdesk
+
 services:
   postgres:
     # Major version pinned; keep in sync with TestcontainersConfiguration.
@@ -8,3 +13,15 @@ services:
       - 'POSTGRES_USER=frontdesk'
     ports:
       - '5432'
+  greenmail:
+    # Local dev/demo mail server (IMAP + SMTP), no external account needed.
+    # `setup.test.all` binds the test ports (SMTP 3025, IMAP 3143); auth is
+    # disabled so any login works and mailboxes are created on first use.
+    # Fixed host ports because the app config defaults point at them
+    # (frontdesk.mail.* in application.properties).
+    image: 'greenmail/standalone:2.1.6'
+    environment:
+      - 'GREENMAIL_OPTS=-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled'
+    ports:
+      - '3025:3025'
+      - '3143:3143'

@@ -1,0 +1,26 @@
+import { Component, inject } from '@angular/core';
+import { TranslocoDirective } from '@jsverse/transloco';
+
+import { CasesStore } from '../data-access/cases-store';
+import { CaseList } from '../ui/case-list';
+
+@Component({
+  selector: 'app-cases-page',
+  imports: [TranslocoDirective, CaseList],
+  template: `
+    <ng-container *transloco="let t">
+      <main class="mx-auto flex max-w-4xl flex-col gap-4 p-6">
+        <h1 class="text-2xl font-semibold">{{ t('cases.title') }}</h1>
+        <!-- value() throws while the resource is in the error state, so the list only renders in the else branch. -->
+        @if (store.cases.error()) {
+          <p class="text-red-600 dark:text-red-400">{{ t('cases.loadError') }}</p>
+        } @else {
+          <app-case-list [cases]="store.cases.value()" />
+        }
+      </main>
+    </ng-container>
+  `,
+})
+export class CasesPage {
+  protected readonly store = inject(CasesStore);
+}
