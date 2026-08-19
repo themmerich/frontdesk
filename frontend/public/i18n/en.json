@@ -1,0 +1,24 @@
+{
+  "title": "PrimeNG + Transloco Smoke Test",
+  "description": "If this text switches language and the button shows a toast, both PrimeNG and Transloco are wired up correctly.",
+  "nameLabel": "Your name",
+  "namePlaceholder": "Type here…",
+  "greeting": "Hello, {{name}} 👋",
+  "stranger": "stranger",
+  "showToast": "Show toast",
+  "language": "Language",
+  "toastSummary": "It works!",
+  "toastDetail": "Hello {{name}} — clicked {{count}} time(s).",
+  "notes": {
+    "title": "Notes",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Note title",
+    "contentLabel": "Content",
+    "contentPlaceholder": "Write your note…",
+    "add": "Add note",
+    "delete": "Delete note",
+    "empty": "No notes yet. Add your first one above.",
+    "loadError": "Could not load notes.",
+    "required": "This field is required."
+  }
+}

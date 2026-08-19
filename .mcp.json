@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "angular-cli": {
+      "type": "stdio",
+      "command": "pnpm",
+      "args": ["-C", "${CLAUDE_PROJECT_DIR}/frontend", "exec", "ng", "mcp"]
+    }
+  }
+}

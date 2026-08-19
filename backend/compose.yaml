@@ -1,0 +1,10 @@
+services:
+  postgres:
+    # Major version pinned; keep in sync with TestcontainersConfiguration.
+    image: 'postgres:18'
+    environment:
+      - 'POSTGRES_DB=tapout'
+      - 'POSTGRES_PASSWORD=secret'
+      - 'POSTGRES_USER=tapout'
+    ports:
+      - '5432'

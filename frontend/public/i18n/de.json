@@ -1,0 +1,24 @@
+{
+  "title": "PrimeNG + Transloco Test",
+  "description": "Wenn dieser Text die Sprache wechselt und der Button einen Toast zeigt, sind PrimeNG und Transloco korrekt eingebunden.",
+  "nameLabel": "Dein Name",
+  "namePlaceholder": "Hier tippen…",
+  "greeting": "Hallo, {{name}} 👋",
+  "stranger": "Unbekannte:r",
+  "showToast": "Toast anzeigen",
+  "language": "Sprache",
+  "toastSummary": "Es funktioniert!",
+  "toastDetail": "Hallo {{name}} — {{count}}× geklickt.",
+  "notes": {
+    "title": "Notizen",
+    "titleLabel": "Titel",
+    "titlePlaceholder": "Titel der Notiz",
+    "contentLabel": "Inhalt",
+    "contentPlaceholder": "Notiz schreiben…",
+    "add": "Notiz hinzufügen",
+    "delete": "Notiz löschen",
+    "empty": "Noch keine Notizen. Füge oben deine erste hinzu.",
+    "loadError": "Notizen konnten nicht geladen werden.",
+    "required": "Dieses Feld ist erforderlich."
+  }
+}

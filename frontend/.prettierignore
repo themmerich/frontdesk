@@ -1,0 +1,15 @@
+# Build output & caches
+/dist
+/tmp
+/out-tsc
+/.angular
+
+# Dependencies
+/node_modules
+
+# Lockfiles (managed by the package manager)
+pnpm-lock.yaml
+
+# Coverage
+/coverage
+

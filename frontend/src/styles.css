@@ -1,0 +1,12 @@
+/* You can add global styles to this file, and also import other style files */
+
+/* Establish the cascade layer order once, before Tailwind is imported.
+   PrimeNG injects its styles into the `primeng` layer (see providePrimeNG in
+   app.config.ts), so it overrides Tailwind's preflight reset, while Tailwind's
+   `utilities` layer still wins over PrimeNG for utility classes. */
+@layer theme, base, primeng, components, utilities;
+
+@import 'tailwindcss';
+@import 'primeicons/primeicons.css';
+
+@plugin 'tailwindcss-primeui';

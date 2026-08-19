@@ -1,0 +1,27 @@
+# Compiled output
+/dist
+/tmp
+/out-tsc
+
+# Node
+/node_modules
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Caches and test output
+/.angular/cache
+/coverage
+.eslintcache
+__screenshots__/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Local, git-ignored environment override (holds secrets like the PrimeNG license key)
+/src/environments/environment.local.ts

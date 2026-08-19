@@ -1,0 +1,53 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Dependency automation for the tapout-ai monorepo: pnpm frontend, Gradle backend, GitHub Actions, and the pinned postgres image.",
+  "extends": ["config:recommended", "schedule:weekly"],
+  "timezone": "Europe/Berlin",
+  "labels": ["dependencies"],
+  "lockFileMaintenance": { "enabled": true },
+  "packageRules": [
+    {
+      "description": "Angular-coupled majors need manual approval via the dependency dashboard — frontend/AGENTS.md pins dependency majors to Angular 22.",
+      "matchPackageNames": [
+        "@angular/**",
+        "@angular-devkit/**",
+        "@angular-eslint/**",
+        "angular-eslint",
+        "typescript",
+        "primeng",
+        "primeicons",
+        "@primeuix/**",
+        "@ngrx/**",
+        "@jsverse/**"
+      ],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "One PR per Angular release train instead of one PR per package.",
+      "matchPackageNames": [
+        "@angular/**",
+        "@angular-devkit/**",
+        "@angular-eslint/**",
+        "angular-eslint"
+      ],
+      "groupName": "Angular"
+    },
+    {
+      "description": "Bump the postgres image in compose.yaml and TestcontainersConfiguration.java together — they must stay in sync.",
+      "matchDepNames": ["postgres"],
+      "groupName": "postgres"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track the postgres image pinned as a string in the Testcontainers configuration.",
+      "managerFilePatterns": ["/TestcontainersConfiguration\\.java$/"],
+      "matchStrings": [
+        "DockerImageName\\.parse\\(\"(?<depName>postgres):(?<currentValue>[^\"]+)\"\\)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ]
+}
