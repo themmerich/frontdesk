@@ -31,7 +31,8 @@ Copied or adapted from public sources; the origin column records where each skil
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
 | [angular-developer](.claude/skills/angular-developer/SKILL.md) | Generates Angular code and architectural guidance, version-aware, with a `ng build` verification loop. | [`angular/skills`](https://github.com/angular/skills)         |
 | [brainstorming](.claude/skills/brainstorming/SKILL.md)         | Design-first gate: turn an idea into an approved spec before any code is written.                      | [`obra/superpowers`](https://github.com/obra/superpowers)     |
-| [grill-me](.claude/skills/grill-me/SKILL.md)                   | Interrogates a plan one question at a time to stress-test it before building.                          | [`mattpocock/skills`](https://github.com/mattpocock/skills)   |
+| [grill-me](.claude/skills/grill-me/SKILL.md)                   | User-invoked entry point (`/grill-me`) that hands off to `grilling` for a relentless plan interview.   | [`mattpocock/skills`](https://github.com/mattpocock/skills)   |
+| [grilling](.claude/skills/grilling/SKILL.md)                   | Interrogates a plan through rounds of design-tree "frontier" questions until every branch is resolved. | [`mattpocock/skills`](https://github.com/mattpocock/skills)   |
 
 ### Scanning skills for vulnerabilities
 
