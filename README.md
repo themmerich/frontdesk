@@ -1,4 +1,4 @@
-# tapout-ai
+# frontdesk
 
 A reference setup for a **Spring Boot + Angular monorepo**, built to demonstrate how to wire up
 tooling, conventions, and AI-agent guidance so that both halves of a full-stack project stay
