@@ -9,7 +9,7 @@ SMTP) in Docker Compose as the dev/demo mail infrastructure; the core entity is 
 
 ## Core loop
 
-- [ ] **1. Mail ingest** — poll an IMAP mailbox (GreenMail in dev), persist each mail as a case,
+- [x] **1. Mail ingest** — poll an IMAP mailbox (GreenMail in dev), persist each mail as a case,
       show cases in a simple list in the Angular app. Replaces the template demo page as the
       start page.
 - [ ] **2. Triage** — AI classification of each case into three tiers (handled automatically /

@@ -1,12 +1,10 @@
 {
-  "title": "PrimeNG + Transloco Smoke Test",
-  "description": "If this text switches language and the button shows a toast, both PrimeNG and Transloco are wired up correctly.",
-  "nameLabel": "Your name",
-  "namePlaceholder": "Type here…",
-  "greeting": "Hello, {{name}} 👋",
-  "stranger": "stranger",
-  "showToast": "Show toast",
-  "language": "Language",
-  "toastSummary": "It works!",
-  "toastDetail": "Hello {{name}} — clicked {{count}} time(s)."
+  "cases": {
+    "title": "Cases",
+    "sender": "From",
+    "subject": "Subject",
+    "receivedAt": "Received",
+    "empty": "No cases yet — as soon as a mail arrives, it shows up here.",
+    "loadError": "Could not load cases. Is the backend running?"
+  }
 }

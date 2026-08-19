@@ -1,12 +1,10 @@
 {
-  "title": "PrimeNG + Transloco Test",
-  "description": "Wenn dieser Text die Sprache wechselt und der Button einen Toast zeigt, sind PrimeNG und Transloco korrekt eingebunden.",
-  "nameLabel": "Dein Name",
-  "namePlaceholder": "Hier tippen…",
-  "greeting": "Hallo, {{name}} 👋",
-  "stranger": "Unbekannte:r",
-  "showToast": "Toast anzeigen",
-  "language": "Sprache",
-  "toastSummary": "Es funktioniert!",
-  "toastDetail": "Hallo {{name}} — {{count}}× geklickt."
+  "cases": {
+    "title": "Vorgänge",
+    "sender": "Absender",
+    "subject": "Betreff",
+    "receivedAt": "Eingegangen",
+    "empty": "Noch keine Vorgänge — sobald eine E-Mail eingeht, erscheint sie hier.",
+    "loadError": "Vorgänge konnten nicht geladen werden. Läuft das Backend?"
+  }
 }
