@@ -3,8 +3,8 @@ services:
     # Major version pinned; keep in sync with TestcontainersConfiguration.
     image: 'postgres:18'
     environment:
-      - 'POSTGRES_DB=tapout'
+      - 'POSTGRES_DB=frontdesk'
       - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=tapout'
+      - 'POSTGRES_USER=frontdesk'
     ports:
       - '5432'

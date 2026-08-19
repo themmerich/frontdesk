@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Dependency automation for the tapout-ai monorepo: pnpm frontend, Gradle backend, GitHub Actions, and the pinned postgres image.",
+  "description": "Dependency automation for the frontdesk monorepo: pnpm frontend, Gradle backend, GitHub Actions, and the pinned postgres image.",
   "extends": ["config:recommended", "schedule:weekly"],
   "timezone": "Europe/Berlin",
   "labels": ["dependencies"],

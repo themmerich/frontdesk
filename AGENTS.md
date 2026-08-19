@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Central guidance for the **tapout-ai** monorepo. This file applies to the whole
+Central guidance for the **frontdesk** monorepo. This file applies to the whole
 repository; package-specific rules live in nested `AGENTS.md` files.
 
 ## Repository layout
