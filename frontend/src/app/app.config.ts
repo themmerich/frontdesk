@@ -7,7 +7,7 @@ import Aura from '@primeuix/themes/aura';
 
 import { routes } from './app.routes';
 import { environment } from '../environments/environment';
-import { TranslocoHttpLoader } from './transloco-loader';
+import { TranslocoHttpLoader } from './core/transloco-loader';
 
 export const appConfig: ApplicationConfig = {
   providers: [

@@ -2,8 +2,8 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
-import { CasesStore } from '../data-access/cases-store';
-import { Case } from '../domain/case';
+import { CasesStore } from '../data/cases-store';
+import { Case } from '../model/case';
 import { CasesPage } from './cases-page';
 
 const translations = {

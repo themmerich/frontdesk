@@ -1,17 +1,19 @@
 import { sameTag, SheriffConfig } from '@softarc/sheriff-core';
 
 /**
- * Module boundaries for the DDD structure from the ng-review-architecture
- * skill (.claude/skills/ng-review-architecture/references/ddd.md), mapped to
- * this plain Angular app as feature folders:
+ * Module boundaries for the DDD folder structure:
  *
- *   src/app/<scope>/<type>
+ *   src/app/core                       — app-wide infrastructure (loaders, interceptors)
+ *   src/app/shared                     — shared kernel usable by every domain
+ *   src/app/domains/<domain>/<type>    — one folder per bounded context
  *
- * <scope> is a bounded context / domain (`shared` is the shared kernel);
- * <type> is one of the library categories: feature (smart components), ui
- * (dumb components), data-access (REST clients), domain (entities + business
- * logic, framework-free), util (pure helpers), shell (a domain's entry point
- * and routing).
+ * <type> is one of the domain-level categories:
+ *   api          — the domain's public surface (routes, exposed types); the only
+ *                  entry point for the app root and, later, for other domains
+ *   feat-<name>  — one folder per feature (smart components)
+ *   ui           — presentational (dumb) components
+ *   data         — stores and REST clients
+ *   model        — entities and framework-free business logic
  *
  * Enforced by ESLint via @softarc/eslint-plugin-sheriff; inspect with
  * `pnpm exec sheriff list` / `pnpm exec sheriff verify`.
@@ -22,26 +24,33 @@ export const config: SheriffConfig = {
   // except files under an `internal/` subfolder.
   enableBarrelLess: true,
   modules: {
-    'src/app/<scope>/<type>': ['scope:<scope>', 'type:<type>'],
+    'src/app/core': ['core'],
+    'src/app/shared': ['shared'],
+    'src/app/domains/<domain>/api': ['scope:<domain>', 'type:api'],
+    'src/app/domains/<domain>/feat-<feature>': ['scope:<domain>', 'type:feat'],
+    'src/app/domains/<domain>/ui': ['scope:<domain>', 'type:ui'],
+    'src/app/domains/<domain>/data': ['scope:<domain>', 'type:data'],
+    'src/app/domains/<domain>/model': ['scope:<domain>', 'type:model'],
   },
   depRules: {
-    // Root (app config and top-level routing) wires the domains together: it
-    // may reach into any scope, but only through shells and features.
-    root: [({ to }) => to.startsWith('scope:'), 'type:shell', 'type:feature'],
+    // Root (app config and top-level routing) wires the app together: core
+    // infrastructure, the shared kernel, and each domain via its api surface.
+    root: ['core', 'shared', ({ to }) => to.startsWith('scope:'), 'type:api'],
+
+    core: ['shared'],
+    shared: ['shared'],
 
     // Domain isolation: a scope sees only itself and the shared kernel. When
-    // a domain must expose functionality to *other* domains, add an `api`
-    // module for it (open/host service) and widen this rule to that seam.
-    'scope:*': [sameTag, 'scope:shared'],
+    // one domain needs another, it goes through that domain's `api` — widen
+    // this rule to that seam when the first cross-domain dependency appears.
+    'scope:*': [sameTag, 'shared'],
 
-    // Access restrictions by type (ddd.md): nothing depends on `feature`
-    // except its shell's routing; `util` depends on nothing above it.
-    'type:shell': ['type:feature', 'type:util'],
-    'type:feature': ['type:ui', 'type:domain', 'type:data-access', 'type:util'],
-    'type:ui': ['type:util'],
-    'type:domain': ['type:util'],
-    // data-access returns the domain's entities, so it may see `domain`.
-    'type:data-access': ['type:domain', 'type:util'],
-    'type:util': ['type:util'],
+    // Access restrictions by type: api exposes features and types; features
+    // orchestrate ui, data, and model; ui and data may see the model only.
+    'type:api': ['type:feat', 'type:model'],
+    'type:feat': ['type:ui', 'type:data', 'type:model'],
+    'type:ui': ['type:model'],
+    'type:data': ['type:model'],
+    'type:model': [],
   },
 };

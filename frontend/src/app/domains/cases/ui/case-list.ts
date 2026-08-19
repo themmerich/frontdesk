@@ -3,16 +3,7 @@ import { Component, input } from '@angular/core';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { TableModule } from 'primeng/table';
 
-/**
- * What the list needs to render one row. Deliberately its own type instead of the domain's
- * `Case`: Sheriff keeps `ui` independent of `domain`, and structural typing lets the feature
- * pass its `Case[]` directly.
- */
-export type CaseListEntry = {
-  sender: string;
-  subject: string;
-  receivedAt: string;
-};
+import { Case } from '../model/case';
 
 @Component({
   selector: 'app-case-list',
@@ -44,5 +35,5 @@ export type CaseListEntry = {
   `,
 })
 export class CaseList {
-  readonly cases = input.required<CaseListEntry[]>();
+  readonly cases = input.required<Case[]>();
 }

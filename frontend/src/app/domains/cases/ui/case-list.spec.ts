@@ -2,7 +2,8 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
-import { CaseList, CaseListEntry } from './case-list';
+import { Case } from '../model/case';
+import { CaseList } from './case-list';
 
 const translations = {
   cases: {
@@ -28,7 +29,7 @@ describe('CaseList', () => {
     }).compileComponents();
   });
 
-  function createFixture(cases: CaseListEntry[]) {
+  function createFixture(cases: Case[]) {
     const fixture = TestBed.createComponent(CaseList);
     fixture.componentRef.setInput('cases', cases);
     fixture.detectChanges();
@@ -37,8 +38,8 @@ describe('CaseList', () => {
 
   it('renders one row per case', () => {
     const fixture = createFixture([
-      { sender: 'anna@example.com', subject: 'Delivery status', receivedAt: '2026-08-19T08:30:00Z' },
-      { sender: 'ben@example.com', subject: 'Invoice copy', receivedAt: '2026-08-19T09:15:00Z' },
+      { id: '1', sender: 'anna@example.com', subject: 'Delivery status', receivedAt: '2026-08-19T08:30:00Z' },
+      { id: '2', sender: 'ben@example.com', subject: 'Invoice copy', receivedAt: '2026-08-19T09:15:00Z' },
     ]);
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
