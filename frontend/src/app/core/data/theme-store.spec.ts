@@ -3,9 +3,14 @@ import { TestBed } from '@angular/core/testing';
 
 import { ThemeStore } from './theme-store';
 
+// Same access path as the ThemeStore: on Node 26+ CI runners the `window`
+// global aliases globalThis, whose Node-provided localStorage stub is
+// undefined — only the jsdom window behind document.defaultView works.
+const storage = document.defaultView!.localStorage;
+
 describe('ThemeStore', () => {
   beforeEach(() => {
-    window.localStorage.removeItem('frontdesk-theme');
+    storage.removeItem('frontdesk-theme');
     document.documentElement.classList.remove('dark');
     TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
   });
@@ -17,7 +22,7 @@ describe('ThemeStore', () => {
   });
 
   it('starts dark when a dark choice was stored', () => {
-    window.localStorage.setItem('frontdesk-theme', 'dark');
+    storage.setItem('frontdesk-theme', 'dark');
 
     const store = TestBed.inject(ThemeStore);
 
@@ -32,12 +37,12 @@ describe('ThemeStore', () => {
 
     expect(store.isDark()).toBe(true);
     expect(document.documentElement.classList.contains('dark')).toBe(true);
-    expect(window.localStorage.getItem('frontdesk-theme')).toBe('dark');
+    expect(storage.getItem('frontdesk-theme')).toBe('dark');
 
     store.toggle();
     TestBed.tick();
 
     expect(document.documentElement.classList.contains('dark')).toBe(false);
-    expect(window.localStorage.getItem('frontdesk-theme')).toBe('light');
+    expect(storage.getItem('frontdesk-theme')).toBe('light');
   });
 });
