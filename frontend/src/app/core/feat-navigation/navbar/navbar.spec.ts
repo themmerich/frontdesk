@@ -8,6 +8,8 @@ const translations = {
   shell: {
     openMenu: 'Open menu',
     notifications: 'Notifications',
+    darkMode: 'Switch to dark mode',
+    lightMode: 'Switch to light mode',
   },
 };
 
@@ -33,5 +35,23 @@ describe('Navbar', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('button[aria-label="Open menu"]')).toBeTruthy();
     expect(element.querySelector('button[aria-label="Notifications"]')).toBeTruthy();
+  });
+
+  it('toggles between dark and light mode', () => {
+    localStorage.removeItem('frontdesk-theme');
+    document.documentElement.classList.remove('dark');
+    const fixture = TestBed.createComponent(Navbar);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const toggle = element.querySelector<HTMLButtonElement>('button[aria-label="Switch to dark mode"]');
+    expect(toggle?.querySelector('.pi-moon')).toBeTruthy();
+
+    toggle?.click();
+    fixture.detectChanges();
+
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    const lightToggle = element.querySelector('button[aria-label="Switch to light mode"]');
+    expect(lightToggle?.querySelector('.pi-sun')).toBeTruthy();
   });
 });

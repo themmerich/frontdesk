@@ -1,11 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { AvatarModule } from 'primeng/avatar';
 import { StyleClassModule } from 'primeng/styleclass';
 
+import { ThemeStore } from '../../data/theme-store';
+
 /**
  * Topbar: hamburger that toggles the sidebar below `lg`, notification bell,
- * and the user avatar.
+ * dark mode toggle, and the user avatar.
  */
 @Component({
   selector: 'app-navbar',
@@ -14,4 +16,10 @@ import { StyleClassModule } from 'primeng/styleclass';
   // Keeps the topbar div a direct child of the shell's content column.
   host: { class: 'contents' },
 })
-export class Navbar {}
+export class Navbar {
+  protected readonly themeStore = inject(ThemeStore);
+
+  protected onToggleTheme(): void {
+    this.themeStore.toggle();
+  }
+}
