@@ -39,7 +39,16 @@ describe('CasesPage', () => {
   });
 
   it('shows the title and the cases from the store', () => {
-    cases.set([{ id: '1', sender: 'anna@example.com', subject: 'Delivery status', receivedAt: '2026-08-19T08:30:00Z' }]);
+    cases.set([
+      {
+        id: '1',
+        sender: 'anna@example.com',
+        subject: 'Delivery status',
+        receivedAt: '2026-08-19T08:30:00Z',
+        hasAttachments: false,
+        sizeBytes: 2048,
+      },
+    ]);
     const fixture = TestBed.createComponent(CasesPage);
     fixture.detectChanges();
 

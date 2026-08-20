@@ -14,7 +14,16 @@ describe('CasesStore', () => {
   });
 
   it('loads the cases from the API', async () => {
-    const cases: Case[] = [{ id: '1', sender: 'anna@example.com', subject: 'Delivery status', receivedAt: '2026-08-19T08:30:00Z' }];
+    const cases: Case[] = [
+      {
+        id: '1',
+        sender: 'anna@example.com',
+        subject: 'Delivery status',
+        receivedAt: '2026-08-19T08:30:00Z',
+        hasAttachments: false,
+        sizeBytes: 2048,
+      },
+    ];
     const store = TestBed.inject(CasesStore);
     const httpTesting = TestBed.inject(HttpTestingController);
     TestBed.tick();

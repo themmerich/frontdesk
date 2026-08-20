@@ -80,9 +80,40 @@ public class MailIngestService {
 			return;
 		}
 		Case newCase = new Case(messageId, senderOf(message), Objects.requireNonNullElse(message.getSubject(), ""),
-				bodyTextOf(message), receivedAtOf(message));
+				bodyTextOf(message), receivedAtOf(message), hasAttachments(message), sizeOf(message));
 		caseRepository.save(newCase);
 		log.info("Ingested mail '{}' from {} as case {}", newCase.getSubject(), newCase.getSender(), newCase.getId());
+	}
+
+	/** Raw message size in bytes as reported by the server (RFC822.SIZE); 0 if unknown. */
+	private long sizeOf(MimeMessage message) throws MessagingException {
+		return Math.max(message.getSize(), 0);
+	}
+
+	private boolean hasAttachments(MimeMessage message) throws MessagingException {
+		try {
+			return containsAttachment(message);
+		} catch (IOException e) {
+			throw new MessagingException("Could not inspect mail parts for attachments", e);
+		}
+	}
+
+	/** A part counts as an attachment when it is marked as one or carries a file name. */
+	private boolean containsAttachment(Part part) throws MessagingException, IOException {
+		if (!part.isMimeType("multipart/*")) {
+			return false;
+		}
+		Multipart parts = (Multipart) part.getContent();
+		for (int i = 0; i < parts.getCount(); i++) {
+			BodyPart bodyPart = parts.getBodyPart(i);
+			if (Part.ATTACHMENT.equalsIgnoreCase(bodyPart.getDisposition()) || bodyPart.getFileName() != null) {
+				return true;
+			}
+			if (containsAttachment(bodyPart)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private String senderOf(MimeMessage message) throws MessagingException {

@@ -16,6 +16,13 @@
             <p-columnfilter type="text" field="subject" display="menu" [placeholder]="t('cases.filter')" />
           </div>
         </th>
+        <th scope="col">{{ t('cases.attachment') }}</th>
+        <th scope="col" pSortableColumn="sizeBytes">
+          <div class="flex items-center gap-2">
+            {{ t('cases.size') }}
+            <p-sorticon field="sizeBytes" />
+          </div>
+        </th>
         <th scope="col" pSortableColumn="receivedAt">
           <div class="flex items-center gap-2">
             {{ t('cases.receivedAt') }}
@@ -28,12 +35,18 @@
       <tr>
         <td>{{ row.sender }}</td>
         <td>{{ row.subject }}</td>
+        <td>
+          @if (row.hasAttachments) {
+            <i class="pi pi-paperclip" role="img" [attr.aria-label]="t('cases.hasAttachment')"></i>
+          }
+        </td>
+        <td>{{ row.sizeBytes | fileSize }}</td>
         <td>{{ row.receivedAt | date: 'short' }}</td>
       </tr>
     </ng-template>
     <ng-template #emptymessage>
       <tr>
-        <td colspan="3">{{ t('cases.empty') }}</td>
+        <td colspan="5">{{ t('cases.empty') }}</td>
       </tr>
     </ng-template>
   </p-table>
