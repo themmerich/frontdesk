@@ -10,6 +10,7 @@ const translations = {
     sender: 'From',
     subject: 'Subject',
     receivedAt: 'Received',
+    filter: 'Filter …',
     empty: 'No cases yet',
   },
 };
@@ -53,5 +54,13 @@ describe('CaseList', () => {
     const fixture = createFixture([]);
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No cases yet');
+  });
+
+  it('offers sorting on every column and filters for sender and subject', () => {
+    const fixture = createFixture([]);
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelectorAll('th[psortablecolumn]')).toHaveLength(3);
+    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(2);
   });
 });

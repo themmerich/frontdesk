@@ -1,10 +1,27 @@
 <ng-container *transloco="let t">
-  <p-table [value]="cases()">
+  <p-table [value]="cases()" dataKey="id" sortField="receivedAt" [sortOrder]="-1">
     <ng-template #header>
       <tr>
-        <th scope="col">{{ t('cases.sender') }}</th>
-        <th scope="col">{{ t('cases.subject') }}</th>
-        <th scope="col">{{ t('cases.receivedAt') }}</th>
+        <th scope="col" pSortableColumn="sender">
+          <div class="flex items-center gap-2">
+            {{ t('cases.sender') }}
+            <p-sorticon field="sender" />
+            <p-columnfilter type="text" field="sender" display="menu" [placeholder]="t('cases.filter')" />
+          </div>
+        </th>
+        <th scope="col" pSortableColumn="subject">
+          <div class="flex items-center gap-2">
+            {{ t('cases.subject') }}
+            <p-sorticon field="subject" />
+            <p-columnfilter type="text" field="subject" display="menu" [placeholder]="t('cases.filter')" />
+          </div>
+        </th>
+        <th scope="col" pSortableColumn="receivedAt">
+          <div class="flex items-center gap-2">
+            {{ t('cases.receivedAt') }}
+            <p-sorticon field="receivedAt" />
+          </div>
+        </th>
       </tr>
     </ng-template>
     <ng-template #body let-row>
