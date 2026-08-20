@@ -12,6 +12,9 @@ const STORAGE_KEY = 'frontdesk-theme';
 @Service()
 export class ThemeStore {
   private readonly document = inject(DOCUMENT);
+  // Via the document's window, not the global: on Node 26+ the bare
+  // `localStorage` global shadows jsdom's working implementation in tests.
+  private readonly storage = this.document.defaultView?.localStorage;
 
   readonly isDark = signal(this.initialDark());
 
@@ -23,15 +26,16 @@ export class ThemeStore {
 
   toggle(): void {
     this.isDark.update((isDark) => !isDark);
-    localStorage.setItem(STORAGE_KEY, this.isDark() ? 'dark' : 'light');
+    this.storage?.setItem(STORAGE_KEY, this.isDark() ? 'dark' : 'light');
   }
 
   private initialDark(): boolean {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = this.storage?.getItem(STORAGE_KEY) ?? null;
     if (stored !== null) {
       return stored === 'dark';
     }
     // jsdom (unit tests) has no matchMedia — default to light there.
-    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const window = this.document.defaultView;
+    return window !== null && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
 }

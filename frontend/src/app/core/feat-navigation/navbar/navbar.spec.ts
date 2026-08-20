@@ -38,7 +38,7 @@ describe('Navbar', () => {
   });
 
   it('toggles between dark and light mode', () => {
-    localStorage.removeItem('frontdesk-theme');
+    window.localStorage.removeItem('frontdesk-theme');
     document.documentElement.classList.remove('dark');
     const fixture = TestBed.createComponent(Navbar);
     fixture.detectChanges();

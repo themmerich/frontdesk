@@ -5,7 +5,7 @@ import { ThemeStore } from './theme-store';
 
 describe('ThemeStore', () => {
   beforeEach(() => {
-    localStorage.removeItem('frontdesk-theme');
+    window.localStorage.removeItem('frontdesk-theme');
     document.documentElement.classList.remove('dark');
     TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
   });
@@ -17,7 +17,7 @@ describe('ThemeStore', () => {
   });
 
   it('starts dark when a dark choice was stored', () => {
-    localStorage.setItem('frontdesk-theme', 'dark');
+    window.localStorage.setItem('frontdesk-theme', 'dark');
 
     const store = TestBed.inject(ThemeStore);
 
@@ -32,12 +32,12 @@ describe('ThemeStore', () => {
 
     expect(store.isDark()).toBe(true);
     expect(document.documentElement.classList.contains('dark')).toBe(true);
-    expect(localStorage.getItem('frontdesk-theme')).toBe('dark');
+    expect(window.localStorage.getItem('frontdesk-theme')).toBe('dark');
 
     store.toggle();
     TestBed.tick();
 
     expect(document.documentElement.classList.contains('dark')).toBe(false);
-    expect(localStorage.getItem('frontdesk-theme')).toBe('light');
+    expect(window.localStorage.getItem('frontdesk-theme')).toBe('light');
   });
 });
