@@ -11,6 +11,10 @@ const translations = {
     notifications: 'Notifications',
     darkMode: 'Switch to dark mode',
     lightMode: 'Switch to light mode',
+    themeSettings: 'Customize theme',
+    primaryColor: 'Primary color',
+    surfaceColor: 'Surface',
+    preset: 'Preset',
   },
 };
 
@@ -39,6 +43,7 @@ describe('Navbar', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('button[aria-label="Open menu"]')).toBeTruthy();
     expect(element.querySelector('button[aria-label="Notifications"]')).toBeTruthy();
+    expect(element.querySelector('button[aria-label="Customize theme"]')).toBeTruthy();
   });
 
   it('toggles between dark and light mode', () => {

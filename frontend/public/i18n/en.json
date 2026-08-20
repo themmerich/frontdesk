@@ -9,7 +9,11 @@
     "openMenu": "Open menu",
     "notifications": "Notifications",
     "darkMode": "Switch to dark mode",
-    "lightMode": "Switch to light mode"
+    "lightMode": "Switch to light mode",
+    "themeSettings": "Customize theme",
+    "primaryColor": "Primary color",
+    "surfaceColor": "Surface",
+    "preset": "Preset"
   },
   "cases": {
     "title": "Cases",
