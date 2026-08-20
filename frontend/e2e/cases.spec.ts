@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 // The e2e suite runs without a backend: the API is mocked per test via
-// page.route, so the specs only verify the frontend's behavior.
+// page.route, so the specs only verify the frontend's behavior. Assertions use
+// the German texts because de is the default language.
 const mockCases = [
   { id: '1', sender: 'anna@example.com', subject: 'Delivery status', receivedAt: '2026-08-19T08:30:00Z' },
   { id: '2', sender: 'ben@example.com', subject: 'Invoice copy', receivedAt: '2026-08-19T09:15:00Z' },
@@ -13,7 +14,7 @@ test.describe('Cases page', () => {
 
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Cases' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Vorgänge' })).toBeVisible();
     await expect(page.getByRole('row', { name: /anna@example\.com/ })).toBeVisible();
     await expect(page.getByRole('row', { name: /Invoice copy/ })).toBeVisible();
   });
@@ -23,7 +24,7 @@ test.describe('Cases page', () => {
 
     await page.goto('/');
 
-    await expect(page.getByText('No cases yet')).toBeVisible();
+    await expect(page.getByText('Noch keine Vorgänge')).toBeVisible();
   });
 
   test('shows an error message when the API is unreachable', async ({ page }) => {
@@ -31,6 +32,6 @@ test.describe('Cases page', () => {
 
     await page.goto('/');
 
-    await expect(page.getByText('Could not load cases.')).toBeVisible();
+    await expect(page.getByText('Vorgänge konnten nicht geladen werden.')).toBeVisible();
   });
 });

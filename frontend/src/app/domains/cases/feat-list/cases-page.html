@@ -1,5 +1,5 @@
 <ng-container *transloco="let t">
-  <main class="mx-auto flex w-full max-w-4xl flex-col gap-4">
+  <main class="flex flex-col gap-4">
     <h1 class="text-2xl font-semibold">{{ t('cases.title') }}</h1>
     <!-- value() throws while the resource is in the error state, so the list only renders in the else branch. -->
     @if (store.cases.error()) {
