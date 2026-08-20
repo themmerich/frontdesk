@@ -1,0 +1,29 @@
+<ng-container *transloco="let t">
+  <div
+    class="relative flex items-center justify-between border-b border-surface-200 bg-surface-0 px-8 py-4 lg:static dark:border-surface-700 dark:bg-surface-900"
+  >
+    <div class="flex items-center">
+      <button
+        type="button"
+        pStyleClass="#app-sidebar"
+        enterFromClass="hidden"
+        enterActiveClass="animate-fadeinleft"
+        leaveToClass="hidden"
+        leaveActiveClass="animate-fadeoutleft"
+        [hideOnOutsideClick]="true"
+        [hideOnResize]="true"
+        resizeSelector=".layout-container"
+        [attr.aria-label]="t('shell.openMenu')"
+        class="mr-4 block cursor-pointer text-surface-700 lg:hidden dark:text-surface-100"
+      >
+        <i class="pi pi-bars text-xl!" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="flex items-center gap-8">
+      <button type="button" [attr.aria-label]="t('shell.notifications')" class="cursor-pointer">
+        <i class="pi pi-bell text-lg! leading-none! text-surface-500 dark:text-surface-400" aria-hidden="true"></i>
+      </button>
+      <p-avatar icon="pi pi-user" shape="circle" />
+    </div>
+  </div>
+</ng-container>
