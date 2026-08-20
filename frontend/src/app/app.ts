@@ -1,10 +1,10 @@
 import { Component } from '@angular/core';
 
-import { Layout } from './core/layout';
+import { Shell } from './core/feat-navigation/shell/shell';
 
 @Component({
   selector: 'app-root',
-  imports: [Layout],
+  imports: [Shell],
   templateUrl: './app.html',
 })
 export class App {}

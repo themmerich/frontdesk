@@ -3,13 +3,13 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
-import { App } from './app';
+import { Shell } from './shell';
 
-describe('App', () => {
+describe('Shell', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [
-        App,
+        Shell,
         TranslocoTestingModule.forRoot({
           langs: { en: {} },
           translocoConfig: { availableLangs: ['en'], defaultLang: 'en' },
@@ -20,15 +20,13 @@ describe('App', () => {
     }).compileComponents();
   });
 
-  it('should create the app', () => {
-    const fixture = TestBed.createComponent(App);
-    expect(fixture.componentInstance).toBeTruthy();
-  });
-
-  it('should render the app shell', () => {
-    const fixture = TestBed.createComponent(App);
+  it('arranges sidebar, navbar, and the routed content area', () => {
+    const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('app-shell')).toBeTruthy();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('app-sidebar')).toBeTruthy();
+    expect(element.querySelector('app-navbar')).toBeTruthy();
+    expect(element.querySelector('router-outlet')).toBeTruthy();
   });
 });

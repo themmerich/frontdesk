@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
-import { Layout } from './layout';
+import { Sidebar } from './sidebar';
 
 const translations = {
   shell: {
@@ -13,16 +13,14 @@ const translations = {
     settings: 'Settings',
     signOut: 'Sign out',
     demoUser: 'Demo user',
-    openMenu: 'Open menu',
-    notifications: 'Notifications',
   },
 };
 
-describe('Layout', () => {
+describe('Sidebar', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [
-        Layout,
+        Sidebar,
         TranslocoTestingModule.forRoot({
           langs: { en: translations },
           translocoConfig: { availableLangs: ['en'], defaultLang: 'en' },
@@ -33,8 +31,8 @@ describe('Layout', () => {
     }).compileComponents();
   });
 
-  it('renders the brand and the navigation', () => {
-    const fixture = TestBed.createComponent(Layout);
+  it('renders the brand and the navigation items', () => {
+    const fixture = TestBed.createComponent(Sidebar);
     fixture.detectChanges();
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
@@ -43,10 +41,11 @@ describe('Layout', () => {
     expect(text).toContain('Inbox');
   });
 
-  it('renders the routed content area', () => {
-    const fixture = TestBed.createComponent(Layout);
+  it('links the inbox item to the start page', () => {
+    const fixture = TestBed.createComponent(Sidebar);
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('router-outlet')).toBeTruthy();
+    const inboxLink = (fixture.nativeElement as HTMLElement).querySelector('a[href="/"]');
+    expect(inboxLink?.textContent).toContain('Inbox');
   });
 });
