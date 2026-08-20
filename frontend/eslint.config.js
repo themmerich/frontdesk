@@ -56,6 +56,8 @@ module.exports = defineConfig([
       // "avoid variable shadowing" (typescript-eslint variant, base rule off)
       'no-shadow': 'off',
       '@typescript-eslint/no-shadow': 'error',
+      // "don't use inline templates — every component's template lives in its own .html file"
+      '@angular-eslint/component-max-inline-declarations': ['error', { template: 0 }],
     },
   },
   {

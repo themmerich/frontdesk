@@ -114,7 +114,8 @@ This document contains guidelines for _Angular_ TypeScript files.
 - don't leave debug logs in the codebase
 - don't keep empty constructors
 - don't keep empty methods
-- don't default to external templates for very small components; prefer inline templates there
+- don't use inline templates — every component's template lives in its own `.html` file
+  (`templateUrl`), regardless of component size (enforced by ESLint)
 - avoid `any`, prefer `unknown`
 - avoid these lifecycle hooks where possible
   - `DoCheck()`
