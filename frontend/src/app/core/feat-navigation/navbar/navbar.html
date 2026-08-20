@@ -23,6 +23,9 @@
       <button type="button" [attr.aria-label]="t('shell.notifications')" class="cursor-pointer">
         <i class="pi pi-bell text-lg! leading-none! text-surface-500 dark:text-surface-400" aria-hidden="true"></i>
       </button>
+      <button type="button" (click)="themeSettings.toggle($event)" [attr.aria-label]="t('shell.themeSettings')" class="cursor-pointer">
+        <i class="pi pi-palette text-lg! leading-none! text-surface-500 dark:text-surface-400" aria-hidden="true"></i>
+      </button>
       <button
         type="button"
         (click)="onToggleTheme()"
@@ -38,5 +41,60 @@
       </button>
       <p-avatar icon="pi pi-user" shape="circle" />
     </div>
+    <!-- `contents` removes the host's flex box (it would push the button group off the right edge
+         in the justify-between row); the overlay itself is absolutely positioned and unaffected. -->
+    <p-popover #themeSettings class="contents">
+      <div class="flex w-60 flex-col gap-4 p-1">
+        <div>
+          <span class="mb-2 block text-sm font-medium">{{ t('shell.primaryColor') }}</span>
+          <div class="flex flex-wrap gap-2">
+            @for (swatch of primarySwatches; track swatch.name) {
+              <button
+                type="button"
+                (click)="themeStore.setPrimary(swatch.name)"
+                [attr.aria-label]="swatch.name"
+                [attr.aria-pressed]="themeStore.primary() === swatch.name"
+                class="h-5 w-5 cursor-pointer rounded-full outline-offset-2 outline-primary"
+                [class.outline-2]="themeStore.primary() === swatch.name"
+                [style.background-color]="swatch.color"
+              ></button>
+            }
+          </div>
+        </div>
+        <div>
+          <span class="mb-2 block text-sm font-medium">{{ t('shell.surfaceColor') }}</span>
+          <div class="flex flex-wrap gap-2">
+            @for (swatch of surfaceSwatches; track swatch.name) {
+              <button
+                type="button"
+                (click)="themeStore.setSurface(swatch.name)"
+                [attr.aria-label]="swatch.name"
+                [attr.aria-pressed]="themeStore.surface() === swatch.name"
+                class="h-5 w-5 cursor-pointer rounded-full outline-offset-2 outline-primary"
+                [class.outline-2]="themeStore.surface() === swatch.name"
+                [style.background-color]="swatch.color"
+              ></button>
+            }
+          </div>
+        </div>
+        <div>
+          <span class="mb-2 block text-sm font-medium">{{ t('shell.preset') }}</span>
+          <div class="flex flex-wrap gap-2">
+            @for (preset of presets; track preset) {
+              <button
+                type="button"
+                (click)="themeStore.setPreset(preset)"
+                [attr.aria-pressed]="themeStore.preset() === preset"
+                class="cursor-pointer rounded-lg border border-surface-300 px-2 py-1 text-sm capitalize dark:border-surface-600"
+                [class.bg-primary]="themeStore.preset() === preset"
+                [class.text-primary-contrast]="themeStore.preset() === preset"
+              >
+                {{ preset }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </p-popover>
   </div>
 </ng-container>

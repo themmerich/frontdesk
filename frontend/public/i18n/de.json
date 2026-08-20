@@ -9,7 +9,11 @@
     "openMenu": "Menü öffnen",
     "notifications": "Benachrichtigungen",
     "darkMode": "Dunkles Design aktivieren",
-    "lightMode": "Helles Design aktivieren"
+    "lightMode": "Helles Design aktivieren",
+    "themeSettings": "Design anpassen",
+    "primaryColor": "Primärfarbe",
+    "surfaceColor": "Oberfläche",
+    "preset": "Preset"
   },
   "cases": {
     "title": "Vorgänge",

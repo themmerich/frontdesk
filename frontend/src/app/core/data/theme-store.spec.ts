@@ -23,6 +23,10 @@ function createFakeStorage(): Storage {
   };
 }
 
+function storedSettings(storage: Storage): Record<string, unknown> {
+  return JSON.parse(storage.getItem('frontdesk-theme') ?? '{}') as Record<string, unknown>;
+}
+
 describe('ThemeStore', () => {
   let storage: Storage;
 
@@ -34,34 +38,78 @@ describe('ThemeStore', () => {
     });
   });
 
-  it('starts light when nothing is stored and no system preference is readable', () => {
+  it('starts with the defaults when nothing is stored', () => {
     const store = TestBed.inject(ThemeStore);
 
     expect(store.isDark()).toBe(false);
+    expect(store.preset()).toBe('aura');
+    expect(store.primary()).toBeNull();
+    expect(store.surface()).toBeNull();
   });
 
-  it('starts dark when a dark choice was stored', () => {
+  it('restores stored settings', () => {
+    storage.setItem('frontdesk-theme', JSON.stringify({ dark: true, preset: 'aura', primary: 'blue', surface: 'zinc' }));
+
+    const store = TestBed.inject(ThemeStore);
+
+    expect(store.isDark()).toBe(true);
+    expect(store.primary()).toBe('blue');
+    expect(store.surface()).toBe('zinc');
+  });
+
+  it('understands the legacy dark/light string format', () => {
     storage.setItem('frontdesk-theme', 'dark');
 
     const store = TestBed.inject(ThemeStore);
 
     expect(store.isDark()).toBe(true);
+    expect(store.preset()).toBe('aura');
+  });
+
+  it('falls back to the defaults for unparseable stored values', () => {
+    storage.setItem('frontdesk-theme', 'not json at all');
+
+    const store = TestBed.inject(ThemeStore);
+
+    expect(store.isDark()).toBe(false);
+    expect(store.preset()).toBe('aura');
   });
 
   it('toggles the dark class on <html> and persists the choice', () => {
     const store = TestBed.inject(ThemeStore);
 
-    store.toggle();
+    store.toggleDark();
     TestBed.tick();
 
     expect(store.isDark()).toBe(true);
     expect(document.documentElement.classList.contains('dark')).toBe(true);
-    expect(storage.getItem('frontdesk-theme')).toBe('dark');
+    expect(storedSettings(storage)['dark']).toBe(true);
 
-    store.toggle();
+    store.toggleDark();
     TestBed.tick();
 
     expect(document.documentElement.classList.contains('dark')).toBe(false);
-    expect(storage.getItem('frontdesk-theme')).toBe('light');
+    expect(storedSettings(storage)['dark']).toBe(false);
+  });
+
+  it('persists the chosen primary and surface palettes', () => {
+    const store = TestBed.inject(ThemeStore);
+
+    store.setPrimary('blue');
+    store.setSurface('zinc');
+
+    expect(store.primary()).toBe('blue');
+    expect(store.surface()).toBe('zinc');
+    expect(storedSettings(storage)['primary']).toBe('blue');
+    expect(storedSettings(storage)['surface']).toBe('zinc');
+  });
+
+  it('persists the chosen preset', () => {
+    const store = TestBed.inject(ThemeStore);
+
+    store.setPreset('material');
+
+    expect(store.preset()).toBe('material');
+    expect(storedSettings(storage)['preset']).toBe('material');
   });
 });
