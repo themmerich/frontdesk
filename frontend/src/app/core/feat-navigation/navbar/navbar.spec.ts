@@ -2,6 +2,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
+import { THEME_STORAGE } from '../../data/theme-store';
 import { Navbar } from './navbar';
 
 const translations = {
@@ -24,7 +25,10 @@ describe('Navbar', () => {
           preloadLangs: true,
         }),
       ],
-      providers: [provideZonelessChangeDetection()],
+      // THEME_STORAGE as null: no real localStorage is reliably available in
+      // unit tests (see theme-store.spec.ts), and this test only asserts the
+      // visible toggle behavior.
+      providers: [provideZonelessChangeDetection(), { provide: THEME_STORAGE, useValue: null }],
     }).compileComponents();
   });
 
@@ -38,8 +42,6 @@ describe('Navbar', () => {
   });
 
   it('toggles between dark and light mode', () => {
-    // Via document.defaultView like the ThemeStore — see theme-store.spec.ts.
-    document.defaultView!.localStorage.removeItem('frontdesk-theme');
     document.documentElement.classList.remove('dark');
     const fixture = TestBed.createComponent(Navbar);
     fixture.detectChanges();

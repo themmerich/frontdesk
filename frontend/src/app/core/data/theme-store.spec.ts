@@ -1,18 +1,37 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
-import { ThemeStore } from './theme-store';
+import { THEME_STORAGE, ThemeStore } from './theme-store';
 
-// Same access path as the ThemeStore: on Node 26+ CI runners the `window`
-// global aliases globalThis, whose Node-provided localStorage stub is
-// undefined — only the jsdom window behind document.defaultView works.
-const storage = document.defaultView!.localStorage;
+// In-memory Storage fake: depending on Node version and jsdom, no real
+// localStorage is reliably available in unit tests.
+function createFakeStorage(): Storage {
+  const entries = new Map<string, string>();
+  return {
+    get length() {
+      return entries.size;
+    },
+    clear: () => entries.clear(),
+    getItem: (key: string) => entries.get(key) ?? null,
+    key: (index: number) => [...entries.keys()][index] ?? null,
+    removeItem: (key: string) => {
+      entries.delete(key);
+    },
+    setItem: (key: string, value: string) => {
+      entries.set(key, value);
+    },
+  };
+}
 
 describe('ThemeStore', () => {
+  let storage: Storage;
+
   beforeEach(() => {
-    storage.removeItem('frontdesk-theme');
+    storage = createFakeStorage();
     document.documentElement.classList.remove('dark');
-    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), { provide: THEME_STORAGE, useValue: storage }],
+    });
   });
 
   it('starts light when nothing is stored and no system preference is readable', () => {

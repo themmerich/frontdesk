@@ -1,7 +1,17 @@
 import { DOCUMENT } from '@angular/common';
-import { effect, inject, Service, signal } from '@angular/core';
+import { effect, inject, InjectionToken, Service, signal } from '@angular/core';
 
 const STORAGE_KEY = 'frontdesk-theme';
+
+/**
+ * The storage backing the theme choice. Injectable so tests can provide an
+ * in-memory fake: depending on Node version and jsdom, neither the global nor
+ * the jsdom window reliably offers a working localStorage in unit tests.
+ */
+export const THEME_STORAGE = new InjectionToken<Storage | null>('THEME_STORAGE', {
+  providedIn: 'root',
+  factory: () => inject(DOCUMENT).defaultView?.localStorage ?? null,
+});
 
 /**
  * Light/dark theme state. Applies the `.dark` class on <html>, which drives
@@ -12,9 +22,7 @@ const STORAGE_KEY = 'frontdesk-theme';
 @Service()
 export class ThemeStore {
   private readonly document = inject(DOCUMENT);
-  // Via the document's window, not the global: on Node 26+ the bare
-  // `localStorage` global shadows jsdom's working implementation in tests.
-  private readonly storage = this.document.defaultView?.localStorage;
+  private readonly storage = inject(THEME_STORAGE);
 
   readonly isDark = signal(this.initialDark());
 
