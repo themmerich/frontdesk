@@ -7,4 +7,6 @@ export type Case = {
   sender: string;
   subject: string;
   receivedAt: string;
+  hasAttachments: boolean;
+  sizeBytes: number;
 };

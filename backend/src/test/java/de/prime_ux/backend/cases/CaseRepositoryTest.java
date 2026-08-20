@@ -19,10 +19,10 @@ class CaseRepositoryTest {
 
 	@Test
 	void findsCasesNewestFirst() {
-		Case older = caseRepository.save(
-				new Case("<older@test>", "a@example.com", "Older", "body", Instant.parse("2026-08-01T10:00:00Z")));
-		Case newer = caseRepository.save(
-				new Case("<newer@test>", "b@example.com", "Newer", "body", Instant.parse("2026-08-02T10:00:00Z")));
+		Case older = caseRepository.save(new Case("<older@test>", "a@example.com", "Older", "body",
+				Instant.parse("2026-08-01T10:00:00Z"), false, 1024));
+		Case newer = caseRepository.save(new Case("<newer@test>", "b@example.com", "Newer", "body",
+				Instant.parse("2026-08-02T10:00:00Z"), false, 1024));
 
 		List<Case> cases = caseRepository.findAllByOrderByReceivedAtDesc();
 
@@ -31,7 +31,7 @@ class CaseRepositoryTest {
 
 	@Test
 	void knowsWhichMessageIdsWereAlreadyIngested() {
-		caseRepository.save(new Case("<seen@test>", "a@example.com", "Subject", "body", Instant.now()));
+		caseRepository.save(new Case("<seen@test>", "a@example.com", "Subject", "body", Instant.now(), false, 1024));
 
 		assertThat(caseRepository.existsByMessageId("<seen@test>")).isTrue();
 		assertThat(caseRepository.existsByMessageId("<unseen@test>")).isFalse();

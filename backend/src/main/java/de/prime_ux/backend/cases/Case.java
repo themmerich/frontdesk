@@ -43,12 +43,21 @@ public class Case {
 	@Column(name = "ingested_at", nullable = false)
 	private Instant ingestedAt;
 
-	public Case(String messageId, String sender, String subject, String bodyText, Instant receivedAt) {
+	@Column(name = "has_attachments", nullable = false)
+	private boolean hasAttachments;
+
+	@Column(name = "size_bytes", nullable = false)
+	private long sizeBytes;
+
+	public Case(String messageId, String sender, String subject, String bodyText, Instant receivedAt,
+			boolean hasAttachments, long sizeBytes) {
 		this.messageId = messageId;
 		this.sender = sender;
 		this.subject = subject;
 		this.bodyText = bodyText;
 		this.receivedAt = receivedAt;
 		this.ingestedAt = Instant.now();
+		this.hasAttachments = hasAttachments;
+		this.sizeBytes = sizeBytes;
 	}
 }
