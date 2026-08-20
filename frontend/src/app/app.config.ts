@@ -57,6 +57,9 @@ export const appConfig: ApplicationConfig = {
       theme: {
         preset: Aura,
         options: {
+          // Same class the ThemeStore toggles on <html>; keeps PrimeNG and
+          // Tailwind dark mode in sync.
+          darkModeSelector: '.dark',
           cssLayer: {
             name: 'primeng',
             order: 'theme, base, primeng, components, utilities',

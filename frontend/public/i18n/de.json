@@ -7,7 +7,9 @@
     "signOut": "Abmelden",
     "demoUser": "Demo-Nutzer",
     "openMenu": "Menü öffnen",
-    "notifications": "Benachrichtigungen"
+    "notifications": "Benachrichtigungen",
+    "darkMode": "Dunkles Design aktivieren",
+    "lightMode": "Helles Design aktivieren"
   },
   "cases": {
     "title": "Vorgänge",

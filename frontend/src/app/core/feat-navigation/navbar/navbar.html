@@ -23,6 +23,19 @@
       <button type="button" [attr.aria-label]="t('shell.notifications')" class="cursor-pointer">
         <i class="pi pi-bell text-lg! leading-none! text-surface-500 dark:text-surface-400" aria-hidden="true"></i>
       </button>
+      <button
+        type="button"
+        (click)="onToggleTheme()"
+        [attr.aria-label]="t(themeStore.isDark() ? 'shell.lightMode' : 'shell.darkMode')"
+        class="cursor-pointer"
+      >
+        <i
+          class="pi text-lg! leading-none! text-surface-500 dark:text-surface-400"
+          [class.pi-moon]="!themeStore.isDark()"
+          [class.pi-sun]="themeStore.isDark()"
+          aria-hidden="true"
+        ></i>
+      </button>
       <p-avatar icon="pi pi-user" shape="circle" />
     </div>
   </div>
