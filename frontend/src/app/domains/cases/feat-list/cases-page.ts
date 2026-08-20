@@ -9,7 +9,7 @@ import { CaseList } from '../ui/case-list';
   imports: [TranslocoDirective, CaseList],
   template: `
     <ng-container *transloco="let t">
-      <main class="mx-auto flex max-w-4xl flex-col gap-4 p-6">
+      <main class="mx-auto flex w-full max-w-4xl flex-col gap-4">
         <h1 class="text-2xl font-semibold">{{ t('cases.title') }}</h1>
         <!-- value() throws while the resource is in the error state, so the list only renders in the else branch. -->
         @if (store.cases.error()) {

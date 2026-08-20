@@ -1,4 +1,14 @@
 {
+  "shell": {
+    "cases": "Cases",
+    "inbox": "Inbox",
+    "profile": "Profile",
+    "settings": "Settings",
+    "signOut": "Sign out",
+    "demoUser": "Demo user",
+    "openMenu": "Open menu",
+    "notifications": "Notifications"
+  },
   "cases": {
     "title": "Cases",
     "sender": "From",

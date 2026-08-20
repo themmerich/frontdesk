@@ -1,4 +1,14 @@
 {
+  "shell": {
+    "cases": "Vorgänge",
+    "inbox": "Posteingang",
+    "profile": "Profil",
+    "settings": "Einstellungen",
+    "signOut": "Abmelden",
+    "demoUser": "Demo-Nutzer",
+    "openMenu": "Menü öffnen",
+    "notifications": "Benachrichtigungen"
+  },
   "cases": {
     "title": "Vorgänge",
     "sender": "Absender",
