@@ -1,52 +1,116 @@
 <ng-container *transloco="let t">
-  <p-table [value]="cases()" dataKey="id" sortField="receivedAt" [sortOrder]="-1">
-    <ng-template #header>
+  <p-table
+    [value]="cases()"
+    [columns]="visibleColumns()"
+    [globalFilterFields]="globalFilterFields"
+    dataKey="id"
+    exportFilename="cases"
+    sortField="receivedAt"
+    [sortOrder]="-1"
+  >
+    <ng-template #caption>
+      <div class="flex flex-wrap items-center gap-3">
+        <p-button
+          icon="pi pi-cog"
+          severity="secondary"
+          [outlined]="true"
+          [label]="t('cases.columns')"
+          (onClick)="columnsPopover.toggle($event)"
+        />
+        <p-popover #columnsPopover styleClass="w-72" [pt]="{ content: 'p-0!' }">
+          <ng-template #content>
+            <div class="flex items-center justify-between gap-2 border-b border-surface-200 px-4 py-3 dark:border-surface-700">
+              <span class="text-sm font-semibold">{{ t('cases.columns') }}</span>
+              <p-button
+                icon="pi pi-refresh"
+                variant="text"
+                size="small"
+                severity="secondary"
+                [label]="t('cases.reset')"
+                (onClick)="onResetColumns()"
+              />
+            </div>
+            <div class="app-column-toggle-list max-h-80 overflow-auto py-2" cdkDropList (cdkDropListDropped)="onColumnDrop($event)">
+              @for (col of columns(); track col.field) {
+                <div
+                  cdkDrag
+                  cdkDragPreviewClass="app-column-toggle-drag-preview"
+                  class="mx-1 flex items-center gap-2 rounded-md px-3 py-1.5 select-none hover:bg-surface-100 dark:hover:bg-surface-800"
+                >
+                  <i cdkDragHandle class="pi pi-bars cursor-move text-sm text-surface-400 dark:text-surface-500" aria-hidden="true"></i>
+                  <p-checkbox [inputId]="col.field" [value]="col.field" [(ngModel)]="visibleFields" />
+                  <label [for]="col.field" class="cursor-pointer text-sm">{{ col.header }}</label>
+                </div>
+              }
+            </div>
+          </ng-template>
+        </p-popover>
+
+        <p-iconfield class="mx-auto min-w-48 max-w-md flex-1">
+          <p-inputicon styleClass="pi pi-search" />
+          <input
+            #globalSearchInput
+            pInputText
+            type="text"
+            [placeholder]="t('cases.search')"
+            [attr.aria-label]="t('cases.search')"
+            (input)="onGlobalSearch(globalSearchInput.value)"
+            class="w-full"
+          />
+        </p-iconfield>
+
+        <div class="flex items-center gap-2">
+          <p-button icon="pi pi-download" severity="secondary" [outlined]="true" [label]="t('cases.export')" (onClick)="onExportCsv()" />
+          <p-button icon="pi pi-trash" severity="danger" [outlined]="true" [label]="t('cases.delete')" />
+        </div>
+      </div>
+    </ng-template>
+    <ng-template #header let-columns>
       <tr>
-        <th scope="col" pSortableColumn="sender">
-          <div class="flex items-center gap-2">
-            {{ t('cases.sender') }}
-            <p-sorticon field="sender" />
-            <p-columnfilter type="text" field="sender" display="menu" [placeholder]="t('cases.filter')" />
-          </div>
-        </th>
-        <th scope="col" pSortableColumn="subject">
-          <div class="flex items-center gap-2">
-            {{ t('cases.subject') }}
-            <p-sorticon field="subject" />
-            <p-columnfilter type="text" field="subject" display="menu" [placeholder]="t('cases.filter')" />
-          </div>
-        </th>
-        <th scope="col">{{ t('cases.attachment') }}</th>
-        <th scope="col" pSortableColumn="sizeBytes">
-          <div class="flex items-center gap-2">
-            {{ t('cases.size') }}
-            <p-sorticon field="sizeBytes" />
-          </div>
-        </th>
-        <th scope="col" pSortableColumn="receivedAt">
-          <div class="flex items-center gap-2">
-            {{ t('cases.receivedAt') }}
-            <p-sorticon field="receivedAt" />
-          </div>
-        </th>
+        @for (col of columns; track col.field) {
+          @if (col.sortable) {
+            <th scope="col" [pSortableColumn]="col.field">
+              <div class="flex items-center gap-2">
+                {{ col.header }}
+                <p-sorticon [field]="col.field" />
+                @if (col.filterable) {
+                  <p-columnfilter type="text" display="menu" [field]="col.field" [placeholder]="t('cases.filter')" />
+                }
+              </div>
+            </th>
+          } @else {
+            <th scope="col">{{ col.header }}</th>
+          }
+        }
       </tr>
     </ng-template>
-    <ng-template #body let-row>
+    <ng-template #body let-row let-columns="columns">
       <tr>
-        <td>{{ row.sender }}</td>
-        <td>{{ row.subject }}</td>
-        <td>
-          @if (row.hasAttachments) {
-            <i class="pi pi-paperclip" role="img" [attr.aria-label]="t('cases.hasAttachment')"></i>
-          }
-        </td>
-        <td>{{ row.sizeBytes | fileSize }}</td>
-        <td>{{ row.receivedAt | date: 'short' }}</td>
+        @for (col of columns; track col.field) {
+          <td>
+            @switch (col.field) {
+              @case ('hasAttachments') {
+                @if (row.hasAttachments) {
+                  <i class="pi pi-paperclip" role="img" [attr.aria-label]="t('cases.hasAttachment')"></i>
+                }
+              }
+              @case ('sizeBytes') {
+                {{ row.sizeBytes | fileSize }}
+              }
+              @case ('receivedAt') {
+                {{ row.receivedAt | date: 'short' }}
+              }
+              @default {
+                {{ row[col.field] }}
+              }
+            }
+          </td>
+        }
       </tr>
     </ng-template>
     <ng-template #emptymessage>
       <tr>
-        <td colspan="5">{{ t('cases.empty') }}</td>
+        <td [attr.colspan]="visibleColumns().length">{{ t('cases.empty') }}</td>
       </tr>
     </ng-template>
   </p-table>

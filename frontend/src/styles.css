@@ -15,3 +15,16 @@
    toggled by the ThemeStore (core/data). PrimeNG uses the same selector via
    `darkModeSelector` in app.config.ts. */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* CDK drag & drop styling for the column-toggle popover (cases/ui/case-list).
+   The drag preview and the popover overlay are attached to <body>, so
+   component-scoped styles cannot reach them. */
+.app-column-toggle-drag-preview {
+  background: var(--p-content-background);
+  border-radius: var(--p-content-border-radius);
+  box-shadow: var(--p-overlay-popover-shadow);
+}
+
+.app-column-toggle-list .cdk-drag-placeholder {
+  opacity: 0.4;
+}

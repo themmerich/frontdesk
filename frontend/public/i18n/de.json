@@ -24,6 +24,11 @@
     "hasAttachment": "Hat Anhang",
     "size": "Größe",
     "filter": "Filtern …",
+    "columns": "Spalten",
+    "reset": "Zurücksetzen",
+    "search": "Suchen …",
+    "export": "Exportieren",
+    "delete": "Löschen",
     "empty": "Noch keine Vorgänge — sobald eine E-Mail eingeht, erscheint sie hier.",
     "loadError": "Vorgänge konnten nicht geladen werden. Läuft das Backend?"
   }
