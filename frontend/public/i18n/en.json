@@ -24,6 +24,11 @@
     "hasAttachment": "Has attachment",
     "size": "Size",
     "filter": "Filter …",
+    "columns": "Columns",
+    "reset": "Reset",
+    "search": "Search …",
+    "export": "Export",
+    "delete": "Delete",
     "empty": "No cases yet — as soon as a mail arrives, it shows up here.",
     "loadError": "Could not load cases. Is the backend running?"
   }
