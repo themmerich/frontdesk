@@ -160,6 +160,19 @@ describe('CaseList', () => {
     expect(element.textContent).toContain('Delivery status');
   });
 
+  it('reports a hidden column to the caller, which is what gets persisted', async () => {
+    const fixture = createFixture([]);
+
+    const columnsButton = (fixture.nativeElement as HTMLElement).querySelector('p-button button') as HTMLButtonElement;
+    columnsButton.click();
+    await fixture.whenStable();
+
+    (document.querySelector('input#subject') as HTMLInputElement).click();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.visibleFields()).toEqual(['sender', 'hasAttachments', 'sizeBytes', 'receivedAt']);
+  });
+
   it('offers sorting on sender, subject, size, and received, and filters for sender and subject', () => {
     const fixture = createFixture([]);
 
