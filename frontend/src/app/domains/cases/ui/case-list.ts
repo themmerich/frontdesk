@@ -1,6 +1,6 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, input, signal, viewChild } from '@angular/core';
+import { Component, computed, inject, input, model, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
@@ -13,20 +13,10 @@ import { PopoverModule } from 'primeng/popover';
 import { Table, TableModule } from 'primeng/table';
 
 import { Case } from '../model/case';
+import { CASE_COLUMNS, CaseColumnDefinition, CaseColumnField, DEFAULT_COLUMN_ORDER } from '../model/case-column';
 import { FileSizePipe } from './file-size-pipe';
 
-type CaseColumnField = 'sender' | 'subject' | 'hasAttachments' | 'sizeBytes' | 'receivedAt';
-type CaseColumn = { field: CaseColumnField; header: string; sortable: boolean; filterable: boolean };
-
-const CASE_COLUMNS: { field: CaseColumnField; labelKey: string; sortable: boolean; filterable: boolean }[] = [
-  { field: 'sender', labelKey: 'cases.sender', sortable: true, filterable: true },
-  { field: 'subject', labelKey: 'cases.subject', sortable: true, filterable: true },
-  { field: 'hasAttachments', labelKey: 'cases.attachment', sortable: false, filterable: false },
-  { field: 'sizeBytes', labelKey: 'cases.size', sortable: true, filterable: false },
-  { field: 'receivedAt', labelKey: 'cases.receivedAt', sortable: true, filterable: false },
-];
-
-const INITIAL_FIELD_ORDER: CaseColumnField[] = CASE_COLUMNS.map((column) => column.field);
+type CaseColumn = Omit<CaseColumnDefinition, 'labelKey'> & { header: string };
 
 @Component({
   selector: 'app-case-list',
@@ -53,13 +43,15 @@ export class CaseList {
 
   readonly cases = input.required<Case[]>();
 
+  // Column order (drag & drop) and visibility (checkboxes) as in the PrimeNG
+  // column-toggle demo. Two-way bound, so the page can hand them to the store
+  // that persists them; unbound they simply start at the defaults.
+  readonly columnOrder = model<CaseColumnField[]>([...DEFAULT_COLUMN_ORDER]);
+  readonly visibleFields = model<CaseColumnField[]>([...DEFAULT_COLUMN_ORDER]);
+
   private readonly table = viewChild.required(Table);
 
   protected readonly globalFilterFields: CaseColumnField[] = ['sender', 'subject'];
-
-  // Column order (drag & drop) and visibility (checkboxes) as in the PrimeNG column-toggle demo.
-  protected readonly columnOrder = signal<CaseColumnField[]>(INITIAL_FIELD_ORDER);
-  protected readonly visibleFields = signal<CaseColumnField[]>(INITIAL_FIELD_ORDER);
 
   // Re-evaluates the columns once the active translation file (re)loads, so the
   // popover labels, table headers, and CSV export headers are translated.
@@ -81,8 +73,8 @@ export class CaseList {
   }
 
   protected onResetColumns(): void {
-    this.columnOrder.set(INITIAL_FIELD_ORDER);
-    this.visibleFields.set(INITIAL_FIELD_ORDER);
+    this.columnOrder.set([...DEFAULT_COLUMN_ORDER]);
+    this.visibleFields.set([...DEFAULT_COLUMN_ORDER]);
   }
 
   protected onGlobalSearch(query: string): void {
