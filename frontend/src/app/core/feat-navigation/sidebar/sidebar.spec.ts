@@ -13,7 +13,7 @@ const translations = {
     administration: 'Administration',
     users: 'Users',
     profile: 'Profile',
-    settings: 'Settings',
+    emailSettings: 'Email',
     signOut: 'Sign out',
   },
 };
@@ -95,10 +95,10 @@ describe('Sidebar', () => {
     expect(userElement.querySelector('a[href="/users"]')).toBeNull();
   });
 
-  it('offers the settings entry to admins only', () => {
+  it('offers the email settings entry in the administration section to admins only', () => {
     const adminFixture = TestBed.createComponent(Sidebar);
     adminFixture.detectChanges();
-    expect((adminFixture.nativeElement as HTMLElement).querySelector('a[href="/settings"]')).not.toBeNull();
+    expect((adminFixture.nativeElement as HTMLElement).querySelector('a[href="/settings"]')?.textContent).toContain('Email');
 
     currentUser.set({
       email: 'user@frontdesk.local',
