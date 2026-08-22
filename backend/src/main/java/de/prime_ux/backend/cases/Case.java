@@ -1,8 +1,12 @@
 package de.prime_ux.backend.cases;
 
+import de.prime_ux.backend.users.Tenant;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -24,6 +28,10 @@ public class Case {
 	@Id
 	@UuidGenerator
 	private UUID id;
+
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "tenant_id")
+	private Tenant tenant;
 
 	@Column(name = "message_id")
 	private String messageId;
@@ -49,8 +57,9 @@ public class Case {
 	@Column(name = "size_bytes", nullable = false)
 	private long sizeBytes;
 
-	public Case(String messageId, String sender, String subject, String bodyText, Instant receivedAt,
+	public Case(Tenant tenant, String messageId, String sender, String subject, String bodyText, Instant receivedAt,
 			boolean hasAttachments, long sizeBytes) {
+		this.tenant = tenant;
 		this.messageId = messageId;
 		this.sender = sender;
 		this.subject = subject;
