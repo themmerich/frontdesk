@@ -48,7 +48,7 @@ describe('UserColumnsService', () => {
   it('restores a stored order and visibility', () => {
     storage.setItem(
       'frontdesk-user-columns',
-      JSON.stringify({ order: ['email', 'displayName', 'role', 'createdAt'], visibleFields: ['email'] }),
+      JSON.stringify({ order: ['email', 'displayName', 'role', 'active', 'createdAt'], visibleFields: ['email'] }),
     );
 
     const service = TestBed.inject(UserColumnsService);
@@ -78,10 +78,10 @@ describe('UserColumnsService', () => {
   it('persists a changed order', () => {
     const service = TestBed.inject(UserColumnsService);
 
-    service.order.set(['email', 'displayName', 'role', 'createdAt']);
+    service.order.set(['email', 'displayName', 'role', 'active', 'createdAt']);
     TestBed.tick();
 
-    expect(storedPreferences(storage)['order']).toEqual(['email', 'displayName', 'role', 'createdAt']);
+    expect(storedPreferences(storage)['order']).toEqual(['email', 'displayName', 'role', 'active', 'createdAt']);
   });
 
   it('works without a storage, so the app still runs where localStorage is blocked', () => {

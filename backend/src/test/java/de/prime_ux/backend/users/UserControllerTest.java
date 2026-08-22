@@ -1,6 +1,9 @@
 package de.prime_ux.backend.users;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -36,6 +40,10 @@ class UserControllerTest {
 	@Autowired
 	private TenantMailSettingsRepository tenantMailSettingsRepository;
 
+	private AppUser anna;
+	private AppUser ben;
+	private AppUser fritz;
+
 	@BeforeEach
 	void cleanDatabaseAndCreateUsers() {
 		// Cases and mail settings reference tenants and may linger from other
@@ -46,13 +54,13 @@ class UserControllerTest {
 		tenantRepository.deleteAll();
 		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
-		appUserRepository.save(new AppUser(tenant, "anna@musterfirma.example", "Anna Admin", "{noop}irrelevant",
+		anna = appUserRepository.save(new AppUser(tenant, "anna@musterfirma.example", "Anna Admin", "{noop}irrelevant",
 				UserRole.ADMIN));
-		appUserRepository.save(new AppUser(tenant, "ben@musterfirma.example", "Ben Benutzer", "{noop}irrelevant",
+		ben = appUserRepository.save(new AppUser(tenant, "ben@musterfirma.example", "Ben Benutzer", "{noop}irrelevant",
 				UserRole.USER));
 		// Another tenant's user must never show up in this tenant's list.
-		appUserRepository.save(new AppUser(otherTenant, "fritz@beispiel.example", "Fritz Fremd", "{noop}irrelevant",
-				UserRole.ADMIN));
+		fritz = appUserRepository.save(new AppUser(otherTenant, "fritz@beispiel.example", "Fritz Fremd",
+				"{noop}irrelevant", UserRole.ADMIN));
 	}
 
 	@Test
@@ -64,10 +72,59 @@ class UserControllerTest {
 				.andExpect(jsonPath("$[0].displayName").value("Anna Admin"))
 				.andExpect(jsonPath("$[0].email").value("anna@musterfirma.example"))
 				.andExpect(jsonPath("$[0].role").value("admin"))
+				.andExpect(jsonPath("$[0].active").value(true))
 				.andExpect(jsonPath("$[0].id").exists())
 				.andExpect(jsonPath("$[0].createdAt").exists())
 				.andExpect(jsonPath("$[1].displayName").value("Ben Benutzer"))
 				.andExpect(jsonPath("$[1].role").value("user"));
+	}
+
+	@Test
+	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
+	void deactivatesAndReactivatesAUserOfTheOwnTenant() throws Exception {
+		mockMvc.perform(put("/api/users/" + ben.getId() + "/active").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"active\": false}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.email").value("ben@musterfirma.example"))
+				.andExpect(jsonPath("$.active").value(false));
+		assertThat(appUserRepository.findById(ben.getId()).orElseThrow().isActive()).isFalse();
+
+		mockMvc.perform(put("/api/users/" + ben.getId() + "/active").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"active\": true}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.active").value(true));
+		assertThat(appUserRepository.findById(ben.getId()).orElseThrow().isActive()).isTrue();
+	}
+
+	@Test
+	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
+	void rejectsAdminsDeactivatingThemselves() throws Exception {
+		mockMvc.perform(put("/api/users/" + anna.getId() + "/active").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"active\": false}"))
+				.andExpect(status().isBadRequest());
+		assertThat(appUserRepository.findById(anna.getId()).orElseThrow().isActive()).isTrue();
+	}
+
+	@Test
+	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
+	void answersNotFoundForAnotherTenantsUser() throws Exception {
+		mockMvc.perform(put("/api/users/" + fritz.getId() + "/active").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"active\": false}"))
+				.andExpect(status().isNotFound());
+		assertThat(appUserRepository.findById(fritz.getId()).orElseThrow().isActive()).isTrue();
+	}
+
+	@Test
+	@WithMockUser(username = "ben@musterfirma.example")
+	void deniesDeactivationToNonAdmins() throws Exception {
+		mockMvc.perform(put("/api/users/" + anna.getId() + "/active").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"active\": false}"))
+				.andExpect(status().isForbidden());
 	}
 
 	@Test

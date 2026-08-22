@@ -1,6 +1,6 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, input, model, viewChild } from '@angular/core';
+import { Component, computed, inject, input, model, output, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
@@ -13,6 +13,7 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { PopoverModule } from 'primeng/popover';
 import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { TooltipModule } from 'primeng/tooltip';
 
 import { User } from '../model/user';
 import { USER_COLUMNS, UserColumnDefinition, UserColumnField, DEFAULT_COLUMN_ORDER } from '../model/user-column';
@@ -37,6 +38,7 @@ type UserColumn = Omit<UserColumnDefinition, 'labelKey'> & { header: string };
     PopoverModule,
     TableModule,
     TagModule,
+    TooltipModule,
   ],
   templateUrl: './user-list.html',
 })
@@ -50,6 +52,9 @@ export class UserList {
   // persists them; unbound they simply start at the defaults.
   readonly columnOrder = model<UserColumnField[]>([...DEFAULT_COLUMN_ORDER]);
   readonly visibleFields = model<UserColumnField[]>([...DEFAULT_COLUMN_ORDER]);
+
+  /** Asks the page to activate or deactivate this user (read-only list, smart page). */
+  readonly toggleActive = output<User>();
 
   private readonly table = viewChild.required(Table);
 
@@ -74,6 +79,15 @@ export class UserList {
     return [
       { label: this.transloco.translate('users.roleAdmin'), value: 'admin' },
       { label: this.transloco.translate('users.roleUser'), value: 'user' },
+    ];
+  });
+
+  /** Options of the active multi-select filter, matching the raw boolean values. */
+  protected readonly activeOptions = computed<{ label: string; value: boolean }[]>(() => {
+    this.translation();
+    return [
+      { label: this.transloco.translate('users.activeTag'), value: true },
+      { label: this.transloco.translate('users.inactiveTag'), value: false },
     ];
   });
 

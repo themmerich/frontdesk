@@ -4,7 +4,7 @@
  * build on the same definitions.
  */
 
-export type UserColumnField = 'displayName' | 'email' | 'role' | 'createdAt';
+export type UserColumnField = 'displayName' | 'email' | 'role' | 'active' | 'createdAt';
 
 export type UserColumnDefinition = {
   field: UserColumnField;
@@ -16,11 +16,14 @@ export type UserColumnDefinition = {
 export const USER_COLUMNS: readonly UserColumnDefinition[] = [
   { field: 'displayName', labelKey: 'users.displayName', sortable: true, filterable: true },
   { field: 'email', labelKey: 'users.email', sortable: true, filterable: true },
-  // Filtered through a dropdown (not the text filter): the cell shows a
-  // translated label while the row keeps the raw value, so free text would
-  // have to match the untranslated value — confusing.
+  // Role and active are filtered through multi-selects (not the text filter):
+  // their cells show translated labels while the rows keep the raw values, so
+  // free text would have to match the untranslated value — confusing.
   { field: 'role', labelKey: 'users.role', sortable: true, filterable: true },
-  { field: 'createdAt', labelKey: 'users.createdAt', sortable: true, filterable: false },
+  { field: 'active', labelKey: 'users.active', sortable: true, filterable: true },
+  // Filtered through PrimeNG's date filter; the list component picks the
+  // control per field, this flag only says that a filter exists.
+  { field: 'createdAt', labelKey: 'users.createdAt', sortable: true, filterable: true },
 ];
 
 export const DEFAULT_COLUMN_ORDER: readonly UserColumnField[] = USER_COLUMNS.map((column) => column.field);
