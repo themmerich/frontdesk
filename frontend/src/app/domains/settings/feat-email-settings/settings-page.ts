@@ -8,7 +8,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 
 import { MailSettingsStore } from '../data/mail-settings-store';
-import { GREENMAIL_DEFAULTS, MailSettings, MailSettingsMode } from '../model/mail-settings';
+import { GREENMAIL_DEFAULTS, MAIL_PROVIDER_PRESETS, MailProviderPreset, MailSettings, MailSettingsMode } from '../model/mail-settings';
 
 type ConnectionFormModel = {
   imapHost: string;
@@ -43,6 +43,9 @@ export class SettingsPage {
   protected readonly store = inject(MailSettingsStore);
 
   protected readonly greenMailDefaults = GREENMAIL_DEFAULTS;
+  protected readonly providerPresets = MAIL_PROVIDER_PRESETS;
+  /** The last applied preset, so its caveat (e.g. app password) stays visible. */
+  protected readonly appliedPreset = signal<MailProviderPreset | null>(null);
 
   // Every piece of state re-anchors on the loaded (or freshly saved) settings,
   // while staying freely editable in between.
@@ -67,6 +70,20 @@ export class SettingsPage {
   // Validation errors stay hidden until the field was visited or a save was
   // attempted — submit() alone does not flip the fields' touched state.
   protected readonly hasSubmitAttempted = signal(false);
+
+  /** Prefills the connection fields; username, password, and folder stay untouched. */
+  protected onApplyPreset(preset: MailProviderPreset): void {
+    this.connection.update((connection) => ({
+      ...connection,
+      imapHost: preset.imapHost,
+      imapPort: preset.imapPort,
+      smtpHost: preset.smtpHost,
+      smtpPort: preset.smtpPort,
+    }));
+    this.isImapTls.set(preset.imapTls);
+    this.isSmtpTls.set(preset.smtpTls);
+    this.appliedPreset.set(preset);
+  }
 
   protected async onSave(event: Event): Promise<void> {
     event.preventDefault();
