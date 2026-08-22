@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CaseRepository extends JpaRepository<Case, UUID> {
 
-	List<Case> findAllByOrderByReceivedAtDesc();
+	List<Case> findAllByTenantIdOrderByReceivedAtDesc(UUID tenantId);
 
-	boolean existsByMessageId(String messageId);
+	boolean existsByTenantIdAndMessageId(UUID tenantId, String messageId);
 }

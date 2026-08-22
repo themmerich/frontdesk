@@ -1,5 +1,7 @@
 package de.prime_ux.backend.cases;
 
+import de.prime_ux.backend.mailsettings.TenantMailSettings;
+import de.prime_ux.backend.users.Tenant;
 import jakarta.mail.BodyPart;
 import jakarta.mail.Flags;
 import jakarta.mail.Folder;
@@ -22,50 +24,52 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Pulls unseen mails from the configured IMAP inbox and persists each one as a {@link Case}.
+ * Pulls unseen mails from one tenant's IMAP inbox and persists each one as a {@link Case} of
+ * that tenant.
  *
  * <p>Processed mails are marked SEEN on the server, so every poll only touches new arrivals. A
- * mail whose Message-ID was already ingested is skipped (protects against re-ingesting when the
- * SEEN flag is lost, e.g. after a mailbox reset).
+ * mail whose Message-ID was already ingested for this tenant is skipped (protects against
+ * re-ingesting when the SEEN flag is lost, e.g. after a mailbox reset).
  */
 @Service
 public class MailIngestService {
 
 	private static final Logger log = LoggerFactory.getLogger(MailIngestService.class);
 
-	private final MailIngestProperties properties;
 	private final CaseRepository caseRepository;
 
-	public MailIngestService(MailIngestProperties properties, CaseRepository caseRepository) {
-		this.properties = properties;
+	public MailIngestService(CaseRepository caseRepository) {
 		this.caseRepository = caseRepository;
 	}
 
-	/** One poll cycle; called by the scheduler. Connection problems are logged, never thrown. */
-	public void pollOnce() {
-		Session session = Session.getInstance(imapSessionProperties());
-		try (Store store = session.getStore("imap")) {
-			store.connect(properties.host(), properties.port(), properties.username(), properties.password());
-			ingestUnseenMessages(store);
+	/** One poll cycle for one tenant's inbox. Connection problems are logged, never thrown. */
+	public void pollOnce(TenantMailSettings settings) {
+		String protocol = settings.isImapTls() ? "imaps" : "imap";
+		Session session = Session.getInstance(imapSessionProperties(protocol));
+		try (Store store = session.getStore(protocol)) {
+			store.connect(settings.getImapHost(), settings.getImapPort(), settings.getUsername(),
+					settings.getPassword());
+			ingestUnseenMessages(store, settings);
 		} catch (MessagingException e) {
-			log.warn("Mail poll failed, will retry on the next cycle: {}", e.getMessage());
+			log.warn("Mail poll for tenant '{}' failed, will retry on the next cycle: {}",
+					settings.getTenant().getName(), e.getMessage());
 		}
 	}
 
-	private Properties imapSessionProperties() {
+	private Properties imapSessionProperties(String protocol) {
 		Properties sessionProperties = new Properties();
-		sessionProperties.put("mail.imap.connectiontimeout", "5000");
-		sessionProperties.put("mail.imap.timeout", "5000");
+		sessionProperties.put("mail." + protocol + ".connectiontimeout", "5000");
+		sessionProperties.put("mail." + protocol + ".timeout", "5000");
 		return sessionProperties;
 	}
 
-	private void ingestUnseenMessages(Store store) throws MessagingException {
-		Folder folder = store.getFolder(properties.folder());
+	private void ingestUnseenMessages(Store store, TenantMailSettings settings) throws MessagingException {
+		Folder folder = store.getFolder(settings.getFolder());
 		folder.open(Folder.READ_WRITE);
 		try {
 			Message[] unseenMessages = folder.search(new FlagTerm(new Flags(Flags.Flag.SEEN), false));
 			for (Message message : unseenMessages) {
-				ingest((MimeMessage) message);
+				ingest((MimeMessage) message, settings.getTenant());
 				message.setFlag(Flags.Flag.SEEN, true);
 			}
 		} finally {
@@ -73,14 +77,15 @@ public class MailIngestService {
 		}
 	}
 
-	private void ingest(MimeMessage message) throws MessagingException {
+	private void ingest(MimeMessage message, Tenant tenant) throws MessagingException {
 		String messageId = message.getMessageID();
-		if (messageId != null && caseRepository.existsByMessageId(messageId)) {
+		if (messageId != null && caseRepository.existsByTenantIdAndMessageId(tenant.getId(), messageId)) {
 			log.debug("Skipping already ingested mail {}", messageId);
 			return;
 		}
-		Case newCase = new Case(messageId, senderOf(message), Objects.requireNonNullElse(message.getSubject(), ""),
-				bodyTextOf(message), receivedAtOf(message), hasAttachments(message), sizeOf(message));
+		Case newCase = new Case(tenant, messageId, senderOf(message),
+				Objects.requireNonNullElse(message.getSubject(), ""), bodyTextOf(message), receivedAtOf(message),
+				hasAttachments(message), sizeOf(message));
 		caseRepository.save(newCase);
 		log.info("Ingested mail '{}' from {} as case {}", newCase.getSubject(), newCase.getSender(), newCase.getId());
 	}
