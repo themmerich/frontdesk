@@ -35,9 +35,8 @@ test.describe('Email settings', () => {
     });
 
     await page.goto('/');
-    // The settings entry sits in the collapsed profile menu at the sidebar's bottom.
-    await page.getByText('Anna Admin').click();
-    await page.getByRole('link', { name: 'Einstellungen' }).click();
+    // The email settings entry sits in the sidebar's admin-only administration section.
+    await page.getByRole('link', { name: 'E-Mail' }).click();
 
     await expect(page.getByRole('heading', { name: 'E-Mail-Einstellungen' })).toBeVisible();
     // GreenMail mode shows the fixed values without editable fields.
@@ -91,10 +90,12 @@ test.describe('Email settings', () => {
 
     await page.goto('/settings');
 
-    // The admin guard sends them to the start page; the opened profile menu has no settings entry.
+    // The admin guard sends them to the start page; the sidebar offers no administration section.
     await expect(page.getByRole('heading', { name: 'Vorgänge' })).toBeVisible();
+    await expect(page.getByText('Administration')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'E-Mail' })).toHaveCount(0);
+    // The profile menu at the sidebar's bottom keeps its personal entries.
     await page.getByText('Uwe User').click();
     await expect(page.getByText('Profil')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Einstellungen' })).toHaveCount(0);
   });
 });
