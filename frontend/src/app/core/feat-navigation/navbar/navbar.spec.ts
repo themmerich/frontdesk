@@ -1,7 +1,8 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
+import { AuthStore } from '../../data/auth-store';
 import { THEME_STORAGE } from '../../data/theme-store';
 import { Navbar } from './navbar';
 
@@ -32,7 +33,11 @@ describe('Navbar', () => {
       // THEME_STORAGE as null: no real localStorage is reliably available in
       // unit tests (see theme-store.spec.ts), and this test only asserts the
       // visible toggle behavior.
-      providers: [provideZonelessChangeDetection(), { provide: THEME_STORAGE, useValue: null }],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: THEME_STORAGE, useValue: null },
+        { provide: AuthStore, useValue: { avatarUrl: signal<string | null>(null) } as unknown as AuthStore },
+      ],
     }).compileComponents();
   });
 

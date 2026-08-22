@@ -2,6 +2,7 @@ package de.prime_ux.backend.auth;
 
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
+import de.prime_ux.backend.users.UserAvatarRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -37,13 +38,16 @@ class AuthController {
 
 	private final AuthenticationManager authenticationManager;
 	private final AppUserRepository appUserRepository;
+	private final UserAvatarRepository userAvatarRepository;
 	private final SecurityContextHolderStrategy securityContextHolderStrategy = SecurityContextHolder
 			.getContextHolderStrategy();
 	private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 
-	AuthController(AuthenticationManager authenticationManager, AppUserRepository appUserRepository) {
+	AuthController(AuthenticationManager authenticationManager, AppUserRepository appUserRepository,
+			UserAvatarRepository userAvatarRepository) {
 		this.authenticationManager = authenticationManager;
 		this.appUserRepository = appUserRepository;
+		this.userAvatarRepository = userAvatarRepository;
 	}
 
 	@PostMapping("/login")
@@ -65,7 +69,7 @@ class AuthController {
 	@GetMapping("/me")
 	public CurrentUserResponse me(Authentication authentication, HttpServletRequest servletRequest) {
 		return appUserRepository.findByEmailIgnoreCase(authentication.getName())
-				.map(CurrentUserResponse::from)
+				.map(user -> CurrentUserResponse.from(user, userAvatarRepository.existsByUserId(user.getId())))
 				.orElseThrow(() -> {
 					// The account vanished while its session lived on (e.g. deleted by an
 					// admin): end the orphaned session and answer like any signed-out call.
@@ -86,6 +90,6 @@ class AuthController {
 	private CurrentUserResponse currentUser(String email) {
 		// Only reached right after a successful authentication, so the user exists.
 		AppUser user = appUserRepository.findByEmailIgnoreCase(email).orElseThrow();
-		return CurrentUserResponse.from(user);
+		return CurrentUserResponse.from(user, userAvatarRepository.existsByUserId(user.getId()));
 	}
 }

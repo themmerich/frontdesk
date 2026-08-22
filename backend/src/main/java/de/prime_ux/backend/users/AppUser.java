@@ -58,4 +58,12 @@ public class AppUser {
 		this.role = role;
 		this.createdAt = Instant.now();
 	}
+
+	public void rename(String displayName) {
+		this.displayName = displayName;
+	}
+
+	public void changePassword(String passwordHash) {
+		this.passwordHash = passwordHash;
+	}
 }

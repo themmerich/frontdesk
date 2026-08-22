@@ -69,7 +69,7 @@ export class SettingsPage {
     required(schemaPath.folder);
   });
 
-  protected readonly saveState = signal<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  protected readonly isSaving = signal(false);
   protected readonly isTesting = signal(false);
   // Validation errors stay hidden until the field was visited or a save was
   // attempted — submit() alone does not flip the fields' touched state.
@@ -145,7 +145,7 @@ export class SettingsPage {
   }
 
   private async persist(): Promise<void> {
-    this.saveState.set('saving');
+    this.isSaving.set(true);
     try {
       await this.store.save({
         mode: this.mode(),
@@ -155,9 +155,11 @@ export class SettingsPage {
         pollingEnabled: this.isPollingEnabled(),
       });
       this.hasSubmitAttempted.set(false);
-      this.saveState.set('saved');
+      this.messageService.add({ severity: 'success', summary: this.transloco.translate('settings.saved') });
     } catch {
-      this.saveState.set('error');
+      this.messageService.add({ severity: 'error', summary: this.transloco.translate('settings.saveError') });
+    } finally {
+      this.isSaving.set(false);
     }
   }
 }

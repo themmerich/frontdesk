@@ -4,6 +4,10 @@
 
     @if (store.settings.error()) {
       <p-message severity="error">{{ t('settings.loadError') }}</p-message>
+    } @else if (store.settings.isLoading()) {
+      <!-- The form must not exist before the stored settings arrived: a save in that
+           window would silently write the defaults over the stored configuration. -->
+      <i class="pi pi-spinner pi-spin" role="img" [attr.aria-label]="t('settings.loading')"></i>
     } @else {
       <!-- novalidate: Signal Forms attach per field, so Angular never disables the browser's
            own bubbles; validation and messages come from the form schema instead. -->
@@ -153,14 +157,8 @@
           <label for="pollingEnabled">{{ t('settings.pollingEnabled') }}</label>
         </div>
 
-        @if (saveState() === 'saved') {
-          <p-message severity="success">{{ t('settings.saved') }}</p-message>
-        } @else if (saveState() === 'error') {
-          <p-message severity="error">{{ t('settings.saveError') }}</p-message>
-        }
-
         <div class="flex items-center gap-2">
-          <p-button type="submit" [label]="t('settings.save')" [loading]="saveState() === 'saving'" />
+          <p-button type="submit" [label]="t('settings.save')" [loading]="isSaving()" />
           @if (mode() === 'CUSTOM') {
             <p-button
               type="button"

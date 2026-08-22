@@ -21,13 +21,13 @@ describe('adminGuard', () => {
   }
 
   it('lets admins pass', async () => {
-    currentUser.set({ email: 'a@b.c', displayName: 'Anna', role: 'admin', tenantName: 'Musterfirma GmbH' });
+    currentUser.set({ email: 'a@b.c', displayName: 'Anna', role: 'admin', tenantName: 'Musterfirma GmbH', hasAvatar: false });
 
     expect(await runGuard()).toBe(true);
   });
 
   it('sends regular users back to the start page', async () => {
-    currentUser.set({ email: 'u@b.c', displayName: 'Uwe', role: 'user', tenantName: 'Musterfirma GmbH' });
+    currentUser.set({ email: 'u@b.c', displayName: 'Uwe', role: 'user', tenantName: 'Musterfirma GmbH', hasAvatar: false });
 
     const result = await runGuard();
 

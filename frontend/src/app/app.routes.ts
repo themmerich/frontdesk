@@ -25,6 +25,10 @@ export const routes: Routes = [
         canActivate: [adminGuard],
         loadChildren: () => import('./domains/settings/api/settings-routes').then((m) => m.settingsRoutes),
       },
+      {
+        path: 'profile',
+        loadComponent: () => import('./core/feat-profile/profile-page').then((m) => m.ProfilePage),
+      },
     ],
   },
 ];

@@ -3,10 +3,11 @@ package de.prime_ux.backend.auth;
 import de.prime_ux.backend.users.AppUser;
 import java.util.Locale;
 
-public record CurrentUserResponse(String email, String displayName, String role, String tenantName) {
+public record CurrentUserResponse(String email, String displayName, String role, String tenantName,
+		boolean hasAvatar) {
 
-	static CurrentUserResponse from(AppUser user) {
+	public static CurrentUserResponse from(AppUser user, boolean hasAvatar) {
 		return new CurrentUserResponse(user.getEmail(), user.getDisplayName(),
-				user.getRole().name().toLowerCase(Locale.ROOT), user.getTenant().getName());
+				user.getRole().name().toLowerCase(Locale.ROOT), user.getTenant().getName(), hasAvatar);
 	}
 }
