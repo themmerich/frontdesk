@@ -34,6 +34,9 @@ class SecurityConfig {
 		http
 			.authorizeHttpRequests(requests -> requests
 				.requestMatchers("/api/auth/login").permitAll()
+				// Tenant administration (mailbox settings, later user management) is
+				// the admins' realm — the first actual role enforcement.
+				.requestMatchers("/api/settings/**").hasRole("ADMIN")
 				.anyRequest().authenticated())
 			.csrf(csrf -> csrf
 				.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())

@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import de.prime_ux.backend.TestcontainersConfiguration;
+import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
 import de.prime_ux.backend.users.Tenant;
@@ -37,12 +38,18 @@ class CaseControllerTest {
 	@Autowired
 	private TenantRepository tenantRepository;
 
+	@Autowired
+	private TenantMailSettingsRepository tenantMailSettingsRepository;
+
 	private Tenant tenant;
 	private Tenant otherTenant;
 
 	@BeforeEach
 	void cleanDatabaseAndCreateTenants() {
 		caseRepository.deleteAll();
+		// Mail settings reference tenants and may linger from other test classes
+		// sharing this context's database.
+		tenantMailSettingsRepository.deleteAll();
 		appUserRepository.deleteAll();
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 
+import { adminGuard } from './core/admin-guard';
 import { authGuard } from './core/auth-guard';
 import { Shell } from './core/feat-navigation/shell/shell';
 
@@ -18,6 +19,11 @@ export const routes: Routes = [
       {
         path: '',
         loadChildren: () => import('./domains/cases/api/cases-routes').then((m) => m.casesRoutes),
+      },
+      {
+        path: 'settings',
+        canActivate: [adminGuard],
+        loadChildren: () => import('./domains/settings/api/settings-routes').then((m) => m.settingsRoutes),
       },
     ],
   },
