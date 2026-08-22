@@ -8,8 +8,12 @@ import { AuthStore } from '../../data/auth-store';
 import { Shell } from './shell';
 
 describe('Shell', () => {
-  // The sidebar inside the shell reads the signed-in user from the store.
-  const authStoreStub = { currentUser: signal(null), logout: () => Promise.resolve() } as unknown as AuthStore;
+  // The sidebar and navbar inside the shell read the signed-in user from the store.
+  const authStoreStub = {
+    currentUser: signal(null),
+    avatarUrl: signal<string | null>(null),
+    logout: () => Promise.resolve(),
+  } as unknown as AuthStore;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({

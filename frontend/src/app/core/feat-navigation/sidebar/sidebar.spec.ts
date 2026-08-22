@@ -17,13 +17,12 @@ const translations = {
 };
 
 describe('Sidebar', () => {
-  const currentUser = signal<CurrentUser | null>({
-    email: 'admin@frontdesk.local',
-    displayName: 'Anna Admin',
-    role: 'admin',
-    tenantName: 'Musterfirma GmbH',
-  });
-  const authStoreStub = { currentUser, logout: () => Promise.resolve() } as unknown as AuthStore;
+  const currentUser = signal<CurrentUser | null>(null);
+  const authStoreStub = {
+    currentUser,
+    avatarUrl: signal<string | null>(null),
+    logout: () => Promise.resolve(),
+  } as unknown as AuthStore;
 
   beforeEach(async () => {
     currentUser.set({
@@ -31,6 +30,7 @@ describe('Sidebar', () => {
       displayName: 'Anna Admin',
       role: 'admin',
       tenantName: 'Musterfirma GmbH',
+      hasAvatar: false,
     });
     await TestBed.configureTestingModule({
       imports: [
@@ -77,7 +77,13 @@ describe('Sidebar', () => {
     adminFixture.detectChanges();
     expect((adminFixture.nativeElement as HTMLElement).querySelector('a[href="/settings"]')).not.toBeNull();
 
-    currentUser.set({ email: 'user@frontdesk.local', displayName: 'Uwe User', role: 'user', tenantName: 'Musterfirma GmbH' });
+    currentUser.set({
+      email: 'user@frontdesk.local',
+      displayName: 'Uwe User',
+      role: 'user',
+      tenantName: 'Musterfirma GmbH',
+      hasAvatar: false,
+    });
     const userFixture = TestBed.createComponent(Sidebar);
     userFixture.detectChanges();
     expect((userFixture.nativeElement as HTMLElement).querySelector('a[href="/settings"]')).toBeNull();

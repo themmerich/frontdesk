@@ -65,7 +65,7 @@ class AuthIntegrationTest {
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(cookieValue(response, "SESSION")).isNotEmpty();
 		assertThat(response.getBody()).isEqualTo(
-				new CurrentUserResponse("admin@frontdesk.local", "Anna Admin", "admin", "Musterfirma GmbH"));
+				new CurrentUserResponse("admin@frontdesk.local", "Anna Admin", "admin", "Musterfirma GmbH", false));
 	}
 
 	@Test
@@ -113,7 +113,7 @@ class AuthIntegrationTest {
 		assertThat(cases.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(me.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(me.getBody())
-				.isEqualTo(new CurrentUserResponse("user@frontdesk.local", "Uwe User", "user", "Musterfirma GmbH"));
+				.isEqualTo(new CurrentUserResponse("user@frontdesk.local", "Uwe User", "user", "Musterfirma GmbH", false));
 	}
 
 	@Test

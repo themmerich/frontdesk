@@ -7,6 +7,7 @@ export type CurrentUser = {
   displayName: string;
   role: 'admin' | 'user';
   tenantName: string;
+  hasAvatar: boolean;
 };
 
 /**
@@ -22,8 +23,13 @@ export class AuthStore {
   // Distinguishes "not signed in" from "not asked the backend yet".
   private readonly isSessionResolved = signal(false);
 
+  // Bumped after avatar changes, so <img> caches never show a stale picture.
+  private readonly avatarVersion = signal(0);
+
   readonly currentUser = this.user.asReadonly();
   readonly isAuthenticated = computed(() => this.user() !== null);
+  /** URL of the signed-in user's profile picture, or null when there is none. */
+  readonly avatarUrl = computed(() => (this.user()?.hasAvatar ? `/api/profile/avatar?v=${this.avatarVersion()}` : null));
 
   /** Resolves the session against the backend once; afterwards the stored answer is reused. */
   async resolveSession(): Promise<void> {
@@ -57,6 +63,20 @@ export class AuthStore {
       // The server session may already be gone; signing out locally is all that is left to do.
     }
     this.clearSession();
+  }
+
+  /** Re-reads the session user, e.g. after the profile page changed name or picture. */
+  async refresh(): Promise<void> {
+    try {
+      this.user.set(await firstValueFrom(this.http.get<CurrentUser>('/api/auth/me')));
+    } catch {
+      // An expired session surfaces through the 401 interceptor; nothing to do here.
+    }
+  }
+
+  /** Called after an avatar upload or removal, so every <img> re-fetches the picture. */
+  bumpAvatarVersion(): void {
+    this.avatarVersion.update((version) => version + 1);
   }
 
   /** Forgets the session locally, e.g. when a 401 reveals it expired on the server. */

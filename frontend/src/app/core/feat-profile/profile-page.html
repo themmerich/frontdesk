@@ -1,0 +1,99 @@
+<ng-container *transloco="let t">
+  <main class="flex max-w-2xl flex-col gap-8">
+    <h1 class="text-2xl font-semibold">{{ t('profile.title') }}</h1>
+
+    <!-- profile picture -->
+    <section class="flex flex-col gap-3">
+      <h2 class="font-medium">{{ t('profile.picture') }}</h2>
+      <div class="flex items-center gap-4">
+        @if (authStore.avatarUrl(); as avatarUrl) {
+          <p-avatar [image]="avatarUrl" shape="circle" size="xlarge" />
+        } @else {
+          <p-avatar icon="pi pi-user" shape="circle" size="xlarge" />
+        }
+        <div class="flex flex-wrap gap-2">
+          <input #fileInput type="file" accept="image/png,image/jpeg,image/webp" class="hidden" (change)="onFileSelected()" />
+          <p-button
+            type="button"
+            severity="secondary"
+            [outlined]="true"
+            icon="pi pi-upload"
+            [label]="t('profile.upload')"
+            [loading]="isSavingAvatar()"
+            (onClick)="onPickFile()"
+          />
+          @if (authStore.avatarUrl()) {
+            <p-button
+              type="button"
+              severity="danger"
+              [outlined]="true"
+              icon="pi pi-trash"
+              [label]="t('profile.remove')"
+              [loading]="isSavingAvatar()"
+              (onClick)="onRemovePicture()"
+            />
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- display name -->
+    <section class="flex flex-col gap-3">
+      <h2 class="font-medium">{{ t('profile.name') }}</h2>
+      <form novalidate class="flex flex-col gap-3" (submit)="onSaveName($event)">
+        <div class="flex flex-col gap-2">
+          <label for="email">{{ t('profile.email') }}</label>
+          <input pInputText id="email" type="email" disabled [value]="authStore.currentUser()?.email" />
+          <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('profile.emailHint') }}</p>
+        </div>
+        <div class="flex flex-col gap-2">
+          <label for="displayName">{{ t('profile.displayName') }}</label>
+          <input pInputText id="displayName" type="text" [formField]="nameForm.displayName" />
+          @if ((nameForm.displayName().touched() || hasNameSubmitAttempted()) && nameForm.displayName().invalid()) {
+            <p-message severity="error" variant="simple" size="small">{{ t('profile.nameRequired') }}</p-message>
+          }
+        </div>
+        <div>
+          <p-button type="submit" [label]="t('profile.save')" [loading]="isSavingName()" />
+        </div>
+      </form>
+    </section>
+
+    <!-- password -->
+    <section class="flex flex-col gap-3">
+      <h2 class="font-medium">{{ t('profile.password') }}</h2>
+      <form novalidate class="flex flex-col gap-3" (submit)="onChangePassword($event)">
+        <div class="flex flex-col gap-2">
+          <label for="currentPassword">{{ t('profile.currentPassword') }}</label>
+          <input
+            pInputText
+            id="currentPassword"
+            type="password"
+            autocomplete="current-password"
+            [formField]="passwordForm.currentPassword"
+          />
+          @if ((passwordForm.currentPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.currentPassword().invalid()) {
+            <p-message severity="error" variant="simple" size="small">{{ t('profile.required') }}</p-message>
+          }
+        </div>
+        <div class="flex flex-col gap-2">
+          <label for="newPassword">{{ t('profile.newPassword') }}</label>
+          <input pInputText id="newPassword" type="password" autocomplete="new-password" [formField]="passwordForm.newPassword" />
+          @if ((passwordForm.newPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.newPassword().invalid()) {
+            <p-message severity="error" variant="simple" size="small">{{ t('profile.passwordTooShort') }}</p-message>
+          }
+        </div>
+        <div class="flex flex-col gap-2">
+          <label for="confirmPassword">{{ t('profile.confirmPassword') }}</label>
+          <input pInputText id="confirmPassword" type="password" autocomplete="new-password" [formField]="passwordForm.confirmPassword" />
+          @if ((passwordForm.confirmPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.confirmPassword().invalid()) {
+            <p-message severity="error" variant="simple" size="small">{{ t('profile.passwordMismatch') }}</p-message>
+          }
+        </div>
+        <div>
+          <p-button type="submit" [label]="t('profile.changePassword')" [loading]="isChangingPassword()" />
+        </div>
+      </form>
+    </section>
+  </main>
+</ng-container>

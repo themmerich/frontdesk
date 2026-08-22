@@ -10,6 +10,7 @@ const user: CurrentUser = {
   displayName: 'Anna Admin',
   role: 'admin',
   tenantName: 'Musterfirma GmbH',
+  hasAvatar: false,
 };
 
 describe('AuthStore', () => {

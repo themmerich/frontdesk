@@ -56,11 +56,12 @@ const greenMailSettings: MailSettings = {
 describe('SettingsPage', () => {
   const settingsValue = signal<MailSettings | undefined>(greenMailSettings);
   const settingsError = signal<Error | undefined>(undefined);
+  const settingsLoading = signal(false);
   let savedUpdates: MailSettingsUpdate[];
   let testedUpdates: MailSettingsUpdate[];
   let testResult: { success: boolean; message: string };
   const storeStub = {
-    settings: { value: settingsValue, error: settingsError },
+    settings: { value: settingsValue, error: settingsError, isLoading: settingsLoading },
     save: (update: MailSettingsUpdate) => {
       savedUpdates.push(update);
       return Promise.resolve();
@@ -76,6 +77,7 @@ describe('SettingsPage', () => {
   beforeEach(async () => {
     settingsValue.set(greenMailSettings);
     settingsError.set(undefined);
+    settingsLoading.set(false);
     savedUpdates = [];
     testedUpdates = [];
     testResult = { success: true, message: '' };
@@ -136,7 +138,9 @@ describe('SettingsPage', () => {
 
     expect(savedUpdates).toHaveLength(1);
     expect(savedUpdates[0].mode).toBe('GREENMAIL');
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Settings saved.');
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].severity).toBe('success');
+    expect(toasts[0].summary).toBe('Settings saved.');
   });
 
   it('does not save an incomplete custom configuration', async () => {
@@ -272,6 +276,16 @@ describe('SettingsPage', () => {
 
     expect(testedUpdates).toHaveLength(0);
     expect(element.textContent).toContain('Required.');
+  });
+
+  it('renders no form while the settings are still loading, so nothing can be saved prematurely', () => {
+    settingsValue.set(undefined);
+    settingsLoading.set(true);
+
+    const element = createFixture().nativeElement as HTMLElement;
+
+    // A save in the loading window would silently write the defaults over the stored configuration.
+    expect(element.querySelector('form')).toBeNull();
   });
 
   it('shows the load error instead of the form when the settings cannot be loaded', () => {

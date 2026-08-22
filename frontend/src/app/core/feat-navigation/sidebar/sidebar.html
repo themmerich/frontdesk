@@ -46,6 +46,7 @@
         <ul class="animate-duration-150 m-0 hidden list-none overflow-hidden p-2">
           <li>
             <a
+              routerLink="/profile"
               class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
             >
               <i class="pi pi-user text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
@@ -82,7 +83,11 @@
           leaveActiveClass="animate-slideup"
           class="flex cursor-pointer items-center gap-2 p-2 text-primary-contrast"
         >
-          <p-avatar icon="pi pi-user" shape="circle" />
+          @if (authStore.avatarUrl(); as avatarUrl) {
+            <p-avatar [image]="avatarUrl" shape="circle" />
+          } @else {
+            <p-avatar icon="pi pi-user" shape="circle" />
+          }
           <span class="flex flex-col">
             <span class="text-base leading-tight font-medium">{{ authStore.currentUser()?.displayName }}</span>
             <span class="text-xs leading-tight opacity-80">{{ authStore.currentUser()?.tenantName }}</span>

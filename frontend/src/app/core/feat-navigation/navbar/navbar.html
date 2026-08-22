@@ -39,7 +39,11 @@
           aria-hidden="true"
         ></i>
       </button>
-      <p-avatar icon="pi pi-user" shape="circle" />
+      @if (authStore.avatarUrl(); as avatarUrl) {
+        <p-avatar [image]="avatarUrl" shape="circle" />
+      } @else {
+        <p-avatar icon="pi pi-user" shape="circle" />
+      }
     </div>
     <!-- `contents` removes the host's flex box (it would push the button group off the right edge
          in the justify-between row); the overlay itself is absolutely positioned and unaffected. -->
