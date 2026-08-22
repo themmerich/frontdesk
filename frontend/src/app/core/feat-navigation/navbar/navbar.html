@@ -29,13 +29,13 @@
       <button
         type="button"
         (click)="onToggleTheme()"
-        [attr.aria-label]="t(themeStore.isDark() ? 'shell.lightMode' : 'shell.darkMode')"
+        [attr.aria-label]="t(themeService.isDark() ? 'shell.lightMode' : 'shell.darkMode')"
         class="cursor-pointer"
       >
         <i
           class="pi text-lg! leading-none! text-surface-500 dark:text-surface-400"
-          [class.pi-moon]="!themeStore.isDark()"
-          [class.pi-sun]="themeStore.isDark()"
+          [class.pi-moon]="!themeService.isDark()"
+          [class.pi-sun]="themeService.isDark()"
           aria-hidden="true"
         ></i>
       </button>
@@ -55,11 +55,11 @@
             @for (swatch of primarySwatches; track swatch.name) {
               <button
                 type="button"
-                (click)="themeStore.setPrimary(swatch.name)"
+                (click)="themeService.setPrimary(swatch.name)"
                 [attr.aria-label]="swatch.name"
-                [attr.aria-pressed]="themeStore.primary() === swatch.name"
+                [attr.aria-pressed]="themeService.primary() === swatch.name"
                 class="h-5 w-5 cursor-pointer rounded-full outline-offset-2 outline-primary"
-                [class.outline-2]="themeStore.primary() === swatch.name"
+                [class.outline-2]="themeService.primary() === swatch.name"
                 [style.background-color]="swatch.color"
               ></button>
             }
@@ -71,11 +71,11 @@
             @for (swatch of surfaceSwatches; track swatch.name) {
               <button
                 type="button"
-                (click)="themeStore.setSurface(swatch.name)"
+                (click)="themeService.setSurface(swatch.name)"
                 [attr.aria-label]="swatch.name"
-                [attr.aria-pressed]="themeStore.surface() === swatch.name"
+                [attr.aria-pressed]="themeService.surface() === swatch.name"
                 class="h-5 w-5 cursor-pointer rounded-full outline-offset-2 outline-primary"
-                [class.outline-2]="themeStore.surface() === swatch.name"
+                [class.outline-2]="themeService.surface() === swatch.name"
                 [style.background-color]="swatch.color"
               ></button>
             }
@@ -87,11 +87,11 @@
             @for (preset of presets; track preset) {
               <button
                 type="button"
-                (click)="themeStore.setPreset(preset)"
-                [attr.aria-pressed]="themeStore.preset() === preset"
+                (click)="themeService.setPreset(preset)"
+                [attr.aria-pressed]="themeService.preset() === preset"
                 class="cursor-pointer rounded-lg border border-surface-300 px-2 py-1 text-sm capitalize dark:border-surface-600"
-                [class.bg-primary]="themeStore.preset() === preset"
-                [class.text-primary-contrast]="themeStore.preset() === preset"
+                [class.bg-primary]="themeService.preset() === preset"
+                [class.text-primary-contrast]="themeService.preset() === preset"
               >
                 {{ preset }}
               </button>

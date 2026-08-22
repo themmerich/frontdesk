@@ -12,7 +12,7 @@
 @plugin 'tailwindcss-primeui';
 
 /* Class-based dark mode: `dark:` variants react to the `.dark` class on <html>,
-   toggled by the ThemeStore (core/data). PrimeNG uses the same selector via
+   toggled by the ThemeService (core/data). PrimeNG uses the same selector via
    `darkModeSelector` in app.config.ts. */
 @custom-variant dark (&:where(.dark, .dark *));
 

@@ -21,7 +21,7 @@ export const CASE_COLUMNS_STORAGE = new InjectionToken<Storage | null>('CASE_COL
  * so persistence hangs off an effect rather than off setter methods.
  */
 @Service()
-export class CaseColumnsStore {
+export class CaseColumnsService {
   private readonly storage = inject(CASE_COLUMNS_STORAGE);
 
   private readonly preferences = this.restore();

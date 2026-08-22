@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { TranslocoDirective } from '@jsverse/transloco';
 
-import { CaseColumnsStore } from '../data/case-columns-store';
+import { CaseColumnsService } from '../data/case-columns-service';
 import { CasesStore } from '../data/cases-store';
 import { CaseList } from '../ui/case-list';
 
@@ -12,5 +12,5 @@ import { CaseList } from '../ui/case-list';
 })
 export class CasesPage {
   protected readonly store = inject(CasesStore);
-  protected readonly columnsStore = inject(CaseColumnsStore);
+  protected readonly columnsService = inject(CaseColumnsService);
 }

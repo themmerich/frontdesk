@@ -99,7 +99,7 @@ export const THEME_STORAGE = new InjectionToken<Storage | null>('THEME_STORAGE',
  * for the palettes.
  */
 @Service()
-export class ThemeStore {
+export class ThemeService {
   private readonly document = inject(DOCUMENT);
   private readonly storage = inject(THEME_STORAGE);
 

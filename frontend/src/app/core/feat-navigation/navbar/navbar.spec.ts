@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
 import { AuthStore } from '../../data/auth-store';
-import { THEME_STORAGE } from '../../data/theme-store';
+import { THEME_STORAGE } from '../../data/theme-service';
 import { Navbar } from './navbar';
 
 const translations = {
@@ -31,7 +31,7 @@ describe('Navbar', () => {
         }),
       ],
       // THEME_STORAGE as null: no real localStorage is reliably available in
-      // unit tests (see theme-store.spec.ts), and this test only asserts the
+      // unit tests (see theme-service.spec.ts), and this test only asserts the
       // visible toggle behavior.
       providers: [
         provideZonelessChangeDetection(),
