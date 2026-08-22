@@ -1,0 +1,146 @@
+<ng-container *transloco="let t">
+  <main class="flex max-w-2xl flex-col gap-6">
+    <h1 class="text-2xl font-semibold">{{ t('settings.title') }}</h1>
+
+    @if (store.settings.error()) {
+      <p-message severity="error">{{ t('settings.loadError') }}</p-message>
+    } @else {
+      <!-- novalidate: Signal Forms attach per field, so Angular never disables the browser's
+           own bubbles; validation and messages come from the form schema instead. -->
+      <form novalidate class="flex flex-col gap-6" (submit)="onSave($event)">
+        <!-- mode choice -->
+        <fieldset class="flex flex-col gap-2">
+          <legend class="mb-2 font-medium">{{ t('settings.mode') }}</legend>
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              (click)="mode.set('GREENMAIL')"
+              [attr.aria-pressed]="mode() === 'GREENMAIL'"
+              class="cursor-pointer rounded-lg border border-surface-300 px-3 py-2 dark:border-surface-600"
+              [class.bg-primary]="mode() === 'GREENMAIL'"
+              [class.text-primary-contrast]="mode() === 'GREENMAIL'"
+            >
+              {{ t('settings.modeGreenmail') }}
+            </button>
+            <button
+              type="button"
+              (click)="mode.set('CUSTOM')"
+              [attr.aria-pressed]="mode() === 'CUSTOM'"
+              class="cursor-pointer rounded-lg border border-surface-300 px-3 py-2 dark:border-surface-600"
+              [class.bg-primary]="mode() === 'CUSTOM'"
+              [class.text-primary-contrast]="mode() === 'CUSTOM'"
+            >
+              {{ t('settings.modeCustom') }}
+            </button>
+          </div>
+        </fieldset>
+
+        @if (mode() === 'GREENMAIL') {
+          <!-- fixed dev values, read-only -->
+          <div class="rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-800">
+            <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">{{ t('settings.greenmailInfo') }}</p>
+            <dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
+              <dt class="font-medium">{{ t('settings.imap') }}</dt>
+              <dd>{{ greenMailDefaults.imapHost }}:{{ greenMailDefaults.imapPort }}</dd>
+              <dt class="font-medium">{{ t('settings.smtp') }}</dt>
+              <dd>{{ greenMailDefaults.smtpHost }}:{{ greenMailDefaults.smtpPort }}</dd>
+              <dt class="font-medium">{{ t('settings.username') }}</dt>
+              <dd>{{ greenMailDefaults.username }}</dd>
+              <dt class="font-medium">{{ t('settings.folder') }}</dt>
+              <dd>{{ greenMailDefaults.folder }}</dd>
+            </dl>
+          </div>
+        } @else {
+          <!-- IMAP -->
+          <fieldset class="flex flex-col gap-3">
+            <legend class="mb-2 font-medium">{{ t('settings.imap') }}</legend>
+            <div class="grid grid-cols-[2fr_1fr] gap-3">
+              <div class="flex flex-col gap-2">
+                <label for="imapHost">{{ t('settings.host') }}</label>
+                <input pInputText id="imapHost" type="text" [formField]="connectionForm.imapHost" />
+                @if ((connectionForm.imapHost().touched() || hasSubmitAttempted()) && connectionForm.imapHost().invalid()) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
+                }
+              </div>
+              <div class="flex flex-col gap-2">
+                <label for="imapPort">{{ t('settings.port') }}</label>
+                <input pInputText id="imapPort" type="number" [formField]="connectionForm.imapPort" />
+                @if ((connectionForm.imapPort().touched() || hasSubmitAttempted()) && connectionForm.imapPort().invalid()) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('settings.invalidPort') }}</p-message>
+                }
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <p-checkbox inputId="imapTls" [binary]="true" [(ngModel)]="isImapTls" [ngModelOptions]="{ standalone: true }" />
+              <label for="imapTls">{{ t('settings.tls') }}</label>
+            </div>
+          </fieldset>
+
+          <!-- SMTP -->
+          <fieldset class="flex flex-col gap-3">
+            <legend class="mb-2 font-medium">{{ t('settings.smtp') }}</legend>
+            <div class="grid grid-cols-[2fr_1fr] gap-3">
+              <div class="flex flex-col gap-2">
+                <label for="smtpHost">{{ t('settings.host') }}</label>
+                <input pInputText id="smtpHost" type="text" [formField]="connectionForm.smtpHost" />
+                @if ((connectionForm.smtpHost().touched() || hasSubmitAttempted()) && connectionForm.smtpHost().invalid()) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
+                }
+              </div>
+              <div class="flex flex-col gap-2">
+                <label for="smtpPort">{{ t('settings.port') }}</label>
+                <input pInputText id="smtpPort" type="number" [formField]="connectionForm.smtpPort" />
+                @if ((connectionForm.smtpPort().touched() || hasSubmitAttempted()) && connectionForm.smtpPort().invalid()) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('settings.invalidPort') }}</p-message>
+                }
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <p-checkbox inputId="smtpTls" [binary]="true" [(ngModel)]="isSmtpTls" [ngModelOptions]="{ standalone: true }" />
+              <label for="smtpTls">{{ t('settings.tls') }}</label>
+            </div>
+          </fieldset>
+
+          <!-- credentials and folder -->
+          <fieldset class="flex flex-col gap-3">
+            <legend class="mb-2 font-medium">{{ t('settings.credentials') }}</legend>
+            <div class="flex flex-col gap-2">
+              <label for="username">{{ t('settings.username') }}</label>
+              <input pInputText id="username" type="text" autocomplete="off" [formField]="connectionForm.username" />
+              @if ((connectionForm.username().touched() || hasSubmitAttempted()) && connectionForm.username().invalid()) {
+                <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
+              }
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="password">{{ t('settings.password') }}</label>
+              <input pInputText id="password" type="password" autocomplete="new-password" [formField]="connectionForm.password" />
+              <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('settings.passwordHint') }}</p>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label for="folder">{{ t('settings.folder') }}</label>
+              <input pInputText id="folder" type="text" [formField]="connectionForm.folder" />
+              @if ((connectionForm.folder().touched() || hasSubmitAttempted()) && connectionForm.folder().invalid()) {
+                <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
+              }
+            </div>
+          </fieldset>
+        }
+
+        <div class="flex items-center gap-2">
+          <p-checkbox inputId="pollingEnabled" [binary]="true" [(ngModel)]="isPollingEnabled" [ngModelOptions]="{ standalone: true }" />
+          <label for="pollingEnabled">{{ t('settings.pollingEnabled') }}</label>
+        </div>
+
+        @if (saveState() === 'saved') {
+          <p-message severity="success">{{ t('settings.saved') }}</p-message>
+        } @else if (saveState() === 'error') {
+          <p-message severity="error">{{ t('settings.saveError') }}</p-message>
+        }
+
+        <div>
+          <p-button type="submit" [label]="t('settings.save')" [loading]="saveState() === 'saving'" />
+        </div>
+      </form>
+    }
+  </main>
+</ng-container>

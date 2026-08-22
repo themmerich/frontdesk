@@ -97,7 +97,42 @@ public class TenantMailSettings {
 
 	/** The fixed local dev configuration, matching the GreenMail service in compose.yaml. */
 	public static TenantMailSettings greenMailDefaults(Tenant tenant) {
-		return new TenantMailSettings(tenant, MailSettingsMode.GREENMAIL, "localhost", 3143, false, "localhost", 3025,
-				false, "inbox@frontdesk.local", "secret", "INBOX", true);
+		TenantMailSettings settings = new TenantMailSettings(tenant, MailSettingsMode.CUSTOM, "", 0, false, "", 0,
+				false, "", "", "", true);
+		settings.applyGreenMailDefaults(true);
+		return settings;
+	}
+
+	/** Switches to the fixed GreenMail dev values; only the polling switch stays configurable. */
+	public void applyGreenMailDefaults(boolean pollingEnabled) {
+		this.mode = MailSettingsMode.GREENMAIL;
+		this.imapHost = "localhost";
+		this.imapPort = 3143;
+		this.imapTls = false;
+		this.smtpHost = "localhost";
+		this.smtpPort = 3025;
+		this.smtpTls = false;
+		this.username = "inbox@frontdesk.local";
+		this.password = "secret";
+		this.folder = "INBOX";
+		this.pollingEnabled = pollingEnabled;
+		this.updatedAt = Instant.now();
+	}
+
+	/** Applies a custom server configuration, as edited on the settings page. */
+	public void applyCustom(String imapHost, int imapPort, boolean imapTls, String smtpHost, int smtpPort,
+			boolean smtpTls, String username, String password, String folder, boolean pollingEnabled) {
+		this.mode = MailSettingsMode.CUSTOM;
+		this.imapHost = imapHost;
+		this.imapPort = imapPort;
+		this.imapTls = imapTls;
+		this.smtpHost = smtpHost;
+		this.smtpPort = smtpPort;
+		this.smtpTls = smtpTls;
+		this.username = username;
+		this.password = password;
+		this.folder = folder;
+		this.pollingEnabled = pollingEnabled;
+		this.updatedAt = Instant.now();
 	}
 }

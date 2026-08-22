@@ -26,6 +26,12 @@ describe('Sidebar', () => {
   const authStoreStub = { currentUser, logout: () => Promise.resolve() } as unknown as AuthStore;
 
   beforeEach(async () => {
+    currentUser.set({
+      email: 'admin@frontdesk.local',
+      displayName: 'Anna Admin',
+      role: 'admin',
+      tenantName: 'Musterfirma GmbH',
+    });
     await TestBed.configureTestingModule({
       imports: [
         Sidebar,
@@ -64,5 +70,16 @@ describe('Sidebar', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent;
     expect(text).toContain('Anna Admin');
     expect(text).toContain('Musterfirma GmbH');
+  });
+
+  it('offers the settings entry to admins only', () => {
+    const adminFixture = TestBed.createComponent(Sidebar);
+    adminFixture.detectChanges();
+    expect((adminFixture.nativeElement as HTMLElement).querySelector('a[href="/settings"]')).not.toBeNull();
+
+    currentUser.set({ email: 'user@frontdesk.local', displayName: 'Uwe User', role: 'user', tenantName: 'Musterfirma GmbH' });
+    const userFixture = TestBed.createComponent(Sidebar);
+    userFixture.detectChanges();
+    expect((userFixture.nativeElement as HTMLElement).querySelector('a[href="/settings"]')).toBeNull();
   });
 });

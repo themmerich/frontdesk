@@ -1,6 +1,7 @@
 package de.prime_ux.backend.mailsettings;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,4 +14,6 @@ public interface TenantMailSettingsRepository extends JpaRepository<TenantMailSe
 	List<TenantMailSettings> findAllByPollingEnabledTrue();
 
 	boolean existsByTenantId(UUID tenantId);
+
+	Optional<TenantMailSettings> findByTenantId(UUID tenantId);
 }
