@@ -22,7 +22,20 @@ const mockCases = [
   },
 ];
 
+// The shell routes sit behind the auth guard, which probes /api/auth/me once
+// per app start — a mocked session keeps these specs focused on the case list.
+const mockUser = {
+  email: 'admin@frontdesk.local',
+  displayName: 'Anna Admin',
+  role: 'admin',
+  tenantName: 'Musterfirma GmbH',
+};
+
 test.describe('Cases page', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/api/auth/me', (route) => route.fulfill({ json: mockUser }));
+  });
+
   test('lists the cases returned by the API', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
 

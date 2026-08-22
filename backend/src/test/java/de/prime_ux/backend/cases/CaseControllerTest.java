@@ -12,11 +12,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = "frontdesk.mail.polling-enabled=false")
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
+// The API requires a session; these tests cover the case listing, not auth,
+// so a mock user keeps them focused. AuthIntegrationTest covers the 401 side.
+@WithMockUser
 class CaseControllerTest {
 
 	@Autowired

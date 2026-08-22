@@ -1,11 +1,15 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
+import { AuthStore } from '../../data/auth-store';
 import { Shell } from './shell';
 
 describe('Shell', () => {
+  // The sidebar inside the shell reads the signed-in user from the store.
+  const authStoreStub = { currentUser: signal(null), logout: () => Promise.resolve() } as unknown as AuthStore;
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [
@@ -16,7 +20,7 @@ describe('Shell', () => {
           preloadLangs: true,
         }),
       ],
-      providers: [provideZonelessChangeDetection(), provideRouter([])],
+      providers: [provideZonelessChangeDetection(), provideRouter([]), { provide: AuthStore, useValue: authStoreStub }],
     }).compileComponents();
   });
 

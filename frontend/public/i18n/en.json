@@ -5,7 +5,6 @@
     "profile": "Profile",
     "settings": "Settings",
     "signOut": "Sign out",
-    "demoUser": "Demo user",
     "openMenu": "Open menu",
     "notifications": "Notifications",
     "darkMode": "Switch to dark mode",
@@ -31,5 +30,14 @@
     "delete": "Delete",
     "empty": "No cases yet — as soon as a mail arrives, it shows up here.",
     "loadError": "Could not load cases. Is the backend running?"
+  },
+  "login": {
+    "title": "Sign in",
+    "email": "Email address",
+    "password": "Password",
+    "submit": "Sign in",
+    "failed": "Sign-in failed. Please check your email address and password.",
+    "emailInvalid": "Please enter a valid email address.",
+    "passwordRequired": "Please enter your password."
   }
 }

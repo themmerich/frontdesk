@@ -5,7 +5,6 @@
     "profile": "Profil",
     "settings": "Einstellungen",
     "signOut": "Abmelden",
-    "demoUser": "Demo-Nutzer",
     "openMenu": "Menü öffnen",
     "notifications": "Benachrichtigungen",
     "darkMode": "Dunkles Design aktivieren",
@@ -31,5 +30,14 @@
     "delete": "Löschen",
     "empty": "Noch keine Vorgänge — sobald eine E-Mail eingeht, erscheint sie hier.",
     "loadError": "Vorgänge konnten nicht geladen werden. Läuft das Backend?"
+  },
+  "login": {
+    "title": "Anmelden",
+    "email": "E-Mail-Adresse",
+    "password": "Passwort",
+    "submit": "Anmelden",
+    "failed": "Anmeldung fehlgeschlagen. Bitte prüfe E-Mail-Adresse und Passwort.",
+    "emailInvalid": "Bitte eine gültige E-Mail-Adresse angeben.",
+    "passwordRequired": "Bitte das Passwort angeben."
   }
 }
