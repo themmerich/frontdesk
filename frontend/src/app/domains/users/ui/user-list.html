@@ -1,0 +1,135 @@
+<ng-container *transloco="let t">
+  <p-table
+    [value]="users()"
+    [columns]="visibleColumns()"
+    [globalFilterFields]="globalFilterFields"
+    dataKey="id"
+    exportFilename="users"
+    sortField="displayName"
+    [sortOrder]="1"
+  >
+    <ng-template #caption>
+      <div class="flex flex-wrap items-center gap-3">
+        <p-button
+          icon="pi pi-cog"
+          severity="secondary"
+          [outlined]="true"
+          [label]="t('users.columns')"
+          (onClick)="columnsPopover.toggle($event)"
+        />
+        <p-popover #columnsPopover styleClass="w-72" [pt]="{ content: 'p-0!' }">
+          <ng-template #content>
+            <div class="flex items-center justify-between gap-2 border-b border-surface-200 px-4 py-3 dark:border-surface-700">
+              <span class="text-sm font-semibold">{{ t('users.columns') }}</span>
+              <p-button
+                icon="pi pi-refresh"
+                variant="text"
+                size="small"
+                severity="secondary"
+                [label]="t('users.reset')"
+                (onClick)="onResetColumns()"
+              />
+            </div>
+            <div class="app-column-toggle-list max-h-80 overflow-auto py-2" cdkDropList (cdkDropListDropped)="onColumnDrop($event)">
+              @for (col of columns(); track col.field) {
+                <div
+                  cdkDrag
+                  cdkDragPreviewClass="app-column-toggle-drag-preview"
+                  class="mx-1 flex items-center gap-2 rounded-md px-3 py-1.5 select-none hover:bg-surface-100 dark:hover:bg-surface-800"
+                >
+                  <i cdkDragHandle class="pi pi-bars cursor-move text-sm text-surface-400 dark:text-surface-500" aria-hidden="true"></i>
+                  <p-checkbox [inputId]="col.field" [value]="col.field" [(ngModel)]="visibleFields" />
+                  <label [for]="col.field" class="cursor-pointer text-sm">{{ col.header }}</label>
+                </div>
+              }
+            </div>
+          </ng-template>
+        </p-popover>
+
+        <p-iconfield class="mx-auto min-w-48 max-w-md flex-1">
+          <p-inputicon styleClass="pi pi-search" />
+          <input
+            #globalSearchInput
+            pInputText
+            type="text"
+            [placeholder]="t('users.search')"
+            [attr.aria-label]="t('users.search')"
+            (input)="onGlobalSearch(globalSearchInput.value)"
+            class="w-full"
+          />
+        </p-iconfield>
+
+        <p-button icon="pi pi-download" severity="secondary" [outlined]="true" [label]="t('users.export')" (onClick)="onExportCsv()" />
+      </div>
+    </ng-template>
+    <ng-template #header let-columns>
+      <tr>
+        @for (col of columns; track col.field) {
+          @if (col.sortable) {
+            <th scope="col" [pSortableColumn]="col.field">
+              <div class="flex items-center gap-2">
+                {{ col.header }}
+                <p-sorticon [field]="col.field" />
+                @if (col.filterable) {
+                  @if (col.field === 'role') {
+                    <p-columnfilter
+                      field="role"
+                      matchMode="in"
+                      display="menu"
+                      [showMatchModes]="false"
+                      [showOperator]="false"
+                      [showAddButton]="false"
+                    >
+                      <ng-template #filter let-value let-filter="filterCallback">
+                        <p-multiselect
+                          [ngModel]="value"
+                          [options]="roleOptions()"
+                          optionLabel="label"
+                          optionValue="value"
+                          [placeholder]="t('users.roleAll')"
+                          [showToggleAll]="false"
+                          (onChange)="filter($event.value)"
+                        />
+                      </ng-template>
+                    </p-columnfilter>
+                  } @else {
+                    <p-columnfilter type="text" display="menu" [field]="col.field" [placeholder]="t('users.filter')" />
+                  }
+                }
+              </div>
+            </th>
+          } @else {
+            <th scope="col">{{ col.header }}</th>
+          }
+        }
+      </tr>
+    </ng-template>
+    <ng-template #body let-row let-columns="columns">
+      <tr>
+        @for (col of columns; track col.field) {
+          <td>
+            @switch (col.field) {
+              @case ('role') {
+                <p-tag
+                  [value]="t(row.role === 'admin' ? 'users.roleAdmin' : 'users.roleUser')"
+                  [severity]="row.role === 'admin' ? 'info' : 'secondary'"
+                />
+              }
+              @case ('createdAt') {
+                {{ row.createdAt | date: 'mediumDate' }}
+              }
+              @default {
+                {{ row[col.field] }}
+              }
+            }
+          </td>
+        }
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr>
+        <td [attr.colspan]="visibleColumns().length">{{ t('users.empty') }}</td>
+      </tr>
+    </ng-template>
+  </p-table>
+</ng-container>
