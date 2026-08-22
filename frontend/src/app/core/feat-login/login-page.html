@@ -1,0 +1,34 @@
+<ng-container *transloco="let t">
+  <main class="flex min-h-screen items-center justify-center bg-surface-50 p-4 dark:bg-surface-950">
+    <div class="w-full max-w-sm rounded-2xl border border-surface-200 bg-surface-0 p-8 dark:border-surface-700 dark:bg-surface-900">
+      <h1 class="mb-1 text-2xl font-semibold">frontdesk</h1>
+      <p class="mb-6 text-surface-500 dark:text-surface-400">{{ t('login.title') }}</p>
+
+      <!-- novalidate: Signal Forms attach per field, so Angular never disables the browser's
+           own bubbles; validation and messages come from the form schema instead. -->
+      <form novalidate class="flex flex-col gap-4" (submit)="onSubmit($event)">
+        <div class="flex flex-col gap-2">
+          <label for="email" class="font-medium">{{ t('login.email') }}</label>
+          <input pInputText id="email" type="email" autocomplete="email" [formField]="loginForm.email" />
+          @if ((loginForm.email().touched() || hasSubmitAttempted()) && loginForm.email().invalid()) {
+            <p-message severity="error" variant="simple" size="small">{{ t('login.emailInvalid') }}</p-message>
+          }
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label for="password" class="font-medium">{{ t('login.password') }}</label>
+          <input pInputText id="password" type="password" autocomplete="current-password" [formField]="loginForm.password" />
+          @if ((loginForm.password().touched() || hasSubmitAttempted()) && loginForm.password().invalid()) {
+            <p-message severity="error" variant="simple" size="small">{{ t('login.passwordRequired') }}</p-message>
+          }
+        </div>
+
+        @if (hasLoginFailed()) {
+          <p-message severity="error">{{ t('login.failed') }}</p-message>
+        }
+
+        <p-button type="submit" styleClass="w-full" [label]="t('login.submit')" [loading]="isSubmitting()" />
+      </form>
+    </div>
+  </main>
+</ng-container>

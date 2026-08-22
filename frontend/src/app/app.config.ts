@@ -2,7 +2,7 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { ApplicationConfig, LOCALE_ID, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideTransloco } from '@jsverse/transloco';
 import { providePrimeNG } from 'primeng/config';
 import Aura from '@primeuix/themes/aura';
@@ -10,6 +10,7 @@ import Aura from '@primeuix/themes/aura';
 import { routes } from './app.routes';
 import { environment } from '../environments/environment';
 import { TranslocoHttpLoader } from './core/transloco-loader';
+import { unauthorizedInterceptor } from './core/unauthorized-interceptor';
 
 // German date/number formatting for Angular pipes (DatePipe etc.), matching
 // the default language. Revisit once a language switcher exists.
@@ -20,7 +21,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     { provide: LOCALE_ID, useValue: 'de-DE' },
     provideRouter(routes),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([unauthorizedInterceptor])),
     provideTransloco({
       config: {
         availableLangs: ['de', 'en'],

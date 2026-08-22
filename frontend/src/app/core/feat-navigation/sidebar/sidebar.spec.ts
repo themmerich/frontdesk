@@ -1,8 +1,9 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
+import { AuthStore, CurrentUser } from '../../data/auth-store';
 import { Sidebar } from './sidebar';
 
 const translations = {
@@ -12,11 +13,18 @@ const translations = {
     profile: 'Profile',
     settings: 'Settings',
     signOut: 'Sign out',
-    demoUser: 'Demo user',
   },
 };
 
 describe('Sidebar', () => {
+  const currentUser = signal<CurrentUser | null>({
+    email: 'admin@frontdesk.local',
+    displayName: 'Anna Admin',
+    role: 'admin',
+    tenantName: 'Musterfirma GmbH',
+  });
+  const authStoreStub = { currentUser, logout: () => Promise.resolve() } as unknown as AuthStore;
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [
@@ -27,7 +35,7 @@ describe('Sidebar', () => {
           preloadLangs: true,
         }),
       ],
-      providers: [provideZonelessChangeDetection(), provideRouter([])],
+      providers: [provideZonelessChangeDetection(), provideRouter([]), { provide: AuthStore, useValue: authStoreStub }],
     }).compileComponents();
   });
 
@@ -47,5 +55,14 @@ describe('Sidebar', () => {
 
     const inboxLink = (fixture.nativeElement as HTMLElement).querySelector('a[href="/"]');
     expect(inboxLink?.textContent).toContain('Inbox');
+  });
+
+  it('shows the signed-in user with their tenant', () => {
+    const fixture = TestBed.createComponent(Sidebar);
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent;
+    expect(text).toContain('Anna Admin');
+    expect(text).toContain('Musterfirma GmbH');
   });
 });

@@ -1,8 +1,10 @@
-import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { AvatarModule } from 'primeng/avatar';
 import { StyleClassModule } from 'primeng/styleclass';
+
+import { AuthStore } from '../../data/auth-store';
 
 /**
  * Colored sidebar with the grouped navigation menu and the user footer. Hidden
@@ -16,4 +18,12 @@ import { StyleClassModule } from 'primeng/styleclass';
   // child of the shell container, exactly as in the original one-piece layout.
   host: { class: 'contents' },
 })
-export class Sidebar {}
+export class Sidebar {
+  protected readonly authStore = inject(AuthStore);
+  private readonly router = inject(Router);
+
+  protected async onSignOut(): Promise<void> {
+    await this.authStore.logout();
+    await this.router.navigate(['/login']);
+  }
+}

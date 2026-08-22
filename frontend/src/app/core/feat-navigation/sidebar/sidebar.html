@@ -61,12 +61,14 @@
             </a>
           </li>
           <li>
-            <a
-              class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+            <button
+              type="button"
+              (click)="onSignOut()"
+              class="flex w-full cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
             >
               <i class="pi pi-sign-out text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
               <span class="text-base leading-tight font-medium">{{ t('shell.signOut') }}</span>
-            </a>
+            </button>
           </li>
         </ul>
         <a
@@ -78,7 +80,10 @@
           class="flex cursor-pointer items-center gap-2 p-2 text-primary-contrast"
         >
           <p-avatar icon="pi pi-user" shape="circle" />
-          <span class="text-base leading-tight font-medium">{{ t('shell.demoUser') }}</span>
+          <span class="flex flex-col">
+            <span class="text-base leading-tight font-medium">{{ authStore.currentUser()?.displayName }}</span>
+            <span class="text-xs leading-tight opacity-80">{{ authStore.currentUser()?.tenantName }}</span>
+          </span>
           <i class="pi pi-angle-up ml-auto text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
         </a>
       </div>
