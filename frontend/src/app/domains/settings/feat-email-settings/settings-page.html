@@ -159,8 +159,18 @@
           <p-message severity="error">{{ t('settings.saveError') }}</p-message>
         }
 
-        <div>
+        <div class="flex items-center gap-2">
           <p-button type="submit" [label]="t('settings.save')" [loading]="saveState() === 'saving'" />
+          @if (mode() === 'CUSTOM') {
+            <p-button
+              type="button"
+              severity="secondary"
+              [outlined]="true"
+              [label]="t('settings.testConnection')"
+              [loading]="isTesting()"
+              (onClick)="onTestConnection()"
+            />
+          }
         </div>
       </form>
     }

@@ -2,6 +2,7 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
+import { MessageService } from 'primeng/api';
 
 import { AuthStore } from '../../data/auth-store';
 import { Shell } from './shell';
@@ -20,7 +21,7 @@ describe('Shell', () => {
           preloadLangs: true,
         }),
       ],
-      providers: [provideZonelessChangeDetection(), provideRouter([]), { provide: AuthStore, useValue: authStoreStub }],
+      providers: [provideZonelessChangeDetection(), provideRouter([]), MessageService, { provide: AuthStore, useValue: authStoreStub }],
     }).compileComponents();
   });
 
@@ -32,5 +33,6 @@ describe('Shell', () => {
     expect(element.querySelector('app-sidebar')).toBeTruthy();
     expect(element.querySelector('app-navbar')).toBeTruthy();
     expect(element.querySelector('router-outlet')).toBeTruthy();
+    expect(element.querySelector('p-toast')).toBeTruthy();
   });
 });

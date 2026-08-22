@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,11 +25,13 @@ class MailSettingsController {
 
 	private final TenantMailSettingsRepository tenantMailSettingsRepository;
 	private final AppUserRepository appUserRepository;
+	private final MailConnectionTester mailConnectionTester;
 
 	MailSettingsController(TenantMailSettingsRepository tenantMailSettingsRepository,
-			AppUserRepository appUserRepository) {
+			AppUserRepository appUserRepository, MailConnectionTester mailConnectionTester) {
 		this.tenantMailSettingsRepository = tenantMailSettingsRepository;
 		this.appUserRepository = appUserRepository;
+		this.mailConnectionTester = mailConnectionTester;
 	}
 
 	@GetMapping
@@ -52,6 +55,29 @@ class MailSettingsController {
 			applyCustom(settings, request);
 		}
 		return MailSettingsResponse.from(tenantMailSettingsRepository.save(settings));
+	}
+
+	/**
+	 * Probes the IMAP mailbox with the form values as they currently stand — deliberately not
+	 * the stored ones, so a configuration can be tested before saving it. A blank password
+	 * means the stored one, mirroring the save semantics.
+	 */
+	@PostMapping("/test")
+	MailConnectionTester.MailConnectionTestResult testConnection(@Valid @RequestBody UpdateMailSettingsRequest request,
+			Authentication authentication) {
+		AppUser user = currentUser(authentication);
+		requireText(request.imapHost(), "imapHost");
+		requirePort(request.imapPort(), "imapPort");
+		requireText(request.username(), "username");
+		requireText(request.folder(), "folder");
+		String password = StringUtils.hasText(request.password()) ? request.password()
+				: tenantMailSettingsRepository.findByTenantId(user.getTenant().getId())
+						.map(TenantMailSettings::getPassword).orElse("");
+		if (!StringUtils.hasText(password)) {
+			throw badRequest("password is required — nothing stored to fall back to");
+		}
+		return mailConnectionTester.test(request.imapHost(), request.imapPort(),
+				Boolean.TRUE.equals(request.imapTls()), request.username(), password, request.folder());
 	}
 
 	private void applyCustom(TenantMailSettings settings, UpdateMailSettingsRequest request) {

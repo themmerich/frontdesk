@@ -4,6 +4,7 @@ import { ApplicationConfig, LOCALE_ID, provideBrowserGlobalErrorListeners } from
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideTransloco } from '@jsverse/transloco';
+import { MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 import Aura from '@primeuix/themes/aura';
 
@@ -22,6 +23,8 @@ export const appConfig: ApplicationConfig = {
     { provide: LOCALE_ID, useValue: 'de-DE' },
     provideRouter(routes),
     provideHttpClient(withInterceptors([unauthorizedInterceptor])),
+    // Feeds the app-wide <p-toast /> in the shell; pages inject it to raise toasts.
+    MessageService,
     provideTransloco({
       config: {
         availableLangs: ['de', 'en'],
