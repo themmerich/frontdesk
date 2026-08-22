@@ -1,5 +1,6 @@
 package de.prime_ux.backend.users;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -11,4 +12,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 	// and outside a transaction the lazy proxy could not be resolved anymore.
 	@EntityGraph(attributePaths = "tenant")
 	Optional<AppUser> findByEmailIgnoreCase(String email);
+
+	List<AppUser> findAllByTenantIdOrderByDisplayNameAsc(UUID tenantId);
 }

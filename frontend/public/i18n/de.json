@@ -2,6 +2,8 @@
   "shell": {
     "cases": "Vorgänge",
     "inbox": "Posteingang",
+    "administration": "Administration",
+    "users": "Benutzer",
     "profile": "Profil",
     "settings": "Einstellungen",
     "signOut": "Abmelden",
@@ -30,6 +32,23 @@
     "delete": "Löschen",
     "empty": "Noch keine Vorgänge — sobald eine E-Mail eingeht, erscheint sie hier.",
     "loadError": "Vorgänge konnten nicht geladen werden. Läuft das Backend?"
+  },
+  "users": {
+    "title": "Benutzer",
+    "displayName": "Anzeigename",
+    "email": "E-Mail-Adresse",
+    "role": "Rolle",
+    "roleAdmin": "Admin",
+    "roleUser": "Benutzer",
+    "roleAll": "Alle",
+    "createdAt": "Dabei seit",
+    "filter": "Filtern …",
+    "columns": "Spalten",
+    "reset": "Zurücksetzen",
+    "search": "Suchen …",
+    "export": "Exportieren",
+    "empty": "Keine Benutzer gefunden.",
+    "loadError": "Benutzer konnten nicht geladen werden. Läuft das Backend?"
   },
   "settings": {
     "title": "E-Mail-Einstellungen",

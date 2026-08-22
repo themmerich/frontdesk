@@ -40,6 +40,33 @@
               </li>
             </ul>
           </li>
+          @if (authStore.currentUser()?.role === 'admin') {
+            <li>
+              <div
+                pStyleClass="@next"
+                enterFromClass="hidden"
+                enterActiveClass="animate-slidedown"
+                leaveToClass="hidden"
+                leaveActiveClass="animate-slideup"
+                class="flex cursor-pointer items-center gap-4 rounded-lg p-3 text-surface-0 transition-colors duration-150 hover:bg-primary-emphasis"
+              >
+                <span class="text-base leading-tight font-semibold text-primary-contrast">{{ t('shell.administration') }}</span>
+                <i class="pi pi-angle-down ml-auto text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+              </div>
+              <ul class="m-0 flex list-none flex-col gap-1 overflow-hidden p-0">
+                <li>
+                  <a
+                    routerLink="/users"
+                    routerLinkActive="bg-primary-emphasis"
+                    class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+                  >
+                    <i class="pi pi-users text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+                    <span class="text-base leading-tight font-medium">{{ t('shell.users') }}</span>
+                  </a>
+                </li>
+              </ul>
+            </li>
+          }
         </ul>
       </nav>
       <div class="mt-auto border-t border-primary-400 py-2 dark:border-primary-300">

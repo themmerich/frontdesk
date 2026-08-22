@@ -10,6 +10,8 @@ const translations = {
   shell: {
     cases: 'Cases',
     inbox: 'Inbox',
+    administration: 'Administration',
+    users: 'Users',
     profile: 'Profile',
     settings: 'Settings',
     signOut: 'Sign out',
@@ -70,6 +72,27 @@ describe('Sidebar', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent;
     expect(text).toContain('Anna Admin');
     expect(text).toContain('Musterfirma GmbH');
+  });
+
+  it('offers the administration section with the users entry to admins only', () => {
+    const adminFixture = TestBed.createComponent(Sidebar);
+    adminFixture.detectChanges();
+    const adminElement = adminFixture.nativeElement as HTMLElement;
+    expect(adminElement.textContent).toContain('Administration');
+    expect(adminElement.querySelector('a[href="/users"]')?.textContent).toContain('Users');
+
+    currentUser.set({
+      email: 'user@frontdesk.local',
+      displayName: 'Uwe User',
+      role: 'user',
+      tenantName: 'Musterfirma GmbH',
+      hasAvatar: false,
+    });
+    const userFixture = TestBed.createComponent(Sidebar);
+    userFixture.detectChanges();
+    const userElement = userFixture.nativeElement as HTMLElement;
+    expect(userElement.textContent).not.toContain('Administration');
+    expect(userElement.querySelector('a[href="/users"]')).toBeNull();
   });
 
   it('offers the settings entry to admins only', () => {

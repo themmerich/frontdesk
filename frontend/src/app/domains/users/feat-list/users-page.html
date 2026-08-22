@@ -1,0 +1,15 @@
+<ng-container *transloco="let t">
+  <main class="flex flex-col gap-4">
+    <h1 class="text-2xl font-semibold">{{ t('users.title') }}</h1>
+    <!-- value() throws while the resource is in the error state, so the list only renders in the else branch. -->
+    @if (usersService.users.error()) {
+      <p class="text-red-600 dark:text-red-400">{{ t('users.loadError') }}</p>
+    } @else {
+      <app-user-list
+        [users]="usersService.users.value()"
+        [(columnOrder)]="columnsService.order"
+        [(visibleFields)]="columnsService.visibleFields"
+      />
+    }
+  </main>
+</ng-container>

@@ -2,6 +2,8 @@
   "shell": {
     "cases": "Cases",
     "inbox": "Inbox",
+    "administration": "Administration",
+    "users": "Users",
     "profile": "Profile",
     "settings": "Settings",
     "signOut": "Sign out",
@@ -30,6 +32,23 @@
     "delete": "Delete",
     "empty": "No cases yet — as soon as a mail arrives, it shows up here.",
     "loadError": "Could not load cases. Is the backend running?"
+  },
+  "users": {
+    "title": "Users",
+    "displayName": "Display name",
+    "email": "Email address",
+    "role": "Role",
+    "roleAdmin": "Admin",
+    "roleUser": "User",
+    "roleAll": "All",
+    "createdAt": "Member since",
+    "filter": "Filter …",
+    "columns": "Columns",
+    "reset": "Reset",
+    "search": "Search …",
+    "export": "Export",
+    "empty": "No users found.",
+    "loadError": "Could not load users. Is the backend running?"
   },
   "settings": {
     "title": "Email settings",
