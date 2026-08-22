@@ -15,7 +15,13 @@ const translations = {
     roleAdmin: 'Admin',
     roleUser: 'User',
     roleAll: 'All',
-    createdAt: 'Member since',
+    active: 'Status',
+    activeTag: 'Active',
+    inactiveTag: 'Inactive',
+    createdAt: 'Created at',
+    actions: 'Actions',
+    activate: 'Activate',
+    deactivate: 'Deactivate',
     filter: 'Filter …',
     columns: 'Columns',
     reset: 'Reset',
@@ -61,14 +67,16 @@ describe('UserList', () => {
     email: 'anna@musterfirma.example',
     displayName: 'Anna Admin',
     role: 'admin',
-    createdAt: '2026-08-01T10:00:00Z',
+    active: true,
+    createdAt: new Date('2026-08-01T10:00:00Z'),
   };
   const ben: User = {
     id: '2',
     email: 'ben@musterfirma.example',
     displayName: 'Ben Benutzer',
     role: 'user',
-    createdAt: '2026-08-02T10:00:00Z',
+    active: false,
+    createdAt: new Date('2026-08-02T10:00:00Z'),
   };
 
   it('renders one row per user', () => {
@@ -81,12 +89,12 @@ describe('UserList', () => {
     expect(text).toContain('ben@musterfirma.example');
   });
 
-  it('shows the role as a translated tag and the formatted date', () => {
+  it('shows role and active state as translated tags and the formatted date', () => {
     const fixture = createFixture([anna, ben]);
 
     const element = fixture.nativeElement as HTMLElement;
     const tags = Array.from(element.querySelectorAll('p-tag')).map((tag) => tag.textContent?.trim());
-    expect(tags).toEqual(['Admin', 'User']);
+    expect(tags).toEqual(['Admin', 'Active', 'User', 'Inactive']);
     expect(element.textContent).toContain('Aug 1, 2026');
   });
 
@@ -109,7 +117,7 @@ describe('UserList', () => {
     const fixture = createFixture([anna]);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelectorAll('th')).toHaveLength(4);
+    expect(element.querySelectorAll('th')).toHaveLength(6);
 
     const columnsButton = element.querySelector('p-button button') as HTMLButtonElement;
     columnsButton.click();
@@ -120,7 +128,7 @@ describe('UserList', () => {
     emailCheckbox.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(3);
+    expect(element.querySelectorAll('th')).toHaveLength(5);
     expect(element.textContent).not.toContain('anna@musterfirma.example');
 
     const resetButton = Array.from(document.querySelectorAll('button')).find((button) =>
@@ -130,7 +138,7 @@ describe('UserList', () => {
     resetButton.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(4);
+    expect(element.querySelectorAll('th')).toHaveLength(6);
     expect(element.textContent).toContain('anna@musterfirma.example');
   });
 
@@ -144,45 +152,105 @@ describe('UserList', () => {
     (document.querySelector('input#email') as HTMLInputElement).click();
     await fixture.whenStable();
 
-    expect(fixture.componentInstance.visibleFields()).toEqual(['displayName', 'role', 'createdAt']);
+    expect(fixture.componentInstance.visibleFields()).toEqual(['displayName', 'role', 'active', 'createdAt']);
   });
 
-  it('offers sorting on every column and filters for name, email, and role', () => {
+  it('offers sorting and a filter on every column', () => {
     const fixture = createFixture([]);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelectorAll('p-sorticon')).toHaveLength(4);
-    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(3);
+    expect(element.querySelectorAll('p-sorticon')).toHaveLength(5);
+    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(5);
   });
 
-  it('offers the role filter as a multi-select with both roles', async () => {
+  it('emits the row when its activate or deactivate action is clicked', () => {
     const fixture = createFixture([anna, ben]);
+    const toggled: User[] = [];
+    fixture.componentInstance.toggleActive.subscribe((user) => toggled.push(user));
 
-    const element = fixture.nativeElement as HTMLElement;
-    const filterToggles = element.querySelectorAll<HTMLButtonElement>('p-columnfilter button');
-    filterToggles[filterToggles.length - 1].click();
+    const actionButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('tbody button'));
+    expect(actionButtons.map((button) => button.getAttribute('aria-label'))).toEqual(['Deactivate', 'Activate']);
+
+    actionButtons[0].click();
+    actionButtons[1].click();
+
+    expect(toggled).toEqual([anna, ben]);
+  });
+
+  // Filter toggle order matches the column order: name, email, role, active, created at.
+  async function openFilterMenu(fixture: ReturnType<typeof createFixture>, index: number): Promise<void> {
+    const filterToggles = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('p-columnfilter button');
+    filterToggles[index].click();
     await fixture.whenStable();
+  }
 
+  async function openedMultiSelectOptions(fixture: ReturnType<typeof createFixture>): Promise<(string | undefined)[]> {
     const multiSelect = document.querySelector('p-multiselect') as HTMLElement;
     expect(multiSelect).not.toBeNull();
     multiSelect.click();
     await fixture.whenStable();
+    return Array.from(document.querySelectorAll('li[role="option"]')).map((option) => option.textContent?.trim());
+  }
 
-    const options = Array.from(document.querySelectorAll('li[role="option"]')).map((option) => option.textContent?.trim());
-    expect(options).toEqual(['Admin', 'User']);
+  it('offers the role filter as a multi-select with both roles', async () => {
+    const fixture = createFixture([anna, ben]);
+
+    await openFilterMenu(fixture, 2);
+
+    expect(await openedMultiSelectOptions(fixture)).toEqual(['Admin', 'User']);
   });
+
+  it('offers the active filter as a multi-select with both states', async () => {
+    const fixture = createFixture([anna, ben]);
+
+    await openFilterMenu(fixture, 3);
+
+    expect(await openedMultiSelectOptions(fixture)).toEqual(['Active', 'Inactive']);
+  });
+
+  it('offers a date filter for the created-at column', async () => {
+    const fixture = createFixture([anna, ben]);
+
+    await openFilterMenu(fixture, 4);
+
+    expect(document.querySelector('p-datepicker')).not.toBeNull();
+  });
+
+  async function applyFilter(fixture: ReturnType<typeof createFixture>, value: unknown, field: string, matchMode: string): Promise<void> {
+    const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
+    table.filter(value, field, matchMode);
+    // The table applies filters after its debounce delay (300 ms by default).
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await fixture.whenStable();
+  }
 
   it('filters the rows down to the chosen roles', async () => {
     const fixture = createFixture([anna, ben]);
 
-    const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
-    table.filter(['admin'], 'role', 'in');
-    // The table applies filters after its debounce delay (300 ms by default).
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    await fixture.whenStable();
+    await applyFilter(fixture, ['admin'], 'role', 'in');
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
     expect(text).toContain('Anna Admin');
     expect(text).not.toContain('Ben Benutzer');
+  });
+
+  it('filters the rows down to the chosen active states', async () => {
+    const fixture = createFixture([anna, ben]);
+
+    await applyFilter(fixture, [false], 'active', 'in');
+
+    const text = (fixture.nativeElement as HTMLElement).textContent;
+    expect(text).toContain('Ben Benutzer');
+    expect(text).not.toContain('Anna Admin');
+  });
+
+  it('filters the rows down to a creation date', async () => {
+    const fixture = createFixture([anna, ben]);
+
+    await applyFilter(fixture, new Date('2026-08-02T00:00:00'), 'createdAt', 'dateIs');
+
+    const text = (fixture.nativeElement as HTMLElement).textContent;
+    expect(text).toContain('Ben Benutzer');
+    expect(text).not.toContain('Anna Admin');
   });
 });

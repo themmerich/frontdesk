@@ -139,6 +139,40 @@ class AuthIntegrationTest {
 	}
 
 	@Test
+	void loginOfADeactivatedUserIsRejectedLikeAnyFailedLogin() {
+		Tenant tenant = tenantRepository.findAll().getFirst();
+		AppUser dormantUser = appUserRepository.save(
+				new AppUser(tenant, "dormant@frontdesk.local", "Dormant User", passwordEncoder.encode("secret"), UserRole.USER));
+		dormantUser.deactivate();
+		appUserRepository.save(dormantUser);
+
+		assertThat(login("dormant@frontdesk.local", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void aSessionWhoseUserWasDeactivatedAnswersUnauthorizedAndEndsTheSession() {
+		// A throwaway user, so the seeded users the other tests rely on stay untouched.
+		Tenant tenant = tenantRepository.findAll().getFirst();
+		AppUser benchedUser = appUserRepository.save(
+				new AppUser(tenant, "benched@frontdesk.local", "Benched User", passwordEncoder.encode("secret"), UserRole.USER));
+		String sessionCookie = "SESSION=" + cookieValue(login("benched@frontdesk.local", "secret"), "SESSION");
+
+		benchedUser.deactivate();
+		appUserRepository.save(benchedUser);
+
+		ResponseEntity<Void> me = client.get().uri("/api/auth/me")
+				.header(HttpHeaders.COOKIE, sessionCookie)
+				.retrieve().toBodilessEntity();
+		ResponseEntity<Void> cases = client.get().uri("/api/cases")
+				.header(HttpHeaders.COOKIE, sessionCookie)
+				.retrieve().toBodilessEntity();
+
+		assertThat(me.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		// The orphaned session was invalidated, so it no longer opens any endpoint.
+		assertThat(cases.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
 	void logoutEndsTheSession() {
 		String session = cookieValue(login("user@frontdesk.local", "secret"), "SESSION");
 		String csrfToken = fetchCsrfToken();

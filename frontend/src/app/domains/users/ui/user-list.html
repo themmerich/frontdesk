@@ -71,29 +71,57 @@
                 {{ col.header }}
                 <p-sorticon [field]="col.field" />
                 @if (col.filterable) {
-                  @if (col.field === 'role') {
-                    <p-columnfilter
-                      field="role"
-                      matchMode="in"
-                      display="menu"
-                      [showMatchModes]="false"
-                      [showOperator]="false"
-                      [showAddButton]="false"
-                    >
-                      <ng-template #filter let-value let-filter="filterCallback">
-                        <p-multiselect
-                          [ngModel]="value"
-                          [options]="roleOptions()"
-                          optionLabel="label"
-                          optionValue="value"
-                          [placeholder]="t('users.roleAll')"
-                          [showToggleAll]="false"
-                          (onChange)="filter($event.value)"
-                        />
-                      </ng-template>
-                    </p-columnfilter>
-                  } @else {
-                    <p-columnfilter type="text" display="menu" [field]="col.field" [placeholder]="t('users.filter')" />
+                  @switch (col.field) {
+                    @case ('role') {
+                      <p-columnfilter
+                        field="role"
+                        matchMode="in"
+                        display="menu"
+                        [showMatchModes]="false"
+                        [showOperator]="false"
+                        [showAddButton]="false"
+                      >
+                        <ng-template #filter let-value let-filter="filterCallback">
+                          <p-multiselect
+                            [ngModel]="value"
+                            [options]="roleOptions()"
+                            optionLabel="label"
+                            optionValue="value"
+                            [placeholder]="t('users.roleAll')"
+                            [showToggleAll]="false"
+                            (onChange)="filter($event.value)"
+                          />
+                        </ng-template>
+                      </p-columnfilter>
+                    }
+                    @case ('active') {
+                      <p-columnfilter
+                        field="active"
+                        matchMode="in"
+                        display="menu"
+                        [showMatchModes]="false"
+                        [showOperator]="false"
+                        [showAddButton]="false"
+                      >
+                        <ng-template #filter let-value let-filter="filterCallback">
+                          <p-multiselect
+                            [ngModel]="value"
+                            [options]="activeOptions()"
+                            optionLabel="label"
+                            optionValue="value"
+                            [placeholder]="t('users.roleAll')"
+                            [showToggleAll]="false"
+                            (onChange)="filter($event.value)"
+                          />
+                        </ng-template>
+                      </p-columnfilter>
+                    }
+                    @case ('createdAt') {
+                      <p-columnfilter type="date" display="menu" field="createdAt" [showOperator]="false" [showAddButton]="false" />
+                    }
+                    @default {
+                      <p-columnfilter type="text" display="menu" [field]="col.field" [placeholder]="t('users.filter')" />
+                    }
                   }
                 }
               </div>
@@ -102,6 +130,9 @@
             <th scope="col">{{ col.header }}</th>
           }
         }
+        <th scope="col" class="w-16">
+          <span class="sr-only">{{ t('users.actions') }}</span>
+        </th>
       </tr>
     </ng-template>
     <ng-template #body let-row let-columns="columns">
@@ -115,6 +146,9 @@
                   [severity]="row.role === 'admin' ? 'info' : 'secondary'"
                 />
               }
+              @case ('active') {
+                <p-tag [value]="t(row.active ? 'users.activeTag' : 'users.inactiveTag')" [severity]="row.active ? 'success' : 'danger'" />
+              }
               @case ('createdAt') {
                 {{ row.createdAt | date: 'mediumDate' }}
               }
@@ -124,11 +158,22 @@
             }
           </td>
         }
+        <td>
+          <p-button
+            [icon]="row.active ? 'pi pi-ban' : 'pi pi-check'"
+            variant="text"
+            severity="secondary"
+            [ariaLabel]="t(row.active ? 'users.deactivate' : 'users.activate')"
+            [pTooltip]="t(row.active ? 'users.deactivate' : 'users.activate')"
+            tooltipPosition="left"
+            (onClick)="toggleActive.emit(row)"
+          />
+        </td>
       </tr>
     </ng-template>
     <ng-template #emptymessage>
       <tr>
-        <td [attr.colspan]="visibleColumns().length">{{ t('users.empty') }}</td>
+        <td [attr.colspan]="visibleColumns().length + 1">{{ t('users.empty') }}</td>
       </tr>
     </ng-template>
   </p-table>

@@ -31,6 +31,9 @@ class AppUserDetailsService implements UserDetailsService {
 		return User.withUsername(user.getEmail())
 				.password(user.getPasswordHash())
 				.roles(user.getRole().name())
+				// Deactivated users cannot sign in; the resulting DisabledException
+				// answers like any other failed login, revealing nothing.
+				.disabled(!user.isActive())
 				.build();
 	}
 }

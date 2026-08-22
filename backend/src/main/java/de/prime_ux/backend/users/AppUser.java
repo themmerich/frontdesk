@@ -47,6 +47,9 @@ public class AppUser {
 	@Column(nullable = false)
 	private UserRole role;
 
+	@Column(nullable = false)
+	private boolean active;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
@@ -56,6 +59,7 @@ public class AppUser {
 		this.displayName = displayName;
 		this.passwordHash = passwordHash;
 		this.role = role;
+		this.active = true;
 		this.createdAt = Instant.now();
 	}
 
@@ -65,5 +69,13 @@ public class AppUser {
 
 	public void changePassword(String passwordHash) {
 		this.passwordHash = passwordHash;
+	}
+
+	public void activate() {
+		this.active = true;
+	}
+
+	public void deactivate() {
+		this.active = false;
 	}
 }

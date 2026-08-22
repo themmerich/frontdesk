@@ -11,10 +11,10 @@ describe('parseColumnPreferences', () => {
   });
 
   it('restores a stored order and visibility', () => {
-    const stored = { order: ['email', 'displayName', 'role', 'createdAt'], visibleFields: ['email', 'displayName'] };
+    const stored = { order: ['email', 'displayName', 'role', 'active', 'createdAt'], visibleFields: ['email', 'displayName'] };
 
     expect(parseColumnPreferences(stored)).toEqual({
-      order: ['email', 'displayName', 'role', 'createdAt'],
+      order: ['email', 'displayName', 'role', 'active', 'createdAt'],
       visibleFields: ['email', 'displayName'],
     });
   });
@@ -34,8 +34,8 @@ describe('parseColumnPreferences', () => {
 
     const preferences = parseColumnPreferences(stored);
 
-    expect(preferences.order).toEqual(['email', 'displayName', 'role', 'createdAt']);
-    expect(preferences.visibleFields).toEqual(['email', 'role', 'createdAt']);
+    expect(preferences.order).toEqual(['email', 'displayName', 'role', 'active', 'createdAt']);
+    expect(preferences.visibleFields).toEqual(['email', 'role', 'active', 'createdAt']);
   });
 
   it('keeps an empty visibility list, which hides every column', () => {

@@ -14,4 +14,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 	Optional<AppUser> findByEmailIgnoreCase(String email);
 
 	List<AppUser> findAllByTenantIdOrderByDisplayNameAsc(UUID tenantId);
+
+	Optional<AppUser> findByIdAndTenantId(UUID id, UUID tenantId);
 }

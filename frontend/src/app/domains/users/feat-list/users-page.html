@@ -9,6 +9,7 @@
         [users]="usersService.users.value()"
         [(columnOrder)]="columnsService.order"
         [(visibleFields)]="columnsService.visibleFields"
+        (toggleActive)="onToggleActive($event)"
       />
     }
   </main>

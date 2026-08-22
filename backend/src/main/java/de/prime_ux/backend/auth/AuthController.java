@@ -69,10 +69,11 @@ class AuthController {
 	@GetMapping("/me")
 	public CurrentUserResponse me(Authentication authentication, HttpServletRequest servletRequest) {
 		return appUserRepository.findByEmailIgnoreCase(authentication.getName())
+				.filter(AppUser::isActive)
 				.map(user -> CurrentUserResponse.from(user, userAvatarRepository.existsByUserId(user.getId())))
 				.orElseThrow(() -> {
-					// The account vanished while its session lived on (e.g. deleted by an
-					// admin): end the orphaned session and answer like any signed-out call.
+					// The account vanished or was deactivated while its session lived on:
+					// end the orphaned session and answer like any signed-out call.
 					HttpSession session = servletRequest.getSession(false);
 					if (session != null) {
 						session.invalidate();
