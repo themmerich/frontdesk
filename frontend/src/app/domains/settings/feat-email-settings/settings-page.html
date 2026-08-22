@@ -51,6 +51,28 @@
             </dl>
           </div>
         } @else {
+          <!-- provider presets: prefill the connection fields below -->
+          <div class="flex flex-col gap-2">
+            <span class="font-medium">{{ t('settings.presets') }}</span>
+            <div class="flex flex-wrap gap-2">
+              @for (preset of providerPresets; track preset.label) {
+                <button
+                  type="button"
+                  (click)="onApplyPreset(preset)"
+                  [attr.aria-pressed]="appliedPreset() === preset"
+                  class="cursor-pointer rounded-lg border border-surface-300 px-3 py-1.5 text-sm dark:border-surface-600"
+                  [class.bg-primary]="appliedPreset() === preset"
+                  [class.text-primary-contrast]="appliedPreset() === preset"
+                >
+                  {{ preset.label }}
+                </button>
+              }
+            </div>
+            @if (appliedPreset()?.noteKey; as noteKey) {
+              <p-message severity="info" variant="simple" size="small">{{ t(noteKey) }}</p-message>
+            }
+          </div>
+
           <!-- IMAP -->
           <fieldset class="flex flex-col gap-3">
             <legend class="mb-2 font-medium">{{ t('settings.imap') }}</legend>

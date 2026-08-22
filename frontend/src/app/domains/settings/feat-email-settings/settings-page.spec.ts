@@ -24,6 +24,8 @@ const translations = {
     passwordHint: 'Leave blank to keep the stored password.',
     folder: 'Folder',
     pollingEnabled: 'Poll the mailbox automatically',
+    presets: 'Presets',
+    presetNoteAppPassword: 'This provider requires an app password.',
     save: 'Save',
     saved: 'Settings saved.',
     saveError: 'Saving failed.',
@@ -138,6 +140,52 @@ describe('SettingsPage', () => {
 
     expect(savedUpdates).toHaveLength(0);
     expect(element.textContent).toContain('Required.');
+  });
+
+  it('prefills the connection from a provider preset, leaving the credentials alone', async () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const customButton = Array.from(element.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Own server'),
+    ) as HTMLButtonElement;
+    customButton.click();
+    await fixture.whenStable();
+
+    const usernameInput = element.querySelector('#username') as HTMLInputElement;
+    usernameInput.value = 'buero@musterfirma.de';
+    usernameInput.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    const gmxButton = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'GMX',
+    ) as HTMLButtonElement;
+    gmxButton.click();
+    await fixture.whenStable();
+
+    expect((element.querySelector('#imapHost') as HTMLInputElement).value).toBe('imap.gmx.net');
+    expect((element.querySelector('#imapPort') as HTMLInputElement).value).toBe('993');
+    expect((element.querySelector('#smtpHost') as HTMLInputElement).value).toBe('mail.gmx.net');
+    expect((element.querySelector('#username') as HTMLInputElement).value).toBe('buero@musterfirma.de');
+  });
+
+  it('shows the app-password note for providers that need one', async () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const customButton = Array.from(element.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Own server'),
+    ) as HTMLButtonElement;
+    customButton.click();
+    await fixture.whenStable();
+
+    const gmailButton = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Gmail',
+    ) as HTMLButtonElement;
+    gmailButton.click();
+    await fixture.whenStable();
+
+    expect(element.textContent).toContain('This provider requires an app password.');
   });
 
   it('shows the load error instead of the form when the settings cannot be loaded', () => {

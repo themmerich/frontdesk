@@ -44,7 +44,10 @@ test.describe('Email settings', () => {
     await expect(page.getByText('localhost:3143')).toBeVisible();
 
     await page.getByRole('button', { name: 'Eigener Server (IMAP/SMTP)' }).click();
-    await page.getByLabel('Host').first().fill('imap.example.com');
+    // A provider preset prefills the connection; only credentials remain to type.
+    await page.getByRole('button', { name: 'GMX', exact: true }).click();
+    await expect(page.getByLabel('Host').first()).toHaveValue('imap.gmx.net');
+    await page.getByLabel('Benutzername').fill('buero@musterfirma.de');
     await page.getByLabel('Passwort').fill('geheim');
     await page.getByRole('button', { name: 'Speichern' }).click();
 

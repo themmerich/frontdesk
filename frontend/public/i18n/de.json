@@ -37,6 +37,8 @@
     "modeGreenmail": "GreenMail (Entwicklung)",
     "modeCustom": "Eigener Server (IMAP/SMTP)",
     "greenmailInfo": "Fester lokaler Entwicklungs-Mailserver aus Docker Compose:",
+    "presets": "Vorlagen",
+    "presetNoteAppPassword": "Dieser Anbieter verlangt ein App-Passwort — das normale Kontopasswort funktioniert hier nicht.",
     "imap": "Posteingang (IMAP)",
     "smtp": "Postausgang (SMTP)",
     "host": "Host",
