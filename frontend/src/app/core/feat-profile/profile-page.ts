@@ -9,7 +9,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 
 import { AuthStore } from '../data/auth-store';
-import { ProfileStore } from '../data/profile-store';
+import { ProfileService } from '../data/profile-service';
 
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -28,7 +28,7 @@ type PasswordChange = {
 })
 export class ProfilePage {
   protected readonly authStore = inject(AuthStore);
-  private readonly profileStore = inject(ProfileStore);
+  private readonly profileService = inject(ProfileService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
 
@@ -80,7 +80,7 @@ export class ProfilePage {
     }
     this.isSavingAvatar.set(true);
     try {
-      await this.profileStore.uploadAvatar(file);
+      await this.profileService.uploadAvatar(file);
       this.toast('success', 'profile.pictureSaved');
     } catch {
       this.toast('error', 'profile.error');
@@ -92,7 +92,7 @@ export class ProfilePage {
   protected async onRemovePicture(): Promise<void> {
     this.isSavingAvatar.set(true);
     try {
-      await this.profileStore.removeAvatar();
+      await this.profileService.removeAvatar();
       this.toast('success', 'profile.pictureRemoved');
     } catch {
       this.toast('error', 'profile.error');
@@ -107,7 +107,7 @@ export class ProfilePage {
     await submit(this.nameForm, async () => {
       this.isSavingName.set(true);
       try {
-        await this.profileStore.rename(this.name().displayName.trim());
+        await this.profileService.rename(this.name().displayName.trim());
         this.hasNameSubmitAttempted.set(false);
         this.toast('success', 'profile.nameSaved');
       } catch {
@@ -125,7 +125,7 @@ export class ProfilePage {
       this.isChangingPassword.set(true);
       try {
         const { currentPassword, newPassword } = this.passwordChange();
-        await this.profileStore.changePassword(currentPassword, newPassword);
+        await this.profileService.changePassword(currentPassword, newPassword);
         this.passwordChange.set({ currentPassword: '', newPassword: '', confirmPassword: '' });
         this.hasPasswordSubmitAttempted.set(false);
         this.toast('success', 'profile.passwordChanged');

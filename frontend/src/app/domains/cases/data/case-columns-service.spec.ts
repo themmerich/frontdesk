@@ -2,7 +2,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
 import { DEFAULT_COLUMN_ORDER } from '../model/case-column';
-import { CASE_COLUMNS_STORAGE, CaseColumnsStore } from './case-columns-store';
+import { CASE_COLUMNS_STORAGE, CaseColumnsService } from './case-columns-service';
 
 // In-memory Storage fake: depending on Node version and jsdom, no real
 // localStorage is reliably available in unit tests.
@@ -28,7 +28,7 @@ function storedPreferences(storage: Storage): Record<string, unknown> {
   return JSON.parse(storage.getItem('frontdesk-case-columns') ?? '{}') as Record<string, unknown>;
 }
 
-describe('CaseColumnsStore', () => {
+describe('CaseColumnsService', () => {
   let storage: Storage;
 
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe('CaseColumnsStore', () => {
   });
 
   it('starts with every column visible in the default order', () => {
-    const store = TestBed.inject(CaseColumnsStore);
+    const store = TestBed.inject(CaseColumnsService);
 
     expect(store.order()).toEqual([...DEFAULT_COLUMN_ORDER]);
     expect(store.visibleFields()).toEqual([...DEFAULT_COLUMN_ORDER]);
@@ -51,7 +51,7 @@ describe('CaseColumnsStore', () => {
       JSON.stringify({ order: ['subject', 'sender', 'hasAttachments', 'sizeBytes', 'receivedAt'], visibleFields: ['subject'] }),
     );
 
-    const store = TestBed.inject(CaseColumnsStore);
+    const store = TestBed.inject(CaseColumnsService);
 
     expect(store.order()[0]).toBe('subject');
     expect(store.visibleFields()).toEqual(['subject']);
@@ -60,14 +60,14 @@ describe('CaseColumnsStore', () => {
   it('falls back to the defaults for unparseable stored values', () => {
     storage.setItem('frontdesk-case-columns', 'not json at all');
 
-    const store = TestBed.inject(CaseColumnsStore);
+    const store = TestBed.inject(CaseColumnsService);
 
     expect(store.order()).toEqual([...DEFAULT_COLUMN_ORDER]);
     expect(store.visibleFields()).toEqual([...DEFAULT_COLUMN_ORDER]);
   });
 
   it('persists a changed visibility', () => {
-    const store = TestBed.inject(CaseColumnsStore);
+    const store = TestBed.inject(CaseColumnsService);
 
     store.visibleFields.set(['sender', 'subject']);
     TestBed.tick();
@@ -76,7 +76,7 @@ describe('CaseColumnsStore', () => {
   });
 
   it('persists a changed order', () => {
-    const store = TestBed.inject(CaseColumnsStore);
+    const store = TestBed.inject(CaseColumnsService);
 
     store.order.set(['subject', 'sender', 'hasAttachments', 'sizeBytes', 'receivedAt']);
     TestBed.tick();
@@ -90,7 +90,7 @@ describe('CaseColumnsStore', () => {
       providers: [provideZonelessChangeDetection(), { provide: CASE_COLUMNS_STORAGE, useValue: null }],
     });
 
-    const store = TestBed.inject(CaseColumnsStore);
+    const store = TestBed.inject(CaseColumnsService);
     store.visibleFields.set(['sender']);
     TestBed.tick();
 

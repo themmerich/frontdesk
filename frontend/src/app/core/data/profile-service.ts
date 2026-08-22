@@ -10,7 +10,7 @@ import { AuthStore, CurrentUser } from './auth-store';
  * turns them into toasts (and distinguishes the wrong-current-password 400).
  */
 @Service()
-export class ProfileStore {
+export class ProfileService {
   private readonly http = inject(HttpClient);
   private readonly authStore = inject(AuthStore);
 

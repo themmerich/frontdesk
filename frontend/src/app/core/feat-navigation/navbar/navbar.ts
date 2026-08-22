@@ -5,7 +5,7 @@ import { PopoverModule } from 'primeng/popover';
 import { StyleClassModule } from 'primeng/styleclass';
 
 import { AuthStore } from '../../data/auth-store';
-import { PRESET_NAMES, ThemeStore, TINTED_SURFACES } from '../../data/theme-store';
+import { PRESET_NAMES, ThemeService, TINTED_SURFACES } from '../../data/theme-service';
 
 type Swatch = { name: string; color: string };
 
@@ -54,7 +54,7 @@ function toSurfaceSwatch(name: string): Swatch {
   host: { class: 'contents' },
 })
 export class Navbar {
-  protected readonly themeStore = inject(ThemeStore);
+  protected readonly themeService = inject(ThemeService);
   protected readonly authStore = inject(AuthStore);
 
   protected readonly primarySwatches: Swatch[] = PRIMARY_COLORS.map(toSwatch);
@@ -62,6 +62,6 @@ export class Navbar {
   protected readonly presets = PRESET_NAMES;
 
   protected onToggleTheme(): void {
-    this.themeStore.toggleDark();
+    this.themeService.toggleDark();
   }
 }

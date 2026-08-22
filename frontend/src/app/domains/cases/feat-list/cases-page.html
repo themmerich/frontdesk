@@ -5,7 +5,11 @@
     @if (store.cases.error()) {
       <p class="text-red-600 dark:text-red-400">{{ t('cases.loadError') }}</p>
     } @else {
-      <app-case-list [cases]="store.cases.value()" [(columnOrder)]="columnsStore.order" [(visibleFields)]="columnsStore.visibleFields" />
+      <app-case-list
+        [cases]="store.cases.value()"
+        [(columnOrder)]="columnsService.order"
+        [(visibleFields)]="columnsService.visibleFields"
+      />
     }
   </main>
 </ng-container>

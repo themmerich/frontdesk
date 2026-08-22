@@ -1,7 +1,7 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
-import { THEME_STORAGE, ThemeStore } from './theme-store';
+import { THEME_STORAGE, ThemeService } from './theme-service';
 
 // In-memory Storage fake: depending on Node version and jsdom, no real
 // localStorage is reliably available in unit tests.
@@ -27,7 +27,7 @@ function storedSettings(storage: Storage): Record<string, unknown> {
   return JSON.parse(storage.getItem('frontdesk-theme') ?? '{}') as Record<string, unknown>;
 }
 
-describe('ThemeStore', () => {
+describe('ThemeService', () => {
   let storage: Storage;
 
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe('ThemeStore', () => {
   });
 
   it('starts with the defaults when nothing is stored', () => {
-    const store = TestBed.inject(ThemeStore);
+    const store = TestBed.inject(ThemeService);
 
     expect(store.isDark()).toBe(false);
     expect(store.preset()).toBe('aura');
@@ -50,7 +50,7 @@ describe('ThemeStore', () => {
   it('restores stored settings', () => {
     storage.setItem('frontdesk-theme', JSON.stringify({ dark: true, preset: 'aura', primary: 'blue', surface: 'zinc' }));
 
-    const store = TestBed.inject(ThemeStore);
+    const store = TestBed.inject(ThemeService);
 
     expect(store.isDark()).toBe(true);
     expect(store.primary()).toBe('blue');
@@ -60,7 +60,7 @@ describe('ThemeStore', () => {
   it('understands the legacy dark/light string format', () => {
     storage.setItem('frontdesk-theme', 'dark');
 
-    const store = TestBed.inject(ThemeStore);
+    const store = TestBed.inject(ThemeService);
 
     expect(store.isDark()).toBe(true);
     expect(store.preset()).toBe('aura');
@@ -69,14 +69,14 @@ describe('ThemeStore', () => {
   it('falls back to the defaults for unparseable stored values', () => {
     storage.setItem('frontdesk-theme', 'not json at all');
 
-    const store = TestBed.inject(ThemeStore);
+    const store = TestBed.inject(ThemeService);
 
     expect(store.isDark()).toBe(false);
     expect(store.preset()).toBe('aura');
   });
 
   it('toggles the dark class on <html> and persists the choice', () => {
-    const store = TestBed.inject(ThemeStore);
+    const store = TestBed.inject(ThemeService);
 
     store.toggleDark();
     TestBed.tick();
@@ -93,7 +93,7 @@ describe('ThemeStore', () => {
   });
 
   it('persists the chosen primary and surface palettes', () => {
-    const store = TestBed.inject(ThemeStore);
+    const store = TestBed.inject(ThemeService);
 
     store.setPrimary('blue');
     store.setSurface('zinc');
@@ -105,7 +105,7 @@ describe('ThemeStore', () => {
   });
 
   it('persists the chosen preset', () => {
-    const store = TestBed.inject(ThemeStore);
+    const store = TestBed.inject(ThemeService);
 
     store.setPreset('material');
 

@@ -5,7 +5,7 @@ import { TranslocoTestingModule } from '@jsverse/transloco';
 import { MessageService, ToastMessageOptions } from 'primeng/api';
 
 import { AuthStore, CurrentUser } from '../data/auth-store';
-import { ProfileStore } from '../data/profile-store';
+import { ProfileService } from '../data/profile-service';
 import { ProfilePage } from './profile-page';
 
 const translations = {
@@ -53,7 +53,7 @@ describe('ProfilePage', () => {
   let passwordChanges: { currentPassword: string; newPassword: string }[];
   let changePasswordError: unknown;
   let toasts: ToastMessageOptions[];
-  const profileStoreStub = {
+  const profileServiceStub = {
     rename: (displayName: string) => {
       renamedTo.push(displayName);
       return Promise.resolve();
@@ -62,7 +62,7 @@ describe('ProfilePage', () => {
       passwordChanges.push({ currentPassword, newPassword });
       return changePasswordError ? Promise.reject(changePasswordError) : Promise.resolve();
     },
-  } as unknown as ProfileStore;
+  } as unknown as ProfileService;
 
   beforeEach(async () => {
     renamedTo = [];
@@ -82,7 +82,7 @@ describe('ProfilePage', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: AuthStore, useValue: authStoreStub },
-        { provide: ProfileStore, useValue: profileStoreStub },
+        { provide: ProfileService, useValue: profileServiceStub },
         { provide: MessageService, useValue: { add: (toast: ToastMessageOptions) => toasts.push(toast) } },
       ],
     }).compileComponents();
