@@ -43,12 +43,23 @@ test.describe('Email settings', () => {
     // GreenMail mode shows the fixed values without editable fields.
     await expect(page.getByText('localhost:3143')).toBeVisible();
 
+    await page.route('**/api/settings/mail/test', (route) => route.fulfill({ json: { success: true, message: '' } }));
+
     await page.getByRole('button', { name: 'Eigener Server (IMAP/SMTP)' }).click();
     // A provider preset prefills the connection; only credentials remain to type.
     await page.getByRole('button', { name: 'GMX', exact: true }).click();
     await expect(page.getByLabel('Host').first()).toHaveValue('imap.gmx.net');
     await page.getByLabel('Benutzername').fill('buero@musterfirma.de');
     await page.getByLabel('Passwort').fill('geheim');
+
+    // The probe results appear as toasts, not inline messages.
+    await page.getByRole('button', { name: 'Verbindung testen' }).click();
+    await expect(page.getByText('Verbindung erfolgreich')).toBeVisible();
+
+    await page.route('**/api/settings/mail/test', (route) => route.fulfill({ json: { success: false, message: 'AUTHENTICATIONFAILED' } }));
+    await page.getByRole('button', { name: 'Verbindung testen' }).click();
+    await expect(page.getByText('AUTHENTICATIONFAILED')).toBeVisible();
+
     await page.getByRole('button', { name: 'Speichern' }).click();
 
     await expect(page.getByText('Einstellungen gespeichert.')).toBeVisible();

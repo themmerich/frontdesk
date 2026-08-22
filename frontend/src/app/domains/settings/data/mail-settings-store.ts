@@ -2,7 +2,7 @@ import { HttpClient, httpResource } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { MailSettings, MailSettingsUpdate } from '../model/mail-settings';
+import { MailConnectionTestResult, MailSettings, MailSettingsUpdate } from '../model/mail-settings';
 
 @Service()
 export class MailSettingsStore {
@@ -14,5 +14,10 @@ export class MailSettingsStore {
   async save(update: MailSettingsUpdate): Promise<void> {
     const saved = await firstValueFrom(this.http.put<MailSettings>('/api/settings/mail', update));
     this.settings.set(saved);
+  }
+
+  /** Probes the mailbox with the given (possibly unsaved) values; a failed probe is a result, not an error. */
+  test(update: MailSettingsUpdate): Promise<MailConnectionTestResult> {
+    return firstValueFrom(this.http.post<MailConnectionTestResult>('/api/settings/mail/test', update));
   }
 }

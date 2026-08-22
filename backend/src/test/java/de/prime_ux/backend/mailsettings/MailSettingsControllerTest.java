@@ -3,10 +3,13 @@ package de.prime_ux.backend.mailsettings;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.icegreen.greenmail.util.GreenMail;
+import com.icegreen.greenmail.util.ServerSetupTest;
 import de.prime_ux.backend.TestcontainersConfiguration;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.users.AppUser;
@@ -14,6 +17,7 @@ import de.prime_ux.backend.users.AppUserRepository;
 import de.prime_ux.backend.users.Tenant;
 import de.prime_ux.backend.users.TenantRepository;
 import de.prime_ux.backend.users.UserRole;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +41,19 @@ class MailSettingsControllerTest {
 			  "username": "postfach@example.com", "password": "%s",
 			  "folder": "INBOX", "pollingEnabled": true
 			}""";
+
+	// Started in a static initializer so the port is known early. Dynamic port
+	// avoids clashing with a locally running GreenMail container.
+	private static final GreenMail greenMail = new GreenMail(ServerSetupTest.IMAP.dynamicPort());
+
+	static {
+		greenMail.start();
+	}
+
+	@AfterAll
+	static void stopGreenMail() {
+		greenMail.stop();
+	}
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -158,5 +175,67 @@ class MailSettingsControllerTest {
 	@Test
 	void requiresAuthentication() throws Exception {
 		mockMvc.perform(get("/api/settings/mail")).andExpect(status().isUnauthorized());
+	}
+
+	private String testRequestJson(String password) {
+		return """
+				{
+				  "mode": "CUSTOM",
+				  "imapHost": "localhost", "imapPort": %d, "imapTls": false,
+				  "smtpHost": "localhost", "smtpPort": 3025, "smtpTls": false,
+				  "username": "postfach@example.com", "password": "%s",
+				  "folder": "INBOX", "pollingEnabled": true
+				}""".formatted(greenMail.getImap().getPort(), password);
+	}
+
+	@Test
+	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	void reportsAReachableMailboxAsSuccess() throws Exception {
+		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
+
+		mockMvc.perform(post("/api/settings/mail/test").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(testRequestJson("geheim")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true));
+	}
+
+	@Test
+	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	void reportsWrongCredentialsAsFailureWithAReason() throws Exception {
+		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
+
+		mockMvc.perform(post("/api/settings/mail/test").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(testRequestJson("falsch")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.message").isNotEmpty());
+	}
+
+	@Test
+	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	void testsWithTheStoredPasswordWhenTheFieldStaysBlank() throws Exception {
+		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
+		// Store a configuration whose password is correct, then test with a blank one.
+		mockMvc.perform(put("/api/settings/mail").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(testRequestJson("geheim")))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post("/api/settings/mail/test").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(testRequestJson("")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true));
+	}
+
+	@Test
+	@WithMockUser(username = "user@musterfirma.example", roles = "USER")
+	void deniesTheConnectionTestToRegularUsers() throws Exception {
+		mockMvc.perform(post("/api/settings/mail/test").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(testRequestJson("geheim")))
+				.andExpect(status().isForbidden());
 	}
 }

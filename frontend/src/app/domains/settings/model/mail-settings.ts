@@ -18,6 +18,9 @@ export type MailSettings = {
 /** What the settings page submits; an empty password keeps the stored one. */
 export type MailSettingsUpdate = MailSettings & { password: string };
 
+/** Outcome of probing the mailbox; the message carries the technical reason on failure. */
+export type MailConnectionTestResult = { success: boolean; message: string };
+
 /** The fixed local dev values behind the GreenMail mode, for display purposes. */
 export const GREENMAIL_DEFAULTS: Omit<MailSettings, 'mode' | 'pollingEnabled'> = {
   imapHost: 'localhost',

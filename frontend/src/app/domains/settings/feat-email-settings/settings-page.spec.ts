@@ -1,6 +1,7 @@
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
+import { MessageService, ToastMessageOptions } from 'primeng/api';
 
 import { MailSettingsStore } from '../data/mail-settings-store';
 import { MailSettings, MailSettingsUpdate } from '../model/mail-settings';
@@ -26,6 +27,10 @@ const translations = {
     pollingEnabled: 'Poll the mailbox automatically',
     presets: 'Presets',
     presetNoteAppPassword: 'This provider requires an app password.',
+    testConnection: 'Test connection',
+    testSuccess: 'Connection successful.',
+    testFailed: 'Connection failed',
+    testError: 'The connection test could not be run.',
     save: 'Save',
     saved: 'Settings saved.',
     saveError: 'Saving failed.',
@@ -52,18 +57,29 @@ describe('SettingsPage', () => {
   const settingsValue = signal<MailSettings | undefined>(greenMailSettings);
   const settingsError = signal<Error | undefined>(undefined);
   let savedUpdates: MailSettingsUpdate[];
+  let testedUpdates: MailSettingsUpdate[];
+  let testResult: { success: boolean; message: string };
   const storeStub = {
     settings: { value: settingsValue, error: settingsError },
     save: (update: MailSettingsUpdate) => {
       savedUpdates.push(update);
       return Promise.resolve();
     },
+    test: (update: MailSettingsUpdate) => {
+      testedUpdates.push(update);
+      return Promise.resolve(testResult);
+    },
   } as unknown as MailSettingsStore;
+
+  let toasts: ToastMessageOptions[];
 
   beforeEach(async () => {
     settingsValue.set(greenMailSettings);
     settingsError.set(undefined);
     savedUpdates = [];
+    testedUpdates = [];
+    testResult = { success: true, message: '' };
+    toasts = [];
     await TestBed.configureTestingModule({
       imports: [
         SettingsPage,
@@ -73,7 +89,11 @@ describe('SettingsPage', () => {
           preloadLangs: true,
         }),
       ],
-      providers: [provideZonelessChangeDetection(), { provide: MailSettingsStore, useValue: storeStub }],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: MailSettingsStore, useValue: storeStub },
+        { provide: MessageService, useValue: { add: (toast: ToastMessageOptions) => toasts.push(toast) } },
+      ],
     }).compileComponents();
   });
 
@@ -186,6 +206,72 @@ describe('SettingsPage', () => {
     await fixture.whenStable();
 
     expect(element.textContent).toContain('This provider requires an app password.');
+  });
+
+  async function switchToCustomMode(fixture: ReturnType<typeof createFixture>) {
+    const customButton = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Own server'),
+    ) as HTMLButtonElement;
+    customButton.click();
+    await fixture.whenStable();
+  }
+
+  it('probes the mailbox with the current form values without saving, raising a success toast', async () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+    await switchToCustomMode(fixture);
+
+    const testButton = Array.from(element.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Test connection'),
+    ) as HTMLButtonElement;
+    testButton.click();
+    await fixture.whenStable();
+
+    expect(testedUpdates).toHaveLength(1);
+    expect(testedUpdates[0].imapHost).toBe('localhost');
+    expect(savedUpdates).toHaveLength(0);
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].severity).toBe('success');
+    expect(toasts[0].summary).toBe('Connection successful.');
+  });
+
+  it('raises a warning toast with the technical reason when the probe fails', async () => {
+    testResult = { success: false, message: 'AUTHENTICATIONFAILED' };
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+    await switchToCustomMode(fixture);
+
+    const testButton = Array.from(element.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Test connection'),
+    ) as HTMLButtonElement;
+    testButton.click();
+    await fixture.whenStable();
+
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].severity).toBe('warn');
+    expect(toasts[0].summary).toBe('Connection failed');
+    expect(toasts[0].detail).toBe('AUTHENTICATIONFAILED');
+  });
+
+  it('does not probe while the fields the probe needs are invalid', async () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+    await switchToCustomMode(fixture);
+
+    const imapHost = element.querySelector('#imapHost') as HTMLInputElement;
+    imapHost.value = '';
+    imapHost.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    const testButton = Array.from(element.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Test connection'),
+    ) as HTMLButtonElement;
+    testButton.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(testedUpdates).toHaveLength(0);
+    expect(element.textContent).toContain('Required.');
   });
 
   it('shows the load error instead of the form when the settings cannot be loaded', () => {

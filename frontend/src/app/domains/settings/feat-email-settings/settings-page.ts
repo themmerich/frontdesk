@@ -1,6 +1,7 @@
 import { Component, inject, linkedSignal, signal } from '@angular/core';
 import { form, FormField, max, min, required, submit } from '@angular/forms/signals';
-import { TranslocoDirective } from '@jsverse/transloco';
+import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
+import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { FormsModule } from '@angular/forms';
@@ -41,6 +42,8 @@ function toFormModel(settings: MailSettings | undefined): ConnectionFormModel {
 })
 export class SettingsPage {
   protected readonly store = inject(MailSettingsStore);
+  private readonly messageService = inject(MessageService);
+  private readonly transloco = inject(TranslocoService);
 
   protected readonly greenMailDefaults = GREENMAIL_DEFAULTS;
   protected readonly providerPresets = MAIL_PROVIDER_PRESETS;
@@ -67,6 +70,7 @@ export class SettingsPage {
   });
 
   protected readonly saveState = signal<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  protected readonly isTesting = signal(false);
   // Validation errors stay hidden until the field was visited or a save was
   // attempted — submit() alone does not flip the fields' touched state.
   protected readonly hasSubmitAttempted = signal(false);
@@ -83,6 +87,48 @@ export class SettingsPage {
     this.isImapTls.set(preset.imapTls);
     this.isSmtpTls.set(preset.smtpTls);
     this.appliedPreset.set(preset);
+  }
+
+  /**
+   * Probes the mailbox with the form values as they currently stand, without saving. Only the
+   * fields the probe actually needs (IMAP, username, folder) have to be valid.
+   */
+  protected async onTestConnection(): Promise<void> {
+    const fieldsForTest = [
+      this.connectionForm.imapHost,
+      this.connectionForm.imapPort,
+      this.connectionForm.username,
+      this.connectionForm.folder,
+    ];
+    if (fieldsForTest.some((field) => field().invalid())) {
+      this.hasSubmitAttempted.set(true);
+      return;
+    }
+    this.isTesting.set(true);
+    try {
+      const result = await this.store.test({
+        mode: this.mode(),
+        ...this.connection(),
+        imapTls: this.isImapTls(),
+        smtpTls: this.isSmtpTls(),
+        pollingEnabled: this.isPollingEnabled(),
+      });
+      if (result.success) {
+        this.messageService.add({ severity: 'success', summary: this.transloco.translate('settings.testSuccess') });
+      } else {
+        this.messageService.add({
+          severity: 'warn',
+          summary: this.transloco.translate('settings.testFailed'),
+          detail: result.message,
+          // The technical reason takes a moment to read.
+          life: 8000,
+        });
+      }
+    } catch {
+      this.messageService.add({ severity: 'error', summary: this.transloco.translate('settings.testError') });
+    } finally {
+      this.isTesting.set(false);
+    }
   }
 
   protected async onSave(event: Event): Promise<void> {
