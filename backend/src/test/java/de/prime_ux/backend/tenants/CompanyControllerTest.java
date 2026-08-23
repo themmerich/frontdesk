@@ -64,16 +64,16 @@ class CompanyControllerTest {
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
-		appUserRepository.save(new AppUser(tenant, "anna@musterfirma.example", "Anna Admin", "{noop}irrelevant",
+		appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Admin", "{noop}irrelevant",
 				UserRole.ADMIN));
-		appUserRepository.save(new AppUser(tenant, "ben@musterfirma.example", "Ben Benutzer", "{noop}irrelevant",
+		appUserRepository.save(new AppUser(tenant, "ben", "Ben", "Benutzer", "{noop}irrelevant",
 				UserRole.USER));
-		appUserRepository.save(new AppUser(otherTenant, "fritz@beispiel.example", "Fritz Fremd", "{noop}irrelevant",
+		appUserRepository.save(new AppUser(otherTenant, "fritz", "Fritz", "Fremd", "{noop}irrelevant",
 				UserRole.ADMIN));
 	}
 
 	@Test
-	@WithMockUser(username = "ben@musterfirma.example")
+	@WithMockUser(username = "ben")
 	void everyUserReadsTheOwnTenantsCompany() throws Exception {
 		mockMvc.perform(get("/api/company"))
 				.andExpect(status().isOk())
@@ -84,7 +84,7 @@ class CompanyControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "anna", roles = "ADMIN")
 	void savesTheCompanyAndBlanksBecomeNull() throws Exception {
 		mockMvc.perform(put("/api/company").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -111,7 +111,7 @@ class CompanyControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "anna", roles = "ADMIN")
 	void rejectsABlankNameABrokenEmailAndAMissingLogoDisplay() throws Exception {
 		mockMvc.perform(put("/api/company").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -132,7 +132,7 @@ class CompanyControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ben@musterfirma.example")
+	@WithMockUser(username = "ben")
 	void deniesWritesToNonAdmins() throws Exception {
 		mockMvc.perform(put("/api/company").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -142,7 +142,7 @@ class CompanyControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "anna", roles = "ADMIN")
 	void uploadsReplacesAndDeletesTheLogo() throws Exception {
 		MockMultipartFile logo = new MockMultipartFile("file", "logo.png", MediaType.IMAGE_PNG_VALUE,
 				new byte[] { 1, 2, 3 });
@@ -168,7 +168,7 @@ class CompanyControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "anna", roles = "ADMIN")
 	void rejectsAnOversizedOrForeignImageType() throws Exception {
 		MockMultipartFile svg = new MockMultipartFile("file", "logo.svg", "image/svg+xml", new byte[] { 1 });
 		mockMvc.perform(multipart(HttpMethod.PUT, "/api/company/logo").file(svg).with(csrf()))
@@ -181,7 +181,7 @@ class CompanyControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "fritz@beispiel.example", roles = "ADMIN")
+	@WithMockUser(username = "fritz", roles = "ADMIN")
 	void logosAreScopedToTheOwnTenant() throws Exception {
 		tenantLogoRepository.save(new TenantLogo(tenant, new byte[] { 1 }, MediaType.IMAGE_PNG_VALUE));
 

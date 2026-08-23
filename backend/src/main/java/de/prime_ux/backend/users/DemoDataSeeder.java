@@ -54,9 +54,9 @@ class DemoDataSeeder implements ApplicationRunner {
 		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		// Same demo password as the GreenMail mailbox, so dev needs to remember only one.
 		String passwordHash = passwordEncoder.encode("secret");
-		appUserRepository.save(new AppUser(tenant, "admin@frontdesk.local", "Anna Admin", passwordHash, UserRole.ADMIN));
-		appUserRepository.save(new AppUser(tenant, "user@frontdesk.local", "Uwe User", passwordHash, UserRole.USER));
-		log.info("Seeded demo tenant '{}' with users admin@frontdesk.local and user@frontdesk.local", tenant.getName());
+		appUserRepository.save(new AppUser(tenant, "admin", "Anna", "Admin", passwordHash, UserRole.ADMIN));
+		appUserRepository.save(new AppUser(tenant, "user", "Uwe", "User", passwordHash, UserRole.USER));
+		log.info("Seeded demo tenant '{}' with users admin and user", tenant.getName());
 	}
 
 	private void seedMailSettingsWhereMissing() {

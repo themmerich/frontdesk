@@ -4,7 +4,7 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { firstValueFrom } from 'rxjs';
 
 export type CurrentUser = {
-  email: string;
+  username: string;
   displayName: string;
   role: 'admin' | 'user';
   tenantName: string;
@@ -63,9 +63,9 @@ export const AuthStore = signalStore(
       },
 
       /** Returns whether the credentials were accepted. */
-      async login(email: string, password: string): Promise<boolean> {
+      async login(username: string, password: string): Promise<boolean> {
         try {
-          const currentUser = await firstValueFrom(http.post<CurrentUser>('/api/auth/login', { email, password }));
+          const currentUser = await firstValueFrom(http.post<CurrentUser>('/api/auth/login', { username, password }));
           patchState(store, { currentUser, _isSessionResolved: true });
           return true;
         } catch {

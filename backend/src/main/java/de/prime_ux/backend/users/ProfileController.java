@@ -1,6 +1,5 @@
 package de.prime_ux.backend.users;
 
-import de.prime_ux.backend.auth.CurrentUserResponse;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.Set;
@@ -23,7 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * The signed-in user's own profile: display name, password, and profile picture. Every endpoint
+ * The signed-in user's own profile: personal data, password, and profile picture. Every endpoint
  * acts on the session user only — nobody edits anyone else here (that will be the admin's user
  * management one day).
  */
@@ -46,14 +45,21 @@ class ProfileController {
 		this.passwordEncoder = passwordEncoder;
 	}
 
+	@GetMapping
+	ProfileResponse profile(Authentication authentication) {
+		return ProfileResponse.from(currentUser(authentication));
+	}
+
 	@PutMapping
 	@Transactional
-	CurrentUserResponse updateProfile(@Valid @RequestBody UpdateProfileRequest request,
+	ProfileResponse updateProfile(@Valid @RequestBody UpdateProfileRequest request,
 			Authentication authentication) {
 		AppUser user = currentUser(authentication);
-		user.rename(request.displayName().trim());
+		user.updateProfile(request.firstName().trim(), request.lastName().trim(), request.birthDate(),
+				request.joinedAt(), normalize(request.company()), normalize(request.email()),
+				normalize(request.phone()), normalize(request.fax()));
 		appUserRepository.save(user);
-		return CurrentUserResponse.from(user, userAvatarRepository.existsByUserId(user.getId()));
+		return ProfileResponse.from(user);
 	}
 
 	@PutMapping("/password")
@@ -113,8 +119,16 @@ class ProfileController {
 		}
 	}
 
+	/** Optional free-text fields: whitespace-only input is stored as "not set". */
+	private static String normalize(String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return value.trim();
+	}
+
 	private AppUser currentUser(Authentication authentication) {
-		return appUserRepository.findByEmailIgnoreCase(authentication.getName())
+		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 	}
 }

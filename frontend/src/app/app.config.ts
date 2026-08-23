@@ -57,6 +57,16 @@ export const appConfig: ApplicationConfig = {
         removeRule: 'Regel entfernen',
         apply: 'Übernehmen',
         clear: 'Leeren',
+        // The datepicker's calendar overlay and text format.
+        dayNames: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'],
+        dayNamesShort: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
+        dayNamesMin: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
+        monthNames: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
+        monthNamesShort: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+        today: 'Heute',
+        weekHeader: 'KW',
+        firstDayOfWeek: 1,
+        dateFormat: 'dd.mm.yy',
         aria: {
           showFilterMenu: 'Filtermenü anzeigen',
           hideFilterMenu: 'Filtermenü verbergen',

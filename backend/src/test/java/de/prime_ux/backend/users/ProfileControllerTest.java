@@ -71,61 +71,93 @@ class ProfileControllerTest {
 		appUserRepository.deleteAll();
 		tenantRepository.deleteAll();
 		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
-		user = appUserRepository.save(new AppUser(tenant, "anna@musterfirma.example", "Anna",
+		user = appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster",
 				passwordEncoder.encode("altes-passwort"), UserRole.USER));
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example")
-	void renamesTheSignedInUser() throws Exception {
-		mockMvc.perform(put("/api/profile").with(csrf())
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"displayName\": \"Anna Andere\"}"))
+	@WithMockUser(username = "anna")
+	void servesTheStoredProfile() throws Exception {
+		mockMvc.perform(get("/api/profile"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.displayName").value("Anna Andere"))
-				.andExpect(jsonPath("$.hasAvatar").value(false));
-
-		assertThat(appUserRepository.findByEmailIgnoreCase("anna@musterfirma.example"))
-				.hasValueSatisfying(saved -> assertThat(saved.getDisplayName()).isEqualTo("Anna Andere"));
+				.andExpect(jsonPath("$.username").value("anna"))
+				.andExpect(jsonPath("$.firstName").value("Anna"))
+				.andExpect(jsonPath("$.lastName").value("Muster"))
+				.andExpect(jsonPath("$.birthDate").isEmpty())
+				.andExpect(jsonPath("$.email").isEmpty());
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example")
-	void rejectsABlankDisplayName() throws Exception {
+	@WithMockUser(username = "anna")
+	void updatesTheSignedInUsersProfile() throws Exception {
 		mockMvc.perform(put("/api/profile").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"displayName\": \"  \"}"))
+				.content("""
+						{"firstName": "Anna", "lastName": "Andere", "birthDate": "1990-04-23",
+						 "joinedAt": "2020-01-01", "company": "Musterfirma GmbH",
+						 "email": "anna@musterfirma.example", "phone": "0123 456789", "fax": ""}"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.lastName").value("Andere"))
+				.andExpect(jsonPath("$.birthDate").value("1990-04-23"))
+				// Whitespace-only optional fields are stored as "not set".
+				.andExpect(jsonPath("$.fax").isEmpty());
+
+		assertThat(appUserRepository.findUniqueByUsernameIgnoreCase("anna"))
+				.hasValueSatisfying(saved -> {
+					assertThat(saved.getDisplayName()).isEqualTo("Anna Andere");
+					assertThat(saved.getJoinedAt()).isEqualTo("2020-01-01");
+					assertThat(saved.getCompany()).isEqualTo("Musterfirma GmbH");
+					assertThat(saved.getEmail()).isEqualTo("anna@musterfirma.example");
+					assertThat(saved.getFax()).isNull();
+				});
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void rejectsABlankName() throws Exception {
+		mockMvc.perform(put("/api/profile").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"firstName\": \"  \", \"lastName\": \"Andere\"}"))
 				.andExpect(status().isBadRequest());
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example")
+	@WithMockUser(username = "anna")
+	void rejectsAnInvalidMailAddress() throws Exception {
+		mockMvc.perform(put("/api/profile").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"firstName\": \"Anna\", \"lastName\": \"Andere\", \"email\": \"keine-mail\"}"))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
 	void changesThePasswordWhenTheCurrentOneMatches() throws Exception {
 		mockMvc.perform(put("/api/profile/password").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"currentPassword\": \"altes-passwort\", \"newPassword\": \"neues-passwort\"}"))
 				.andExpect(status().isOk());
 
-		String storedHash = appUserRepository.findByEmailIgnoreCase("anna@musterfirma.example")
+		String storedHash = appUserRepository.findUniqueByUsernameIgnoreCase("anna")
 				.orElseThrow().getPasswordHash();
 		assertThat(passwordEncoder.matches("neues-passwort", storedHash)).isTrue();
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example")
+	@WithMockUser(username = "anna")
 	void rejectsAPasswordChangeWithTheWrongCurrentPassword() throws Exception {
 		mockMvc.perform(put("/api/profile/password").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"currentPassword\": \"falsch\", \"newPassword\": \"neues-passwort\"}"))
 				.andExpect(status().isBadRequest());
 
-		String storedHash = appUserRepository.findByEmailIgnoreCase("anna@musterfirma.example")
+		String storedHash = appUserRepository.findUniqueByUsernameIgnoreCase("anna")
 				.orElseThrow().getPasswordHash();
 		assertThat(passwordEncoder.matches("altes-passwort", storedHash)).isTrue();
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example")
+	@WithMockUser(username = "anna")
 	void rejectsATooShortNewPassword() throws Exception {
 		mockMvc.perform(put("/api/profile/password").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -134,7 +166,7 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example")
+	@WithMockUser(username = "anna")
 	void storesServesAndDeletesTheAvatar() throws Exception {
 		byte[] image = new byte[] { 1, 2, 3, 4 };
 		mockMvc.perform(multipart(HttpMethod.PUT, "/api/profile/avatar")
@@ -154,7 +186,7 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example")
+	@WithMockUser(username = "anna")
 	void replacesAnExistingAvatarOnASecondUpload() throws Exception {
 		mockMvc.perform(multipart(HttpMethod.PUT, "/api/profile/avatar")
 				.file(new MockMultipartFile("file", "one.png", MediaType.IMAGE_PNG_VALUE, new byte[] { 1 }))
@@ -172,7 +204,7 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example")
+	@WithMockUser(username = "anna")
 	void rejectsAnUnsupportedImageType() throws Exception {
 		mockMvc.perform(multipart(HttpMethod.PUT, "/api/profile/avatar")
 				.file(new MockMultipartFile("file", "evil.svg", "image/svg+xml", new byte[] { 1 }))

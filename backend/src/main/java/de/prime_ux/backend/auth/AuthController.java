@@ -54,7 +54,7 @@ class AuthController {
 	public CurrentUserResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest,
 			HttpServletResponse servletResponse) {
 		Authentication authentication = authenticationManager.authenticate(
-				UsernamePasswordAuthenticationToken.unauthenticated(request.email(), request.password()));
+				UsernamePasswordAuthenticationToken.unauthenticated(request.username(), request.password()));
 		// Session fixation protection: never keep a session id from before the login.
 		if (servletRequest.getSession(false) != null) {
 			servletRequest.changeSessionId();
@@ -68,7 +68,7 @@ class AuthController {
 
 	@GetMapping("/me")
 	public CurrentUserResponse me(Authentication authentication, HttpServletRequest servletRequest) {
-		return appUserRepository.findByEmailIgnoreCase(authentication.getName())
+		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
 				.filter(AppUser::isActive)
 				.map(user -> CurrentUserResponse.from(user, userAvatarRepository.existsByUserId(user.getId())))
 				.orElseThrow(() -> {
@@ -82,15 +82,15 @@ class AuthController {
 				});
 	}
 
-	/** Wrong password and unknown mail address answer identically, revealing nothing. */
+	/** Wrong password and unknown username answer identically, revealing nothing. */
 	@ExceptionHandler(AuthenticationException.class)
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)
 	void onAuthenticationFailure() {
 	}
 
-	private CurrentUserResponse currentUser(String email) {
+	private CurrentUserResponse currentUser(String username) {
 		// Only reached right after a successful authentication, so the user exists.
-		AppUser user = appUserRepository.findByEmailIgnoreCase(email).orElseThrow();
+		AppUser user = appUserRepository.findUniqueByUsernameIgnoreCase(username).orElseThrow();
 		return CurrentUserResponse.from(user, userAvatarRepository.existsByUserId(user.getId()));
 	}
 }

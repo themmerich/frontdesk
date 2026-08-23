@@ -27,9 +27,9 @@ class UserController {
 	/** Only the users of the signed-in admin's tenant — tenants never see each other's people. */
 	@GetMapping
 	List<UserResponse> listUsers(Authentication authentication) {
-		AppUser admin = appUserRepository.findByEmailIgnoreCase(authentication.getName())
+		AppUser admin = appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-		return appUserRepository.findAllByTenantIdOrderByDisplayNameAsc(admin.getTenant().getId()).stream()
+		return appUserRepository.findAllByTenantIdOrderByLastNameAscFirstNameAsc(admin.getTenant().getId()).stream()
 				.map(UserResponse::from).toList();
 	}
 
@@ -41,7 +41,7 @@ class UserController {
 	@PutMapping("/{id}/active")
 	UserResponse setActive(@PathVariable UUID id, @Valid @RequestBody UpdateUserActiveRequest request,
 			Authentication authentication) {
-		AppUser admin = appUserRepository.findByEmailIgnoreCase(authentication.getName())
+		AppUser admin = appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 		AppUser user = appUserRepository.findByIdAndTenantId(id, admin.getTenant().getId())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));

@@ -25,7 +25,7 @@ const mockCases = [
 // The shell routes sit behind the auth guard, which probes /api/auth/me once
 // per app start — a mocked session keeps these specs focused on the case list.
 const mockUser = {
-  email: 'admin@frontdesk.local',
+  username: 'admin',
   displayName: 'Anna Admin',
   role: 'admin',
   tenantName: 'Musterfirma GmbH',

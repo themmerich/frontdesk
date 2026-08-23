@@ -58,7 +58,7 @@ export class UserList {
 
   private readonly table = viewChild.required(Table);
 
-  protected readonly globalFilterFields: UserColumnField[] = ['displayName', 'email'];
+  protected readonly globalFilterFields: UserColumnField[] = ['displayName', 'username'];
 
   // Re-evaluates the columns once the active translation file (re)loads, so the
   // popover labels, table headers, and CSV export headers are translated.

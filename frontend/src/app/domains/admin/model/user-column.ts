@@ -4,7 +4,7 @@
  * build on the same definitions.
  */
 
-export type UserColumnField = 'displayName' | 'email' | 'role' | 'active' | 'createdAt';
+export type UserColumnField = 'displayName' | 'username' | 'role' | 'active' | 'createdAt';
 
 export type UserColumnDefinition = {
   field: UserColumnField;
@@ -15,7 +15,7 @@ export type UserColumnDefinition = {
 
 export const USER_COLUMNS: readonly UserColumnDefinition[] = [
   { field: 'displayName', labelKey: 'users.displayName', sortable: true, filterable: true },
-  { field: 'email', labelKey: 'users.email', sortable: true, filterable: true },
+  { field: 'username', labelKey: 'users.username', sortable: true, filterable: true },
   // Role and active are filtered through multi-selects (not the text filter):
   // their cells show translated labels while the rows keep the raw values, so
   // free text would have to match the untranslated value — confusing.

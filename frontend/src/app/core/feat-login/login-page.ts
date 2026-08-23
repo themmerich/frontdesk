@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { email, form, FormField, required, submit } from '@angular/forms/signals';
+import { form, FormField, required, submit } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoDirective } from '@jsverse/transloco';
 import { ButtonModule } from 'primeng/button';
@@ -9,7 +9,7 @@ import { MessageModule } from 'primeng/message';
 import { AuthStore } from '../data/auth-store';
 
 type Credentials = {
-  email: string;
+  username: string;
   password: string;
 };
 
@@ -24,10 +24,9 @@ export class LoginPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly credentials = signal<Credentials>({ email: '', password: '' });
+  protected readonly credentials = signal<Credentials>({ username: '', password: '' });
   protected readonly loginForm = form(this.credentials, (schemaPath) => {
-    required(schemaPath.email);
-    email(schemaPath.email);
+    required(schemaPath.username);
     required(schemaPath.password);
   });
 
@@ -44,8 +43,8 @@ export class LoginPage {
       this.hasLoginFailed.set(false);
       this.isSubmitting.set(true);
       try {
-        const { email: emailAddress, password } = this.credentials();
-        if (await this.authStore.login(emailAddress, password)) {
+        const { username, password } = this.credentials();
+        if (await this.authStore.login(username, password)) {
           await this.router.navigateByUrl(this.route.snapshot.queryParamMap.get('returnUrl') ?? '/');
         } else {
           this.hasLoginFailed.set(true);

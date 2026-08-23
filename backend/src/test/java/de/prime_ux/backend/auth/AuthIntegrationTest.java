@@ -60,22 +60,22 @@ class AuthIntegrationTest {
 
 	@Test
 	void loginWithSeededAdminReturnsTheCurrentUserAndASessionCookie() throws Exception {
-		ResponseEntity<CurrentUserResponse> response = login("admin@frontdesk.local", "secret");
+		ResponseEntity<CurrentUserResponse> response = login("admin", "secret");
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(cookieValue(response, "SESSION")).isNotEmpty();
 		assertThat(response.getBody()).isEqualTo(
-				new CurrentUserResponse("admin@frontdesk.local", "Anna Admin", "admin", "Musterfirma GmbH", false));
+				new CurrentUserResponse("admin", "Anna Admin", "admin", "Musterfirma GmbH", false));
 	}
 
 	@Test
 	void loginWithWrongPasswordIsRejected() {
-		assertThat(login("admin@frontdesk.local", "wrong").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(login("admin", "wrong").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
-	void loginWithUnknownEmailAnswersLikeAWrongPassword() {
-		assertThat(login("nobody@frontdesk.local", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+	void loginWithUnknownUsernameAnswersLikeAWrongPassword() {
+		assertThat(login("nobody", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
@@ -91,7 +91,7 @@ class AuthIntegrationTest {
 	void loginWithoutCsrfTokenIsRejected() {
 		ResponseEntity<Void> response = client.post().uri("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
-				.body("{\"email\": \"admin@frontdesk.local\", \"password\": \"secret\"}")
+				.body("{\"username\": \"admin\", \"password\": \"secret\"}")
 				.retrieve().toBodilessEntity();
 
 		// The CSRF failure surfaces as 401, not 403: for anonymous callers the
@@ -101,7 +101,7 @@ class AuthIntegrationTest {
 
 	@Test
 	void theSessionCookieFromLoginAuthenticatesLaterRequests() {
-		String sessionCookie = "SESSION=" + cookieValue(login("user@frontdesk.local", "secret"), "SESSION");
+		String sessionCookie = "SESSION=" + cookieValue(login("user", "secret"), "SESSION");
 
 		ResponseEntity<Void> cases = client.get().uri("/api/cases")
 				.header(HttpHeaders.COOKIE, sessionCookie)
@@ -113,7 +113,7 @@ class AuthIntegrationTest {
 		assertThat(cases.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(me.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(me.getBody())
-				.isEqualTo(new CurrentUserResponse("user@frontdesk.local", "Uwe User", "user", "Musterfirma GmbH", false));
+				.isEqualTo(new CurrentUserResponse("user", "Uwe User", "user", "Musterfirma GmbH", false));
 	}
 
 	@Test
@@ -121,8 +121,8 @@ class AuthIntegrationTest {
 		// A throwaway user, so the seeded users the other tests rely on stay untouched.
 		Tenant tenant = tenantRepository.findAll().getFirst();
 		AppUser doomedUser = appUserRepository
-				.save(new AppUser(tenant, "doomed@frontdesk.local", "Doomed User", passwordEncoder.encode("secret"), UserRole.USER));
-		String sessionCookie = "SESSION=" + cookieValue(login("doomed@frontdesk.local", "secret"), "SESSION");
+				.save(new AppUser(tenant, "doomed", "Doomed", "User", passwordEncoder.encode("secret"), UserRole.USER));
+		String sessionCookie = "SESSION=" + cookieValue(login("doomed", "secret"), "SESSION");
 
 		appUserRepository.delete(doomedUser);
 
@@ -142,11 +142,11 @@ class AuthIntegrationTest {
 	void loginOfADeactivatedUserIsRejectedLikeAnyFailedLogin() {
 		Tenant tenant = tenantRepository.findAll().getFirst();
 		AppUser dormantUser = appUserRepository.save(
-				new AppUser(tenant, "dormant@frontdesk.local", "Dormant User", passwordEncoder.encode("secret"), UserRole.USER));
+				new AppUser(tenant, "dormant", "Dormant", "User", passwordEncoder.encode("secret"), UserRole.USER));
 		dormantUser.deactivate();
 		appUserRepository.save(dormantUser);
 
-		assertThat(login("dormant@frontdesk.local", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(login("dormant", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
@@ -154,8 +154,8 @@ class AuthIntegrationTest {
 		// A throwaway user, so the seeded users the other tests rely on stay untouched.
 		Tenant tenant = tenantRepository.findAll().getFirst();
 		AppUser benchedUser = appUserRepository.save(
-				new AppUser(tenant, "benched@frontdesk.local", "Benched User", passwordEncoder.encode("secret"), UserRole.USER));
-		String sessionCookie = "SESSION=" + cookieValue(login("benched@frontdesk.local", "secret"), "SESSION");
+				new AppUser(tenant, "benched", "Benched", "User", passwordEncoder.encode("secret"), UserRole.USER));
+		String sessionCookie = "SESSION=" + cookieValue(login("benched", "secret"), "SESSION");
 
 		benchedUser.deactivate();
 		appUserRepository.save(benchedUser);
@@ -174,7 +174,7 @@ class AuthIntegrationTest {
 
 	@Test
 	void logoutEndsTheSession() {
-		String session = cookieValue(login("user@frontdesk.local", "secret"), "SESSION");
+		String session = cookieValue(login("user", "secret"), "SESSION");
 		String csrfToken = fetchCsrfToken();
 
 		ResponseEntity<Void> logout = client.post().uri("/api/auth/logout")
@@ -189,13 +189,13 @@ class AuthIntegrationTest {
 		assertThat(meAfterLogout.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
-	private ResponseEntity<CurrentUserResponse> login(String email, String password) {
+	private ResponseEntity<CurrentUserResponse> login(String username, String password) {
 		String csrfToken = fetchCsrfToken();
 		return client.post().uri("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.header(HttpHeaders.COOKIE, "XSRF-TOKEN=" + csrfToken)
 				.header("X-XSRF-TOKEN", csrfToken)
-				.body("{\"email\": \"" + email + "\", \"password\": \"" + password + "\"}")
+				.body("{\"username\": \"" + username + "\", \"password\": \"" + password + "\"}")
 				.retrieve().toEntity(CurrentUserResponse.class);
 	}
 
