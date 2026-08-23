@@ -1,5 +1,6 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.branches.Branch;
 import de.prime_ux.backend.tenants.Tenant;
 
 import jakarta.persistence.Column;
@@ -54,9 +55,10 @@ public class AppUser {
 	@Column(name = "joined_at")
 	private LocalDate joinedAt;
 
-	// Free text until companies grow branches — then this becomes a reference.
-	@Column
-	private String company;
+	// The site (headquarters or branch) the user works at; purely informational for now.
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "branch_id")
+	private Branch branch;
 
 	// Contact address only; the login name is the username above.
 	@Column
@@ -99,12 +101,12 @@ public class AppUser {
 	}
 
 	public void updateProfile(String firstName, String lastName, LocalDate birthDate, LocalDate joinedAt,
-			String company, String email, String phone, String fax) {
+			Branch branch, String email, String phone, String fax) {
 		this.firstName = firstName;
 		this.lastName = lastName;
 		this.birthDate = birthDate;
 		this.joinedAt = joinedAt;
-		this.company = company;
+		this.branch = branch;
 		this.email = email;
 		this.phone = phone;
 		this.fax = fax;

@@ -43,6 +43,11 @@ class SecurityConfig {
 				// only admins change it.
 				.requestMatchers(HttpMethod.PUT, "/api/company/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.DELETE, "/api/company/**").hasRole("ADMIN")
+				// Everyone reads the branches (the profile offers them as a
+				// dropdown); only admins manage them.
+				.requestMatchers(HttpMethod.POST, "/api/branches/**").hasRole("ADMIN")
+				.requestMatchers(HttpMethod.PUT, "/api/branches/**").hasRole("ADMIN")
+				.requestMatchers(HttpMethod.DELETE, "/api/branches/**").hasRole("ADMIN")
 				.anyRequest().authenticated())
 			.csrf(csrf -> csrf
 				.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())

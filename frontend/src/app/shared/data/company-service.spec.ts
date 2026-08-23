@@ -8,13 +8,6 @@ import { CompanyService } from './company-service';
 
 const company: Company = {
   name: 'Musterfirma GmbH',
-  street: 'Hauptstr. 1',
-  postalCode: '12345',
-  city: 'Musterstadt',
-  country: null,
-  phone: null,
-  fax: null,
-  email: null,
   website: null,
   logoDisplay: 'WITH_NAME',
   primaryColor: null,

@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import de.prime_ux.backend.TestcontainersConfiguration;
+import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
@@ -45,6 +46,9 @@ class CaseControllerTest {
 	@Autowired
 	private TenantMailSettingsRepository tenantMailSettingsRepository;
 
+	@Autowired
+	private BranchRepository branchRepository;
+
 	private Tenant tenant;
 	private Tenant otherTenant;
 
@@ -56,6 +60,7 @@ class CaseControllerTest {
 		tenantMailSettingsRepository.deleteAll();
 		tenantLogoRepository.deleteAll();
 		appUserRepository.deleteAll();
+		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));

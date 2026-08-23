@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import de.prime_ux.backend.TestcontainersConfiguration;
+import de.prime_ux.backend.branches.Branch;
+import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import de.prime_ux.backend.users.AppUser;
@@ -51,6 +53,9 @@ class CompanyControllerTest {
 	@Autowired
 	private TenantMailSettingsRepository tenantMailSettingsRepository;
 
+	@Autowired
+	private BranchRepository branchRepository;
+
 	private Tenant tenant;
 	private Tenant otherTenant;
 
@@ -61,6 +66,7 @@ class CompanyControllerTest {
 		tenantMailSettingsRepository.deleteAll();
 		tenantLogoRepository.deleteAll();
 		appUserRepository.deleteAll();
+		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
@@ -78,7 +84,7 @@ class CompanyControllerTest {
 		mockMvc.perform(get("/api/company"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.name").value("Musterfirma GmbH"))
-				.andExpect(jsonPath("$.street").isEmpty())
+				.andExpect(jsonPath("$.website").isEmpty())
 				.andExpect(jsonPath("$.logoDisplay").value("WITH_NAME"))
 				.andExpect(jsonPath("$.hasLogo").value(false));
 	}
@@ -89,37 +95,44 @@ class CompanyControllerTest {
 		mockMvc.perform(put("/api/company").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
-						{"name": " Musterfirma AG ", "street": "Hauptstr. 1", "postalCode": "12345",
-						 "city": "Musterstadt", "country": "Deutschland", "phone": "+49 30 123",
-						 "fax": "", "email": "info@musterfirma.example", "website": "https://musterfirma.example",
+						{"name": " Musterfirma AG ", "website": "https://musterfirma.example",
 						 "logoDisplay": "LOGO_ONLY", "primaryColor": "#10b981"}
 						"""))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.name").value("Musterfirma AG"))
-				.andExpect(jsonPath("$.city").value("Musterstadt"))
+				.andExpect(jsonPath("$.website").value("https://musterfirma.example"))
 				.andExpect(jsonPath("$.logoDisplay").value("LOGO_ONLY"))
-				.andExpect(jsonPath("$.primaryColor").value("#10b981"))
-				.andExpect(jsonPath("$.fax").isEmpty());
+				.andExpect(jsonPath("$.primaryColor").value("#10b981"));
 
 		// The company name is the tenant name — the rename shows up in the session response too.
 		Tenant saved = tenantRepository.findById(tenant.getId()).orElseThrow();
 		assertThat(saved.getName()).isEqualTo("Musterfirma AG");
 		assertThat(saved.getLogoDisplay()).isEqualTo(LogoDisplay.LOGO_ONLY);
-		assertThat(saved.getFax()).isNull();
 		// The other tenant is untouched.
 		assertThat(tenantRepository.findById(otherTenant.getId()).orElseThrow().getName()).isEqualTo("Beispiel AG");
 	}
 
 	@Test
 	@WithMockUser(username = "anna", roles = "ADMIN")
-	void rejectsABlankNameABrokenEmailAndAMissingLogoDisplay() throws Exception {
+	void savingTheCompanyLeavesTheBranchesAlone() throws Exception {
+		Branch headquarters = branchRepository.save(new Branch(tenant, "Hauptfiliale Musterstadt", true));
+
+		mockMvc.perform(put("/api/company").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"Musterfirma AG\", \"logoDisplay\": \"WITH_NAME\"}"))
+				.andExpect(status().isOk());
+
+		// The sites carry their own names; renaming the company does not touch them.
+		assertThat(branchRepository.findById(headquarters.getId()).orElseThrow().getName())
+				.isEqualTo("Hauptfiliale Musterstadt");
+	}
+
+	@Test
+	@WithMockUser(username = "anna", roles = "ADMIN")
+	void rejectsABlankNameAMissingLogoDisplayAndABrokenColor() throws Exception {
 		mockMvc.perform(put("/api/company").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"name\": \" \", \"logoDisplay\": \"WITH_NAME\"}"))
-				.andExpect(status().isBadRequest());
-		mockMvc.perform(put("/api/company").with(csrf())
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"name\": \"Musterfirma GmbH\", \"email\": \"not-an-email\", \"logoDisplay\": \"WITH_NAME\"}"))
 				.andExpect(status().isBadRequest());
 		mockMvc.perform(put("/api/company").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)

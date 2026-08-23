@@ -1,5 +1,7 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.branches.Branch;
+import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.tenants.TenantLogoRepository;
 import de.prime_ux.backend.tenants.TenantRepository;
@@ -57,9 +59,13 @@ class ProfileControllerTest {
 	private CaseRepository caseRepository;
 
 	@Autowired
+	private BranchRepository branchRepository;
+
+	@Autowired
 	private PasswordEncoder passwordEncoder;
 
 	private AppUser user;
+	private Branch filiale;
 
 	@BeforeEach
 	void cleanDatabaseAndCreateUser() {
@@ -69,8 +75,11 @@ class ProfileControllerTest {
 		userAvatarRepository.deleteAll();
 		tenantLogoRepository.deleteAll();
 		appUserRepository.deleteAll();
+		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
 		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		branchRepository.save(new Branch(tenant, "Musterfirma GmbH", true));
+		filiale = branchRepository.save(new Branch(tenant, "Filiale Hamburg", false));
 		user = appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster",
 				passwordEncoder.encode("altes-passwort"), UserRole.USER));
 	}
@@ -94,11 +103,13 @@ class ProfileControllerTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 						{"firstName": "Anna", "lastName": "Andere", "birthDate": "1990-04-23",
-						 "joinedAt": "2020-01-01", "company": "Musterfirma GmbH",
-						 "email": "anna@musterfirma.example", "phone": "0123 456789", "fax": ""}"""))
+						 "joinedAt": "2020-01-01", "branchId": "%s",
+						 "email": "anna@musterfirma.example", "phone": "0123 456789", "fax": ""}"""
+						.formatted(filiale.getId())))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.lastName").value("Andere"))
 				.andExpect(jsonPath("$.birthDate").value("1990-04-23"))
+				.andExpect(jsonPath("$.branchId").value(filiale.getId().toString()))
 				// Whitespace-only optional fields are stored as "not set".
 				.andExpect(jsonPath("$.fax").isEmpty());
 
@@ -106,10 +117,23 @@ class ProfileControllerTest {
 				.hasValueSatisfying(saved -> {
 					assertThat(saved.getDisplayName()).isEqualTo("Anna Andere");
 					assertThat(saved.getJoinedAt()).isEqualTo("2020-01-01");
-					assertThat(saved.getCompany()).isEqualTo("Musterfirma GmbH");
+					assertThat(saved.getBranch().getId()).isEqualTo(filiale.getId());
 					assertThat(saved.getEmail()).isEqualTo("anna@musterfirma.example");
 					assertThat(saved.getFax()).isNull();
 				});
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void rejectsABranchOfAnotherTenant() throws Exception {
+		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		Branch foreignBranch = branchRepository.save(new Branch(otherTenant, "Filiale Wien", false));
+
+		mockMvc.perform(put("/api/profile").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"firstName\": \"Anna\", \"lastName\": \"Andere\", \"branchId\": \"%s\"}"
+						.formatted(foreignBranch.getId())))
+				.andExpect(status().isBadRequest());
 	}
 
 	@Test

@@ -8,9 +8,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
-	// The tenant comes along eagerly: every caller needs its name right away,
-	// and outside a transaction the lazy proxy could not be resolved anymore.
-	@EntityGraph(attributePaths = "tenant")
+	// Tenant and branch come along eagerly: every caller needs the tenant right
+	// away (and the profile the branch), and outside a transaction the lazy
+	// proxies could not be resolved anymore.
+	@EntityGraph(attributePaths = { "tenant", "branch" })
 	List<AppUser> findAllByUsernameIgnoreCase(String username);
 
 	List<AppUser> findAllByTenantIdOrderByLastNameAscFirstNameAsc(UUID tenantId);
