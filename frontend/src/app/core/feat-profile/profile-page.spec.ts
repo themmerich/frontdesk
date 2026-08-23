@@ -4,27 +4,38 @@ import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { MessageService, ToastMessageOptions } from 'primeng/api';
 
-import { AuthStore, CurrentUser } from '../data/auth-store';
-import { ProfileService } from '../data/profile-service';
+import { AuthStore } from '../data/auth-store';
+import { Profile, ProfileService, ProfileUpdate } from '../data/profile-service';
 import { ProfilePage } from './profile-page';
 
 const translations = {
   profile: {
     title: 'Profile',
+    personal: 'Personal data',
     picture: 'Profile picture',
     upload: 'Upload picture',
     remove: 'Remove picture',
     imageInvalid: 'Please choose a valid image.',
     pictureSaved: 'Profile picture saved.',
     pictureRemoved: 'Profile picture removed.',
-    name: 'Display name',
+    firstName: 'First name',
+    lastName: 'Last name',
+    firstNameRequired: 'Please enter a first name.',
+    lastNameRequired: 'Please enter a last name.',
+    birthDate: 'Date of birth',
+    companyData: 'Company',
+    company: 'Company',
+    joinedAt: 'Joining date',
+    contact: 'Contact',
     email: 'Email address',
-    emailHint: 'Cannot be changed.',
-    displayName: 'Display name',
-    nameRequired: 'Please enter a display name.',
-    nameSaved: 'Display name saved.',
+    emailInvalid: 'Please enter a valid email address.',
+    phone: 'Phone',
+    fax: 'Fax',
     save: 'Save',
-    password: 'Change password',
+    saved: 'Profile saved.',
+    account: 'Sign-in',
+    username: 'Username',
+    usernameHint: 'Cannot be changed.',
     currentPassword: 'Current password',
     newPassword: 'New password',
     confirmPassword: 'Repeat new password',
@@ -35,41 +46,67 @@ const translations = {
     passwordChanged: 'Password changed.',
     passwordWrong: 'The current password is wrong.',
     error: 'Saving failed.',
+    loadError: 'Could not load the profile.',
   },
 };
 
-describe('ProfilePage', () => {
-  const currentUser = signal<CurrentUser | null>({
-    email: 'admin@frontdesk.local',
-    displayName: 'Anna Admin',
-    role: 'admin',
-    tenantName: 'Musterfirma GmbH',
-    hasAvatar: false,
-  });
-  const avatarUrl = signal<string | null>(null);
-  const authStoreStub = { currentUser, avatarUrl } as unknown as AuthStore;
+const storedProfile: Profile = {
+  username: 'anna',
+  firstName: 'Anna',
+  lastName: 'Admin',
+  birthDate: '1990-04-23',
+  joinedAt: '2020-01-01',
+  company: 'Musterfirma GmbH',
+  email: 'anna@musterfirma.example',
+  phone: null,
+  fax: null,
+};
 
-  let renamedTo: string[];
+describe('ProfilePage', () => {
+  const avatarUrl = signal<string | null>(null);
+  const authStoreStub = { avatarUrl } as unknown as AuthStore;
+
+  const profileValue = signal<Profile | null>(null);
+  const error = signal<Error | undefined>(undefined);
+  let savedUpdates: ProfileUpdate[];
   let passwordChanges: { currentPassword: string; newPassword: string }[];
   let changePasswordError: unknown;
+  let removedAvatar: boolean;
   let toasts: ToastMessageOptions[];
   const profileServiceStub = {
-    rename: (displayName: string) => {
-      renamedTo.push(displayName);
+    profile: { value: profileValue, error },
+    save: (update: ProfileUpdate) => {
+      savedUpdates.push(update);
       return Promise.resolve();
     },
     changePassword: (currentPassword: string, newPassword: string) => {
       passwordChanges.push({ currentPassword, newPassword });
       return changePasswordError ? Promise.reject(changePasswordError) : Promise.resolve();
     },
+    removeAvatar: () => {
+      removedAvatar = true;
+      return Promise.resolve();
+    },
   } as unknown as ProfileService;
 
   beforeEach(async () => {
-    renamedTo = [];
+    // PrimeNG's overlay queries matchMedia via the document's view; JSDOM does not implement it.
+    const view = document.defaultView as unknown as { matchMedia?: (query: string) => Partial<MediaQueryList> };
+    view.matchMedia ??= (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    });
+
+    profileValue.set(storedProfile);
+    error.set(undefined);
+    avatarUrl.set(null);
+    savedUpdates = [];
     passwordChanges = [];
     changePasswordError = undefined;
+    removedAvatar = false;
     toasts = [];
-    avatarUrl.set(null);
     await TestBed.configureTestingModule({
       imports: [
         ProfilePage,
@@ -100,41 +137,87 @@ describe('ProfilePage', () => {
     input.dispatchEvent(new Event('input'));
   }
 
-  it('shows the stored profile with the read-only email address', () => {
+  it('shows the stored profile with the read-only username', () => {
     const element = createFixture().nativeElement as HTMLElement;
 
-    expect((element.querySelector('#displayName') as HTMLInputElement).value).toBe('Anna Admin');
-    const email = element.querySelector('#email') as HTMLInputElement;
-    expect(email.value).toBe('admin@frontdesk.local');
-    expect(email.disabled).toBe(true);
+    expect((element.querySelector('#firstName') as HTMLInputElement).value).toBe('Anna');
+    expect((element.querySelector('#lastName') as HTMLInputElement).value).toBe('Admin');
+    expect((element.querySelector('#company') as HTMLInputElement).value).toBe('Musterfirma GmbH');
+    expect((element.querySelector('#email') as HTMLInputElement).value).toBe('anna@musterfirma.example');
+    // Absent optional fields render as empty inputs.
+    expect((element.querySelector('#phone') as HTMLInputElement).value).toBe('');
+    const username = element.querySelector('#username') as HTMLInputElement;
+    expect(username.value).toBe('anna');
+    expect(username.disabled).toBe(true);
   });
 
-  it('saves a changed display name and raises a toast', async () => {
+  it('saves the edited profile with ISO dates and raises a toast', async () => {
     const fixture = createFixture();
     const element = fixture.nativeElement as HTMLElement;
 
-    setInput(element, 'displayName', 'Anna Anders');
+    setInput(element, 'lastName', ' Anders ');
+    setInput(element, 'phone', '0123 456789');
     await fixture.whenStable();
     element.querySelectorAll('form')[0].dispatchEvent(new Event('submit'));
     await fixture.whenStable();
 
-    expect(renamedTo).toEqual(['Anna Anders']);
-    expect(toasts).toHaveLength(1);
-    expect(toasts[0].summary).toBe('Display name saved.');
+    expect(savedUpdates).toHaveLength(1);
+    expect(savedUpdates[0].lastName).toBe('Anders');
+    expect(savedUpdates[0].phone).toBe('0123 456789');
+    // The stored ISO dates survive the datepicker round trip without a timezone shift.
+    expect(savedUpdates[0].birthDate).toBe('1990-04-23');
+    expect(savedUpdates[0].joinedAt).toBe('2020-01-01');
+    expect(toasts[0].summary).toBe('Profile saved.');
+    // The saved state is the new pristine baseline — the button disarms again.
+    fixture.detectChanges();
+    expect((element.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('does not save a blank display name', async () => {
+  it('enables saving only while the form is valid and dirty', async () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+    const saveButton = () => element.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+    // Freshly loaded means pristine — there is nothing to save yet.
+    expect(saveButton().disabled).toBe(true);
+
+    setInput(element, 'phone', '0123 456789');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(saveButton().disabled).toBe(false);
+
+    setInput(element, 'firstName', '');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(saveButton().disabled).toBe(true);
+  });
+
+  it('does not save a blank name', async () => {
     const fixture = createFixture();
     const element = fixture.nativeElement as HTMLElement;
 
-    setInput(element, 'displayName', '');
+    setInput(element, 'lastName', '');
     await fixture.whenStable();
     element.querySelectorAll('form')[0].dispatchEvent(new Event('submit'));
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(renamedTo).toHaveLength(0);
-    expect(element.textContent).toContain('Please enter a display name.');
+    expect(savedUpdates).toHaveLength(0);
+    expect(element.textContent).toContain('Please enter a last name.');
+  });
+
+  it('rejects a broken email address before calling the backend', async () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+
+    setInput(element, 'email', 'not-an-email');
+    await fixture.whenStable();
+    element.querySelectorAll('form')[0].dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(savedUpdates).toHaveLength(0);
+    expect(element.textContent).toContain('Please enter a valid email address.');
   });
 
   it('changes the password and clears the form', async () => {
@@ -186,19 +269,27 @@ describe('ProfilePage', () => {
     expect(toasts[0].summary).toBe('The current password is wrong.');
   });
 
-  it('offers the remove button only while a picture exists', async () => {
+  it('offers the remove button only while a picture exists, and removes through it', async () => {
     const fixture = createFixture();
-    const hasRemoveButton = () =>
-      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).some((button) =>
-        button.textContent?.includes('Remove picture'),
-      );
+    const removeButton = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[aria-label="Remove picture"]');
 
-    expect(hasRemoveButton()).toBe(false);
+    expect(removeButton()).toBeNull();
 
     avatarUrl.set('/api/profile/avatar?v=1');
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(hasRemoveButton()).toBe(true);
+    removeButton()!.click();
+    await fixture.whenStable();
+
+    expect(removedAvatar).toBe(true);
+  });
+
+  it('shows the load error when the API is unreachable', () => {
+    error.set(new Error('connection refused'));
+    const fixture = createFixture();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Could not load the profile.');
   });
 });

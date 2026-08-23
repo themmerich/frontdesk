@@ -9,21 +9,21 @@ import { LoginPage } from './login-page';
 const translations = {
   login: {
     title: 'Sign in',
-    email: 'Email address',
+    username: 'Username',
     password: 'Password',
     submit: 'Sign in',
     failed: 'Sign-in failed.',
-    emailInvalid: 'Please enter a valid email address.',
+    usernameRequired: 'Please enter your username.',
     passwordRequired: 'Please enter your password.',
   },
 };
 
 describe('LoginPage', () => {
   let loginResult: boolean;
-  let receivedCredentials: { email: string; password: string } | undefined;
+  let receivedCredentials: { username: string; password: string } | undefined;
   const authStoreStub = {
-    login: (email: string, password: string) => {
-      receivedCredentials = { email, password };
+    login: (username: string, password: string) => {
+      receivedCredentials = { username, password };
       return Promise.resolve(loginResult);
     },
   } as unknown as AuthStore;
@@ -50,12 +50,12 @@ describe('LoginPage', () => {
     return fixture;
   }
 
-  function fillAndSubmit(fixture: ReturnType<typeof createFixture>, email: string, password: string) {
+  function fillAndSubmit(fixture: ReturnType<typeof createFixture>, username: string, password: string) {
     const element = fixture.nativeElement as HTMLElement;
-    const emailInput = element.querySelector('#email') as HTMLInputElement;
+    const usernameInput = element.querySelector('#username') as HTMLInputElement;
     const passwordInput = element.querySelector('#password') as HTMLInputElement;
-    emailInput.value = email;
-    emailInput.dispatchEvent(new Event('input'));
+    usernameInput.value = username;
+    usernameInput.dispatchEvent(new Event('input'));
     passwordInput.value = password;
     passwordInput.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -65,7 +65,7 @@ describe('LoginPage', () => {
   it('renders the sign-in form', () => {
     const element = createFixture().nativeElement as HTMLElement;
 
-    expect(element.querySelector('#email')).not.toBeNull();
+    expect(element.querySelector('#username')).not.toBeNull();
     expect(element.querySelector('#password')).not.toBeNull();
     expect(element.querySelector('button[type="submit"]')?.textContent).toContain('Sign in');
   });
@@ -73,11 +73,11 @@ describe('LoginPage', () => {
   it('does not call the backend while the form is invalid', async () => {
     const fixture = createFixture();
 
-    fillAndSubmit(fixture, 'not-an-email', '');
+    fillAndSubmit(fixture, '', '');
     await fixture.whenStable();
 
     expect(receivedCredentials).toBeUndefined();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Please enter a valid email address.');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Please enter your username.');
   });
 
   it('signs in and navigates to the requested page', async () => {
@@ -85,10 +85,10 @@ describe('LoginPage', () => {
     const navigateSpy = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
     const fixture = createFixture();
 
-    fillAndSubmit(fixture, 'admin@frontdesk.local', 'secret');
+    fillAndSubmit(fixture, 'admin', 'secret');
     await fixture.whenStable();
 
-    expect(receivedCredentials).toEqual({ email: 'admin@frontdesk.local', password: 'secret' });
+    expect(receivedCredentials).toEqual({ username: 'admin', password: 'secret' });
     expect(navigateSpy).toHaveBeenCalledWith('/');
   });
 
@@ -96,7 +96,7 @@ describe('LoginPage', () => {
     loginResult = false;
     const fixture = createFixture();
 
-    fillAndSubmit(fixture, 'admin@frontdesk.local', 'wrong');
+    fillAndSubmit(fixture, 'admin', 'wrong');
     await fixture.whenStable();
     fixture.detectChanges();
 

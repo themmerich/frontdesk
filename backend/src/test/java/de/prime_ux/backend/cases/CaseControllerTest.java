@@ -59,12 +59,12 @@ class CaseControllerTest {
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
-		appUserRepository.save(new AppUser(tenant, "anna@musterfirma.example", "Anna", "{noop}irrelevant",
+		appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster", "{noop}irrelevant",
 				UserRole.USER));
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example")
+	@WithMockUser(username = "anna")
 	void listsOnlyTheOwnTenantsCasesNewestFirst() throws Exception {
 		caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "Delivery status", "body",
 				Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
@@ -86,7 +86,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example")
+	@WithMockUser(username = "anna")
 	void returnsAnEmptyListWhenTheTenantHasNoCases() throws Exception {
 		caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "Foreign case", "body",
 				Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
@@ -97,7 +97,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ghost@musterfirma.example")
+	@WithMockUser(username = "ghost")
 	void answersUnauthorizedWhenTheSessionUserNoLongerExists() throws Exception {
 		mockMvc.perform(get("/api/cases")).andExpect(status().isUnauthorized());
 	}

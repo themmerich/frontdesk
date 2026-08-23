@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 // Backend-less like the other e2e specs: the API is mocked per test, the
 // assertions use the German texts because de is the default language.
 const mockUser = {
-  email: 'admin@frontdesk.local',
+  username: 'admin',
   displayName: 'Anna Admin',
   role: 'admin',
   tenantName: 'Musterfirma GmbH',
@@ -16,7 +16,7 @@ test.describe('Login', () => {
     await page.goto('/');
 
     await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByLabel('E-Mail-Adresse')).toBeVisible();
+    await expect(page.getByLabel('Benutzername')).toBeVisible();
     await expect(page.getByLabel('Passwort')).toBeVisible();
   });
 
@@ -27,7 +27,7 @@ test.describe('Login', () => {
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
 
     await page.goto('/login');
-    await page.getByLabel('E-Mail-Adresse').fill('admin@frontdesk.local');
+    await page.getByLabel('Benutzername').fill('admin');
     await page.getByLabel('Passwort').fill('secret');
     await page.getByRole('button', { name: 'Anmelden' }).click();
 
@@ -43,7 +43,7 @@ test.describe('Login', () => {
     await page.route('**/api/auth/login', (route) => route.fulfill({ status: 401 }));
 
     await page.goto('/login');
-    await page.getByLabel('E-Mail-Adresse').fill('admin@frontdesk.local');
+    await page.getByLabel('Benutzername').fill('admin');
     await page.getByLabel('Passwort').fill('wrong');
     await page.getByRole('button', { name: 'Anmelden' }).click();
 
@@ -60,10 +60,9 @@ test.describe('Login', () => {
     });
 
     await page.goto('/login');
-    await page.getByLabel('E-Mail-Adresse').fill('not-an-email');
     await page.getByRole('button', { name: 'Anmelden' }).click();
 
-    await expect(page.getByText('Bitte eine gültige E-Mail-Adresse angeben.')).toBeVisible();
+    await expect(page.getByText('Bitte den Benutzernamen angeben.')).toBeVisible();
     await expect(page.getByText('Bitte das Passwort angeben.')).toBeVisible();
     expect(loginCalled).toBe(false);
   });

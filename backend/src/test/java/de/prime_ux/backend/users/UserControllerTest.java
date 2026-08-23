@@ -62,23 +62,23 @@ class UserControllerTest {
 		tenantRepository.deleteAll();
 		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
-		anna = appUserRepository.save(new AppUser(tenant, "anna@musterfirma.example", "Anna Admin", "{noop}irrelevant",
+		anna = appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Admin", "{noop}irrelevant",
 				UserRole.ADMIN));
-		ben = appUserRepository.save(new AppUser(tenant, "ben@musterfirma.example", "Ben Benutzer", "{noop}irrelevant",
+		ben = appUserRepository.save(new AppUser(tenant, "ben", "Ben", "Benutzer", "{noop}irrelevant",
 				UserRole.USER));
 		// Another tenant's user must never show up in this tenant's list.
-		fritz = appUserRepository.save(new AppUser(otherTenant, "fritz@beispiel.example", "Fritz Fremd",
+		fritz = appUserRepository.save(new AppUser(otherTenant, "fritz", "Fritz", "Fremd",
 				"{noop}irrelevant", UserRole.ADMIN));
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
-	void listsOnlyTheOwnTenantsUsersSortedByDisplayName() throws Exception {
+	@WithMockUser(username = "anna", roles = "ADMIN")
+	void listsOnlyTheOwnTenantsUsersSortedByName() throws Exception {
 		mockMvc.perform(get("/api/users"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(2))
 				.andExpect(jsonPath("$[0].displayName").value("Anna Admin"))
-				.andExpect(jsonPath("$[0].email").value("anna@musterfirma.example"))
+				.andExpect(jsonPath("$[0].username").value("anna"))
 				.andExpect(jsonPath("$[0].role").value("admin"))
 				.andExpect(jsonPath("$[0].active").value(true))
 				.andExpect(jsonPath("$[0].id").exists())
@@ -88,13 +88,13 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "anna", roles = "ADMIN")
 	void deactivatesAndReactivatesAUserOfTheOwnTenant() throws Exception {
 		mockMvc.perform(put("/api/users/" + ben.getId() + "/active").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"active\": false}"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.email").value("ben@musterfirma.example"))
+				.andExpect(jsonPath("$.username").value("ben"))
 				.andExpect(jsonPath("$.active").value(false));
 		assertThat(appUserRepository.findById(ben.getId()).orElseThrow().isActive()).isFalse();
 
@@ -107,7 +107,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "anna", roles = "ADMIN")
 	void rejectsAdminsDeactivatingThemselves() throws Exception {
 		mockMvc.perform(put("/api/users/" + anna.getId() + "/active").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -117,7 +117,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "anna", roles = "ADMIN")
 	void answersNotFoundForAnotherTenantsUser() throws Exception {
 		mockMvc.perform(put("/api/users/" + fritz.getId() + "/active").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -127,7 +127,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ben@musterfirma.example")
+	@WithMockUser(username = "ben")
 	void deniesDeactivationToNonAdmins() throws Exception {
 		mockMvc.perform(put("/api/users/" + anna.getId() + "/active").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -136,13 +136,13 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ben@musterfirma.example")
+	@WithMockUser(username = "ben")
 	void deniesTheListToNonAdmins() throws Exception {
 		mockMvc.perform(get("/api/users")).andExpect(status().isForbidden());
 	}
 
 	@Test
-	@WithMockUser(username = "ghost@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "ghost", roles = "ADMIN")
 	void answersUnauthorizedWhenTheSessionUserNoLongerExists() throws Exception {
 		mockMvc.perform(get("/api/users")).andExpect(status().isUnauthorized());
 	}

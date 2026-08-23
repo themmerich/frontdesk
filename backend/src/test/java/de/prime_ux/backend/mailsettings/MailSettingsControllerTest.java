@@ -86,14 +86,14 @@ class MailSettingsControllerTest {
 		appUserRepository.deleteAll();
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
-		appUserRepository.save(new AppUser(tenant, "admin@musterfirma.example", "Anna", "{noop}irrelevant",
+		appUserRepository.save(new AppUser(tenant, "admin", "Anna", "Admin", "{noop}irrelevant",
 				UserRole.ADMIN));
-		appUserRepository.save(new AppUser(tenant, "user@musterfirma.example", "Uwe", "{noop}irrelevant",
+		appUserRepository.save(new AppUser(tenant, "user", "Uwe", "User", "{noop}irrelevant",
 				UserRole.USER));
 	}
 
 	@Test
-	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "admin", roles = "ADMIN")
 	void showsGreenMailDefaultsWithoutStoringThemWhenNothingIsConfigured() throws Exception {
 		mockMvc.perform(get("/api/settings/mail"))
 				.andExpect(status().isOk())
@@ -106,7 +106,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "user@musterfirma.example", roles = "USER")
+	@WithMockUser(username = "user", roles = "USER")
 	void deniesTheSettingsToRegularUsers() throws Exception {
 		mockMvc.perform(get("/api/settings/mail")).andExpect(status().isForbidden());
 		mockMvc.perform(put("/api/settings/mail").with(csrf())
@@ -116,7 +116,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "admin", roles = "ADMIN")
 	void savesACustomConfigurationWithoutEchoingThePassword() throws Exception {
 		mockMvc.perform(put("/api/settings/mail").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -134,7 +134,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "admin", roles = "ADMIN")
 	void keepsTheStoredPasswordWhenTheFieldStaysBlank() throws Exception {
 		mockMvc.perform(put("/api/settings/mail").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -151,7 +151,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "admin", roles = "ADMIN")
 	void greenMailModeForcesTheFixedDevValues() throws Exception {
 		mockMvc.perform(put("/api/settings/mail").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -168,7 +168,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "admin", roles = "ADMIN")
 	void rejectsAnIncompleteCustomConfiguration() throws Exception {
 		mockMvc.perform(put("/api/settings/mail").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -194,7 +194,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "admin", roles = "ADMIN")
 	void reportsAReachableMailboxAsSuccess() throws Exception {
 		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
 
@@ -206,7 +206,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "admin", roles = "ADMIN")
 	void reportsWrongCredentialsAsFailureWithAReason() throws Exception {
 		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
 
@@ -219,7 +219,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin@musterfirma.example", roles = "ADMIN")
+	@WithMockUser(username = "admin", roles = "ADMIN")
 	void testsWithTheStoredPasswordWhenTheFieldStaysBlank() throws Exception {
 		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
 		// Store a configuration whose password is correct, then test with a blank one.
@@ -236,7 +236,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "user@musterfirma.example", roles = "USER")
+	@WithMockUser(username = "user", roles = "USER")
 	void deniesTheConnectionTestToRegularUsers() throws Exception {
 		mockMvc.perform(post("/api/settings/mail/test").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)

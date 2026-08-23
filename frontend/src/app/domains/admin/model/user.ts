@@ -5,7 +5,7 @@
  */
 export type User = {
   id: string;
-  email: string;
+  username: string;
   displayName: string;
   role: 'admin' | 'user';
   active: boolean;

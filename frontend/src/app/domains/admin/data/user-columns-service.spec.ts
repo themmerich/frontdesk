@@ -48,13 +48,13 @@ describe('UserColumnsService', () => {
   it('restores a stored order and visibility', () => {
     storage.setItem(
       'frontdesk-user-columns',
-      JSON.stringify({ order: ['email', 'displayName', 'role', 'active', 'createdAt'], visibleFields: ['email'] }),
+      JSON.stringify({ order: ['username', 'displayName', 'role', 'active', 'createdAt'], visibleFields: ['username'] }),
     );
 
     const service = TestBed.inject(UserColumnsService);
 
-    expect(service.order()[0]).toBe('email');
-    expect(service.visibleFields()).toEqual(['email']);
+    expect(service.order()[0]).toBe('username');
+    expect(service.visibleFields()).toEqual(['username']);
   });
 
   it('falls back to the defaults for unparseable stored values', () => {
@@ -69,19 +69,19 @@ describe('UserColumnsService', () => {
   it('persists a changed visibility', () => {
     const service = TestBed.inject(UserColumnsService);
 
-    service.visibleFields.set(['displayName', 'email']);
+    service.visibleFields.set(['displayName', 'username']);
     TestBed.tick();
 
-    expect(storedPreferences(storage)['visibleFields']).toEqual(['displayName', 'email']);
+    expect(storedPreferences(storage)['visibleFields']).toEqual(['displayName', 'username']);
   });
 
   it('persists a changed order', () => {
     const service = TestBed.inject(UserColumnsService);
 
-    service.order.set(['email', 'displayName', 'role', 'active', 'createdAt']);
+    service.order.set(['username', 'displayName', 'role', 'active', 'createdAt']);
     TestBed.tick();
 
-    expect(storedPreferences(storage)['order']).toEqual(['email', 'displayName', 'role', 'active', 'createdAt']);
+    expect(storedPreferences(storage)['order']).toEqual(['username', 'displayName', 'role', 'active', 'createdAt']);
   });
 
   it('works without a storage, so the app still runs where localStorage is blocked', () => {

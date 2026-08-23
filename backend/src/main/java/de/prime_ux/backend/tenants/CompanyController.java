@@ -114,7 +114,7 @@ class CompanyController {
 
 	private Tenant currentTenant(Authentication authentication) {
 		// The tenant comes along eagerly with the user lookup (entity graph).
-		return appUserRepository.findByEmailIgnoreCase(authentication.getName())
+		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
 				.map(AppUser::getTenant)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 	}

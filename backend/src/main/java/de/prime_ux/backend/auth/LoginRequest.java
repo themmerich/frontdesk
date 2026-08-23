@@ -1,7 +1,6 @@
 package de.prime_ux.backend.auth;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
-record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {
+record LoginRequest(@NotBlank String username, @NotBlank String password) {
 }

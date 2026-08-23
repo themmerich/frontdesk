@@ -9,8 +9,8 @@ import { UserList } from './user-list';
 
 const translations = {
   users: {
-    displayName: 'Display name',
-    email: 'Email address',
+    displayName: 'Name',
+    username: 'Username',
     role: 'Role',
     roleAdmin: 'Admin',
     roleUser: 'User',
@@ -64,7 +64,7 @@ describe('UserList', () => {
 
   const anna: User = {
     id: '1',
-    email: 'anna@musterfirma.example',
+    username: 'anna',
     displayName: 'Anna Admin',
     role: 'admin',
     active: true,
@@ -72,7 +72,7 @@ describe('UserList', () => {
   };
   const ben: User = {
     id: '2',
-    email: 'ben@musterfirma.example',
+    username: 'ben',
     displayName: 'Ben Benutzer',
     role: 'user',
     active: false,
@@ -84,9 +84,9 @@ describe('UserList', () => {
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
     expect(text).toContain('Anna Admin');
-    expect(text).toContain('anna@musterfirma.example');
+    expect(text).toContain('anna');
     expect(text).toContain('Ben Benutzer');
-    expect(text).toContain('ben@musterfirma.example');
+    expect(text).toContain('ben');
   });
 
   it('shows role and active state as translated tags and the formatted date', () => {
@@ -123,13 +123,14 @@ describe('UserList', () => {
     columnsButton.click();
     await fixture.whenStable();
 
-    const emailCheckbox = document.querySelector('input#email') as HTMLInputElement;
-    expect(emailCheckbox).not.toBeNull();
-    emailCheckbox.click();
+    const usernameCheckbox = document.querySelector('input#username') as HTMLInputElement;
+    expect(usernameCheckbox).not.toBeNull();
+    usernameCheckbox.click();
     await fixture.whenStable();
 
     expect(element.querySelectorAll('th')).toHaveLength(5);
-    expect(element.textContent).not.toContain('anna@musterfirma.example');
+    // The username cell is gone; "Anna Admin" stays, but the lowercase login name disappears.
+    expect(element.textContent).not.toContain('anna');
 
     const resetButton = Array.from(document.querySelectorAll('button')).find((button) =>
       button.textContent?.includes('Reset'),
@@ -139,7 +140,7 @@ describe('UserList', () => {
     await fixture.whenStable();
 
     expect(element.querySelectorAll('th')).toHaveLength(6);
-    expect(element.textContent).toContain('anna@musterfirma.example');
+    expect(element.textContent).toContain('anna');
   });
 
   it('reports a hidden column to the caller, which is what gets persisted', async () => {
@@ -149,7 +150,7 @@ describe('UserList', () => {
     columnsButton.click();
     await fixture.whenStable();
 
-    (document.querySelector('input#email') as HTMLInputElement).click();
+    (document.querySelector('input#username') as HTMLInputElement).click();
     await fixture.whenStable();
 
     expect(fixture.componentInstance.visibleFields()).toEqual(['displayName', 'role', 'active', 'createdAt']);
@@ -177,7 +178,7 @@ describe('UserList', () => {
     expect(toggled).toEqual([anna, ben]);
   });
 
-  // Filter toggle order matches the column order: name, email, role, active, created at.
+  // Filter toggle order matches the column order: name, username, role, active, created at.
   async function openFilterMenu(fixture: ReturnType<typeof createFixture>, index: number): Promise<void> {
     const filterToggles = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('p-columnfilter button');
     filterToggles[index].click();

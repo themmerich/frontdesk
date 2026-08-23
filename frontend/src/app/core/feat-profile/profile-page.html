@@ -1,99 +1,231 @@
 <ng-container *transloco="let t">
-  <main class="flex max-w-2xl flex-col gap-8">
+  <main class="mx-auto flex w-full max-w-4xl flex-col gap-6">
     <h1 class="text-2xl font-semibold">{{ t('profile.title') }}</h1>
 
-    <!-- profile picture -->
-    <section class="flex flex-col gap-3">
-      <h2 class="font-medium">{{ t('profile.picture') }}</h2>
-      <div class="flex items-center gap-4">
-        @if (authStore.avatarUrl(); as avatarUrl) {
-          <p-avatar [image]="avatarUrl" shape="circle" size="xlarge" />
-        } @else {
-          <p-avatar icon="pi pi-user" shape="circle" size="xlarge" />
-        }
-        <div class="flex flex-wrap gap-2">
-          <input #fileInput type="file" accept="image/png,image/jpeg,image/webp" class="hidden" (change)="onFileSelected()" />
+    @if (profileService.profile.error()) {
+      <p class="text-red-600 dark:text-red-400">{{ t('profile.loadError') }}</p>
+    } @else {
+      <form novalidate class="grid gap-6 md:grid-cols-2" (submit)="onSave($event)">
+        <!-- personal data: the profile picture beside the name -->
+        <p-fieldset [legend]="t('profile.personal')" class="md:col-span-2">
+          <div class="flex flex-col gap-6 p-2 sm:flex-row sm:items-start">
+            <div class="flex w-full flex-1 flex-col gap-4">
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on">
+                  <input
+                    pInputText
+                    id="firstName"
+                    type="text"
+                    class="w-full"
+                    autocomplete="given-name"
+                    [formField]="profileForm.firstName"
+                  />
+                  <label for="firstName">{{ t('profile.firstName') }}</label>
+                </p-floatlabel>
+                @if ((profileForm.firstName().touched() || hasSubmitAttempted()) && profileForm.firstName().invalid()) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('profile.firstNameRequired') }}</p-message>
+                }
+              </div>
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on">
+                  <input
+                    pInputText
+                    id="lastName"
+                    type="text"
+                    class="w-full"
+                    autocomplete="family-name"
+                    [formField]="profileForm.lastName"
+                  />
+                  <label for="lastName">{{ t('profile.lastName') }}</label>
+                </p-floatlabel>
+                @if ((profileForm.lastName().touched() || hasSubmitAttempted()) && profileForm.lastName().invalid()) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('profile.lastNameRequired') }}</p-message>
+                }
+              </div>
+              <p-floatlabel variant="on">
+                <p-datepicker
+                  inputId="birthDate"
+                  class="w-full"
+                  [showIcon]="true"
+                  iconDisplay="input"
+                  [formField]="profileForm.birthDate"
+                />
+                <label for="birthDate">{{ t('profile.birthDate') }}</label>
+              </p-floatlabel>
+            </div>
+            <div class="flex shrink-0 flex-col items-center gap-3 self-center sm:self-start">
+              @if (authStore.avatarUrl(); as avatarUrl) {
+                <p-avatar [image]="avatarUrl" shape="circle" size="xlarge" />
+              } @else {
+                <p-avatar icon="pi pi-user" shape="circle" size="xlarge" [ariaLabel]="t('profile.picture')" />
+              }
+              <div class="flex items-center gap-2">
+                <p-fileupload
+                  mode="basic"
+                  [auto]="true"
+                  [customUpload]="true"
+                  accept="image/png,image/jpeg,image/webp"
+                  [chooseLabel]="t('profile.upload')"
+                  chooseIcon="pi pi-upload"
+                  [chooseButtonProps]="{ severity: 'secondary', outlined: true }"
+                  [disabled]="isSavingAvatar()"
+                  (uploadHandler)="onUploadAvatar($event)"
+                />
+                @if (authStore.avatarUrl()) {
+                  <p-button
+                    type="button"
+                    severity="danger"
+                    [outlined]="true"
+                    icon="pi pi-trash"
+                    [ariaLabel]="t('profile.remove')"
+                    [pTooltip]="t('profile.remove')"
+                    tooltipPosition="bottom"
+                    [loading]="isSavingAvatar()"
+                    (onClick)="onRemovePicture()"
+                  />
+                }
+              </div>
+            </div>
+          </div>
+        </p-fieldset>
+
+        <p-fieldset [legend]="t('profile.companyData')">
+          <div class="flex flex-col gap-4 p-2">
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-building" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <!-- Free text until companies grow branches — then this becomes a dropdown. -->
+                <input pInputText id="company" type="text" [formField]="profileForm.company" />
+                <label for="company">{{ t('profile.company') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
+            <p-floatlabel variant="on">
+              <p-datepicker inputId="joinedAt" class="w-full" [showIcon]="true" iconDisplay="input" [formField]="profileForm.joinedAt" />
+              <label for="joinedAt">{{ t('profile.joinedAt') }}</label>
+            </p-floatlabel>
+          </div>
+        </p-fieldset>
+
+        <p-fieldset [legend]="t('profile.contact')">
+          <div class="flex flex-col gap-4 p-2">
+            <div class="flex flex-col gap-2">
+              <p-inputgroup>
+                <p-inputgroup-addon><i class="pi pi-at" aria-hidden="true"></i></p-inputgroup-addon>
+                <p-floatlabel variant="on">
+                  <input pInputText id="email" type="email" [formField]="profileForm.email" />
+                  <label for="email">{{ t('profile.email') }}</label>
+                </p-floatlabel>
+              </p-inputgroup>
+              @if ((profileForm.email().touched() || hasSubmitAttempted()) && profileForm.email().invalid()) {
+                <p-message severity="error" variant="simple" size="small">{{ t('profile.emailInvalid') }}</p-message>
+              }
+            </div>
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-phone" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <input pInputText id="phone" type="tel" [formField]="profileForm.phone" />
+                <label for="phone">{{ t('profile.phone') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-print" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <input pInputText id="fax" type="tel" [formField]="profileForm.fax" />
+                <label for="fax">{{ t('profile.fax') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
+          </div>
+        </p-fieldset>
+
+        <div class="flex justify-end md:col-span-2">
           <p-button
-            type="button"
-            severity="secondary"
-            [outlined]="true"
-            icon="pi pi-upload"
-            [label]="t('profile.upload')"
-            [loading]="isSavingAvatar()"
-            (onClick)="onPickFile()"
+            type="submit"
+            icon="pi pi-check"
+            [label]="t('profile.save')"
+            [loading]="isSaving()"
+            [disabled]="profileForm().invalid() || !profileForm().dirty()"
           />
-          @if (authStore.avatarUrl()) {
-            <p-button
-              type="button"
-              severity="danger"
-              [outlined]="true"
-              icon="pi pi-trash"
-              [label]="t('profile.remove')"
-              [loading]="isSavingAvatar()"
-              (onClick)="onRemovePicture()"
-            />
-          }
-        </div>
-      </div>
-    </section>
-
-    <!-- display name -->
-    <section class="flex flex-col gap-3">
-      <h2 class="font-medium">{{ t('profile.name') }}</h2>
-      <form novalidate class="flex flex-col gap-3" (submit)="onSaveName($event)">
-        <div class="flex flex-col gap-2">
-          <label for="email">{{ t('profile.email') }}</label>
-          <input pInputText id="email" type="email" disabled [value]="authStore.currentUser()?.email" />
-          <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('profile.emailHint') }}</p>
-        </div>
-        <div class="flex flex-col gap-2">
-          <label for="displayName">{{ t('profile.displayName') }}</label>
-          <input pInputText id="displayName" type="text" [formField]="nameForm.displayName" />
-          @if ((nameForm.displayName().touched() || hasNameSubmitAttempted()) && nameForm.displayName().invalid()) {
-            <p-message severity="error" variant="simple" size="small">{{ t('profile.nameRequired') }}</p-message>
-          }
-        </div>
-        <div>
-          <p-button type="submit" [label]="t('profile.save')" [loading]="isSavingName()" />
         </div>
       </form>
-    </section>
 
-    <!-- password -->
-    <section class="flex flex-col gap-3">
-      <h2 class="font-medium">{{ t('profile.password') }}</h2>
-      <form novalidate class="flex flex-col gap-3" (submit)="onChangePassword($event)">
-        <div class="flex flex-col gap-2">
-          <label for="currentPassword">{{ t('profile.currentPassword') }}</label>
-          <input
-            pInputText
-            id="currentPassword"
-            type="password"
-            autocomplete="current-password"
-            [formField]="passwordForm.currentPassword"
-          />
-          @if ((passwordForm.currentPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.currentPassword().invalid()) {
-            <p-message severity="error" variant="simple" size="small">{{ t('profile.required') }}</p-message>
-          }
-        </div>
-        <div class="flex flex-col gap-2">
-          <label for="newPassword">{{ t('profile.newPassword') }}</label>
-          <input pInputText id="newPassword" type="password" autocomplete="new-password" [formField]="passwordForm.newPassword" />
-          @if ((passwordForm.newPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.newPassword().invalid()) {
-            <p-message severity="error" variant="simple" size="small">{{ t('profile.passwordTooShort') }}</p-message>
-          }
-        </div>
-        <div class="flex flex-col gap-2">
-          <label for="confirmPassword">{{ t('profile.confirmPassword') }}</label>
-          <input pInputText id="confirmPassword" type="password" autocomplete="new-password" [formField]="passwordForm.confirmPassword" />
-          @if ((passwordForm.confirmPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.confirmPassword().invalid()) {
-            <p-message severity="error" variant="simple" size="small">{{ t('profile.passwordMismatch') }}</p-message>
-          }
-        </div>
-        <div>
-          <p-button type="submit" [label]="t('profile.changePassword')" [loading]="isChangingPassword()" />
-        </div>
+      <!-- The sign-in data has its own form: the password change is its own backend action. -->
+      <form novalidate (submit)="onChangePassword($event)">
+        <p-fieldset [legend]="t('profile.account')">
+          <div class="grid gap-6 p-2 md:grid-cols-2">
+            <div class="flex flex-col gap-2">
+              <p-floatlabel variant="on">
+                <input
+                  pInputText
+                  id="username"
+                  type="text"
+                  class="w-full"
+                  disabled
+                  [value]="profileService.profile.value()?.username ?? ''"
+                />
+                <label for="username">{{ t('profile.username') }}</label>
+              </p-floatlabel>
+              <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('profile.usernameHint') }}</p>
+            </div>
+            <div class="flex flex-col gap-4">
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on">
+                  <input
+                    pInputText
+                    id="currentPassword"
+                    type="password"
+                    class="w-full"
+                    autocomplete="current-password"
+                    [formField]="passwordForm.currentPassword"
+                  />
+                  <label for="currentPassword">{{ t('profile.currentPassword') }}</label>
+                </p-floatlabel>
+                @if (
+                  (passwordForm.currentPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.currentPassword().invalid()
+                ) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('profile.required') }}</p-message>
+                }
+              </div>
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on">
+                  <input
+                    pInputText
+                    id="newPassword"
+                    type="password"
+                    class="w-full"
+                    autocomplete="new-password"
+                    [formField]="passwordForm.newPassword"
+                  />
+                  <label for="newPassword">{{ t('profile.newPassword') }}</label>
+                </p-floatlabel>
+                @if ((passwordForm.newPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.newPassword().invalid()) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('profile.passwordTooShort') }}</p-message>
+                }
+              </div>
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on">
+                  <input
+                    pInputText
+                    id="confirmPassword"
+                    type="password"
+                    class="w-full"
+                    autocomplete="new-password"
+                    [formField]="passwordForm.confirmPassword"
+                  />
+                  <label for="confirmPassword">{{ t('profile.confirmPassword') }}</label>
+                </p-floatlabel>
+                @if (
+                  (passwordForm.confirmPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.confirmPassword().invalid()
+                ) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('profile.passwordMismatch') }}</p-message>
+                }
+              </div>
+              <div class="flex justify-end">
+                <p-button type="submit" icon="pi pi-key" [label]="t('profile.changePassword')" [loading]="isChangingPassword()" />
+              </div>
+            </div>
+          </div>
+        </p-fieldset>
       </form>
-    </section>
+    }
   </main>
 </ng-container>

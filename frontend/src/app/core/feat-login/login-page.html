@@ -8,10 +8,10 @@
            own bubbles; validation and messages come from the form schema instead. -->
       <form novalidate class="flex flex-col gap-4" (submit)="onSubmit($event)">
         <div class="flex flex-col gap-2">
-          <label for="email" class="font-medium">{{ t('login.email') }}</label>
-          <input pInputText id="email" type="email" autocomplete="email" [formField]="loginForm.email" />
-          @if ((loginForm.email().touched() || hasSubmitAttempted()) && loginForm.email().invalid()) {
-            <p-message severity="error" variant="simple" size="small">{{ t('login.emailInvalid') }}</p-message>
+          <label for="username" class="font-medium">{{ t('login.username') }}</label>
+          <input pInputText id="username" type="text" autocomplete="username" [formField]="loginForm.username" />
+          @if ((loginForm.username().touched() || hasSubmitAttempted()) && loginForm.username().invalid()) {
+            <p-message severity="error" variant="simple" size="small">{{ t('login.usernameRequired') }}</p-message>
           }
         </div>
 

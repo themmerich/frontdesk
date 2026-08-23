@@ -1,18 +1,37 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, linkedSignal, signal, viewChild, ElementRef } from '@angular/core';
-import { form, FormField, minLength, required, submit, validate } from '@angular/forms/signals';
+import { Component, inject, linkedSignal, signal, viewChild } from '@angular/core';
+import { email, form, FormField, minLength, required, submit, validate } from '@angular/forms/signals';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { MessageService } from 'primeng/api';
 import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
+import { DatePickerModule } from 'primeng/datepicker';
+import { FieldsetModule } from 'primeng/fieldset';
+import { FileUpload, FileUploadHandlerEvent, FileUploadModule } from 'primeng/fileupload';
+import { FloatLabelModule } from 'primeng/floatlabel';
+import { InputGroupModule } from 'primeng/inputgroup';
+import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
+import { TooltipModule } from 'primeng/tooltip';
 
 import { AuthStore } from '../data/auth-store';
-import { ProfileService } from '../data/profile-service';
+import { Profile, ProfileService } from '../data/profile-service';
 
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
+type ProfileFormModel = {
+  firstName: string;
+  lastName: string;
+  /** Datepicker values; null while no date is picked. */
+  birthDate: Date | null;
+  joinedAt: Date | null;
+  company: string;
+  email: string;
+  phone: string;
+  fax: string;
+};
 
 type PasswordChange = {
   currentPassword: string;
@@ -20,24 +39,72 @@ type PasswordChange = {
   confirmPassword: string;
 };
 
-/** The signed-in user's own profile: picture, display name, and password. */
+/** Parses an ISO date (yyyy-MM-dd) into a local Date, so the datepicker shows the stored day. */
+function parseIsoDate(value: string | null): Date | null {
+  if (value === null) {
+    return null;
+  }
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/** Formats a local Date as an ISO date (yyyy-MM-dd) — no UTC detour, no timezone shift. */
+function toIsoDate(date: Date | null): string | null {
+  if (date === null) {
+    return null;
+  }
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function toFormModel(profile: Profile | null): ProfileFormModel {
+  return {
+    firstName: profile?.firstName ?? '',
+    lastName: profile?.lastName ?? '',
+    birthDate: parseIsoDate(profile?.birthDate ?? null),
+    joinedAt: parseIsoDate(profile?.joinedAt ?? null),
+    company: profile?.company ?? '',
+    email: profile?.email ?? '',
+    phone: profile?.phone ?? '',
+    fax: profile?.fax ?? '',
+  };
+}
+
+/** The signed-in user's own profile: picture, personal data, contact data, and password. */
 @Component({
   selector: 'app-profile-page',
-  imports: [FormField, TranslocoDirective, AvatarModule, ButtonModule, InputTextModule, MessageModule],
+  imports: [
+    FormField,
+    TranslocoDirective,
+    AvatarModule,
+    ButtonModule,
+    DatePickerModule,
+    FieldsetModule,
+    FileUploadModule,
+    FloatLabelModule,
+    InputGroupModule,
+    InputGroupAddonModule,
+    InputTextModule,
+    MessageModule,
+    TooltipModule,
+  ],
   templateUrl: './profile-page.html',
 })
 export class ProfilePage {
   protected readonly authStore = inject(AuthStore);
-  private readonly profileService = inject(ProfileService);
+  protected readonly profileService = inject(ProfileService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
 
-  private readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>('fileInput');
+  private readonly avatarUpload = viewChild.required(FileUpload);
 
-  // Re-anchors on the stored name whenever the session user refreshes.
-  protected readonly name = linkedSignal(() => ({ displayName: this.authStore.currentUser()?.displayName ?? '' }));
-  protected readonly nameForm = form(this.name, (schemaPath) => {
-    required(schemaPath.displayName);
+  // Re-anchors on the loaded (or freshly saved) profile, while staying freely editable in between.
+  protected readonly model = linkedSignal(() => toFormModel(this.profileService.profile.value()));
+  protected readonly profileForm = form(this.model, (schemaPath) => {
+    required(schemaPath.firstName);
+    required(schemaPath.lastName);
+    email(schemaPath.email);
   });
 
   protected readonly passwordChange = signal<PasswordChange>({
@@ -55,22 +122,19 @@ export class ProfilePage {
     );
   });
 
-  protected readonly isSavingName = signal(false);
+  protected readonly isSaving = signal(false);
   protected readonly isChangingPassword = signal(false);
   protected readonly isSavingAvatar = signal(false);
   // Validation errors stay hidden until the field was visited or a submit was
   // attempted — submit() alone does not flip the fields' touched state.
-  protected readonly hasNameSubmitAttempted = signal(false);
+  protected readonly hasSubmitAttempted = signal(false);
   protected readonly hasPasswordSubmitAttempted = signal(false);
 
-  protected onPickFile(): void {
-    this.fileInput().nativeElement.click();
-  }
-
-  protected async onFileSelected(): Promise<void> {
-    const input = this.fileInput().nativeElement;
-    const file = input.files?.[0];
-    input.value = '';
+  /** Called by the upload widget right after a file was chosen (auto mode). */
+  protected async onUploadAvatar(event: FileUploadHandlerEvent): Promise<void> {
+    const file = event.files[0] as File | undefined;
+    // The widget keeps the chosen file; clear it so the next pick fires again.
+    this.avatarUpload().clear();
     if (!file) {
       return;
     }
@@ -101,19 +165,31 @@ export class ProfilePage {
     }
   }
 
-  protected async onSaveName(event: Event): Promise<void> {
+  protected async onSave(event: Event): Promise<void> {
     event.preventDefault();
-    this.hasNameSubmitAttempted.set(true);
-    await submit(this.nameForm, async () => {
-      this.isSavingName.set(true);
+    this.hasSubmitAttempted.set(true);
+    await submit(this.profileForm, async () => {
+      this.isSaving.set(true);
       try {
-        await this.profileService.rename(this.name().displayName.trim());
-        this.hasNameSubmitAttempted.set(false);
-        this.toast('success', 'profile.nameSaved');
+        const model = this.model();
+        await this.profileService.save({
+          firstName: model.firstName.trim(),
+          lastName: model.lastName.trim(),
+          birthDate: toIsoDate(model.birthDate),
+          joinedAt: toIsoDate(model.joinedAt),
+          company: model.company,
+          email: model.email,
+          phone: model.phone,
+          fax: model.fax,
+        });
+        this.hasSubmitAttempted.set(false);
+        // Back to pristine: the save button stays disabled until the next edit.
+        this.profileForm().reset();
+        this.toast('success', 'profile.saved');
       } catch {
         this.toast('error', 'profile.error');
       } finally {
-        this.isSavingName.set(false);
+        this.isSaving.set(false);
       }
     });
   }

@@ -35,7 +35,7 @@ describe('Sidebar', () => {
 
   beforeEach(async () => {
     currentUser.set({
-      email: 'admin@frontdesk.local',
+      username: 'admin',
       displayName: 'Anna Admin',
       role: 'admin',
       tenantName: 'Musterfirma GmbH',
@@ -155,7 +155,7 @@ describe('Sidebar', () => {
     expect(adminElement.querySelector('a[href="/company"]')?.textContent).toContain('Company');
 
     currentUser.set({
-      email: 'user@frontdesk.local',
+      username: 'user',
       displayName: 'Uwe User',
       role: 'user',
       tenantName: 'Musterfirma GmbH',
@@ -174,7 +174,7 @@ describe('Sidebar', () => {
     expect((adminFixture.nativeElement as HTMLElement).querySelector('a[href="/settings"]')?.textContent).toContain('Email');
 
     currentUser.set({
-      email: 'user@frontdesk.local',
+      username: 'user',
       displayName: 'Uwe User',
       role: 'user',
       tenantName: 'Musterfirma GmbH',

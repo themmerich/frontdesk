@@ -6,7 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { AuthStore, CurrentUser } from './auth-store';
 
 const user: CurrentUser = {
-  email: 'admin@frontdesk.local',
+  username: 'admin',
   displayName: 'Anna Admin',
   role: 'admin',
   tenantName: 'Musterfirma GmbH',
@@ -54,9 +54,9 @@ describe('AuthStore', () => {
   });
 
   it('signs in with accepted credentials', async () => {
-    const login = store.login('admin@frontdesk.local', 'secret');
+    const login = store.login('admin', 'secret');
     const request = http.expectOne('/api/auth/login');
-    expect(request.request.body).toEqual({ email: 'admin@frontdesk.local', password: 'secret' });
+    expect(request.request.body).toEqual({ username: 'admin', password: 'secret' });
     request.flush(user);
 
     expect(await login).toBe(true);
@@ -64,7 +64,7 @@ describe('AuthStore', () => {
   });
 
   it('reports rejected credentials without signing in', async () => {
-    const login = store.login('admin@frontdesk.local', 'wrong');
+    const login = store.login('admin', 'wrong');
     http.expectOne('/api/auth/login').flush(null, { status: 401, statusText: 'Unauthorized' });
 
     expect(await login).toBe(false);
@@ -72,7 +72,7 @@ describe('AuthStore', () => {
   });
 
   it('signs out locally even when the server session is already gone', async () => {
-    const login = store.login('admin@frontdesk.local', 'secret');
+    const login = store.login('admin', 'secret');
     http.expectOne('/api/auth/login').flush(user);
     await login;
 

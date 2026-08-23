@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -36,11 +37,36 @@ public class AppUser {
 	@JoinColumn(name = "tenant_id")
 	private Tenant tenant;
 
+	// The login name: any string, unique within the tenant (not necessarily a mail address).
 	@Column(nullable = false)
+	private String username;
+
+	@Column(name = "first_name", nullable = false)
+	private String firstName;
+
+	@Column(name = "last_name", nullable = false)
+	private String lastName;
+
+	@Column(name = "birth_date")
+	private LocalDate birthDate;
+
+	// The day the user joined the company (Eintrittsdatum).
+	@Column(name = "joined_at")
+	private LocalDate joinedAt;
+
+	// Free text until companies grow branches — then this becomes a reference.
+	@Column
+	private String company;
+
+	// Contact address only; the login name is the username above.
+	@Column
 	private String email;
 
-	@Column(name = "display_name", nullable = false)
-	private String displayName;
+	@Column
+	private String phone;
+
+	@Column
+	private String fax;
 
 	@Column(name = "password_hash", nullable = false)
 	private String passwordHash;
@@ -55,18 +81,33 @@ public class AppUser {
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
-	public AppUser(Tenant tenant, String email, String displayName, String passwordHash, UserRole role) {
+	public AppUser(Tenant tenant, String username, String firstName, String lastName, String passwordHash,
+			UserRole role) {
 		this.tenant = tenant;
-		this.email = email;
-		this.displayName = displayName;
+		this.username = username;
+		this.firstName = firstName;
+		this.lastName = lastName;
 		this.passwordHash = passwordHash;
 		this.role = role;
 		this.active = true;
 		this.createdAt = Instant.now();
 	}
 
-	public void rename(String displayName) {
-		this.displayName = displayName;
+	/** First and last name joined for display, e.g. in the sidebar and the user list. */
+	public String getDisplayName() {
+		return (firstName + " " + lastName).strip();
+	}
+
+	public void updateProfile(String firstName, String lastName, LocalDate birthDate, LocalDate joinedAt,
+			String company, String email, String phone, String fax) {
+		this.firstName = firstName;
+		this.lastName = lastName;
+		this.birthDate = birthDate;
+		this.joinedAt = joinedAt;
+		this.company = company;
+		this.email = email;
+		this.phone = phone;
+		this.fax = fax;
 	}
 
 	public void changePassword(String passwordHash) {

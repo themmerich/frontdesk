@@ -25,7 +25,7 @@ class CaseController {
 	/** Only the cases of the signed-in user's tenant — tenants never see each other's mail. */
 	@GetMapping
 	List<CaseResponse> listCases(Authentication authentication) {
-		AppUser user = appUserRepository.findByEmailIgnoreCase(authentication.getName())
+		AppUser user = appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 		return caseRepository.findAllByTenantIdOrderByReceivedAtDesc(user.getTenant().getId()).stream()
 				.map(CaseResponse::from).toList();

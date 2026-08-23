@@ -11,8 +11,8 @@ import { UsersPage } from './users-page';
 const translations = {
   users: {
     title: 'Users',
-    displayName: 'Display name',
-    email: 'Email address',
+    displayName: 'Name',
+    username: 'Username',
     role: 'Role',
     roleAdmin: 'Admin',
     roleUser: 'User',
@@ -48,7 +48,7 @@ describe('UsersPage', () => {
 
   const anna: User = {
     id: '1',
-    email: 'anna@musterfirma.example',
+    username: 'anna',
     displayName: 'Anna Admin',
     role: 'admin',
     active: true,

@@ -114,7 +114,7 @@ class MailSettingsController {
 	}
 
 	private AppUser currentUser(Authentication authentication) {
-		return appUserRepository.findByEmailIgnoreCase(authentication.getName())
+		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 	}
 }
