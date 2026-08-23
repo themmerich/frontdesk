@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { MessageService } from 'primeng/api';
 
+import { CompanyService } from '../../../shared/data/company-service';
 import { AuthStore } from '../../data/auth-store';
 import { Shell } from './shell';
 
@@ -14,6 +15,12 @@ describe('Shell', () => {
     avatarUrl: signal<string | null>(null),
     logout: () => Promise.resolve(),
   } as unknown as AuthStore;
+  // The sidebar shows the company name and logo from the shared service.
+  const companyServiceStub = {
+    name: signal<string | undefined>(undefined),
+    logoUrl: signal<string | null>(null),
+    largeLogoUrl: signal<string | null>(null),
+  } as unknown as CompanyService;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -25,7 +32,13 @@ describe('Shell', () => {
           preloadLangs: true,
         }),
       ],
-      providers: [provideZonelessChangeDetection(), provideRouter([]), MessageService, { provide: AuthStore, useValue: authStoreStub }],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([]),
+        MessageService,
+        { provide: AuthStore, useValue: authStoreStub },
+        { provide: CompanyService, useValue: companyServiceStub },
+      ],
     }).compileComponents();
   });
 

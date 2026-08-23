@@ -24,6 +24,7 @@ test.describe('Login', () => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401 }));
     await page.route('**/api/auth/login', (route) => route.fulfill({ json: mockUser }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
+    await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
 
     await page.goto('/login');
     await page.getByLabel('E-Mail-Adresse').fill('admin@frontdesk.local');
@@ -31,9 +32,10 @@ test.describe('Login', () => {
     await page.getByRole('button', { name: 'Anmelden' }).click();
 
     await expect(page.getByRole('heading', { name: 'Vorgänge' })).toBeVisible();
-    // The sidebar footer shows who is signed in, and for which tenant.
+    // The sidebar footer shows who is signed in, and for which tenant; the
+    // company name also brands the sidebar's top, hence first().
     await expect(page.getByText('Anna Admin')).toBeVisible();
-    await expect(page.getByText('Musterfirma GmbH')).toBeVisible();
+    await expect(page.getByText('Musterfirma GmbH').first()).toBeVisible();
   });
 
   test('shows an error for rejected credentials and stays on the login page', async ({ page }) => {

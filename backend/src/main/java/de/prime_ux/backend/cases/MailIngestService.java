@@ -1,7 +1,7 @@
 package de.prime_ux.backend.cases;
 
 import de.prime_ux.backend.mailsettings.TenantMailSettings;
-import de.prime_ux.backend.users.Tenant;
+import de.prime_ux.backend.tenants.Tenant;
 import jakarta.mail.BodyPart;
 import jakarta.mail.Flags;
 import jakarta.mail.Folder;

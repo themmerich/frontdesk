@@ -1,0 +1,145 @@
+<ng-container *transloco="let t">
+  <main class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+    <h1 class="text-2xl font-semibold">{{ t('company.title') }}</h1>
+
+    @if (companyService.company.error()) {
+      <p class="text-red-600 dark:text-red-400">{{ t('company.loadError') }}</p>
+    } @else {
+      <form novalidate class="grid gap-6 md:grid-cols-2" (submit)="onSave($event)">
+        <!-- brand: logo beside the company name -->
+        <p-fieldset [legend]="t('company.data')" class="md:col-span-2">
+          <div class="flex flex-col gap-6 p-2 sm:flex-row sm:items-start">
+            <div class="flex w-full flex-1 flex-col gap-2">
+              <p-floatlabel variant="on">
+                <input pInputText id="name" type="text" class="w-full" [formField]="companyForm.name" />
+                <label for="name">{{ t('company.name') }}</label>
+              </p-floatlabel>
+              @if ((companyForm.name().touched() || hasSubmitAttempted()) && companyForm.name().invalid()) {
+                <p-message severity="error" variant="simple" size="small">{{ t('company.nameRequired') }}</p-message>
+              }
+            </div>
+            <div class="flex shrink-0 flex-col items-center gap-3 self-center sm:self-start">
+              <div
+                class="flex h-24 w-40 items-center justify-center overflow-hidden rounded-lg border border-dashed border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-900"
+              >
+                @if (companyService.logoUrl(); as logoUrl) {
+                  <img [src]="logoUrl" [alt]="t('company.logo')" class="max-h-24 max-w-40 object-contain p-1" />
+                } @else {
+                  <div class="flex flex-col items-center gap-1 text-surface-400 dark:text-surface-500">
+                    <i class="pi pi-building text-3xl" aria-hidden="true"></i>
+                    <span class="text-xs">{{ t('company.logo') }}</span>
+                  </div>
+                }
+              </div>
+              <div class="flex items-center gap-2">
+                <p-fileupload
+                  mode="basic"
+                  [auto]="true"
+                  [customUpload]="true"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  [chooseLabel]="t('company.upload')"
+                  chooseIcon="pi pi-upload"
+                  [chooseButtonProps]="{ severity: 'secondary', outlined: true }"
+                  [disabled]="isSavingLogo()"
+                  (uploadHandler)="onUploadLogo($event)"
+                />
+                @if (companyService.logoUrl()) {
+                  <p-button
+                    type="button"
+                    severity="danger"
+                    [outlined]="true"
+                    icon="pi pi-trash"
+                    [ariaLabel]="t('company.remove')"
+                    [pTooltip]="t('company.remove')"
+                    tooltipPosition="bottom"
+                    [loading]="isSavingLogo()"
+                    (onClick)="onRemoveLogo()"
+                  />
+                }
+              </div>
+              <p-selectbutton
+                [options]="logoDisplayOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [allowEmpty]="false"
+                size="small"
+                [formField]="companyForm.logoDisplay"
+              />
+            </div>
+          </div>
+        </p-fieldset>
+
+        <p-fieldset [legend]="t('company.address')">
+          <div class="flex flex-col gap-4 p-2">
+            <p-floatlabel variant="on">
+              <input pInputText id="street" type="text" class="w-full" [formField]="companyForm.street" />
+              <label for="street">{{ t('company.street') }}</label>
+            </p-floatlabel>
+            <div class="flex gap-3">
+              <p-floatlabel variant="on" class="w-28 shrink-0">
+                <input pInputText id="postalCode" type="text" class="w-full" [formField]="companyForm.postalCode" />
+                <label for="postalCode">{{ t('company.postalCode') }}</label>
+              </p-floatlabel>
+              <p-floatlabel variant="on" class="min-w-0 flex-1">
+                <input pInputText id="city" type="text" class="w-full" [formField]="companyForm.city" />
+                <label for="city">{{ t('company.city') }}</label>
+              </p-floatlabel>
+            </div>
+            <p-floatlabel variant="on">
+              <p-select inputId="country" class="w-full" [options]="countryOptions" [showClear]="true" [formField]="companyForm.country" />
+              <label for="country">{{ t('company.country') }}</label>
+            </p-floatlabel>
+          </div>
+        </p-fieldset>
+
+        <p-fieldset [legend]="t('company.contact')">
+          <div class="flex flex-col gap-4 p-2">
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-phone" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <input pInputText id="phone" type="tel" [formField]="companyForm.phone" />
+                <label for="phone">{{ t('company.phone') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-print" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <input pInputText id="fax" type="tel" [formField]="companyForm.fax" />
+                <label for="fax">{{ t('company.fax') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
+            <div class="flex flex-col gap-2">
+              <p-inputgroup>
+                <p-inputgroup-addon><i class="pi pi-at" aria-hidden="true"></i></p-inputgroup-addon>
+                <p-floatlabel variant="on">
+                  <input pInputText id="email" type="email" [formField]="companyForm.email" />
+                  <label for="email">{{ t('company.email') }}</label>
+                </p-floatlabel>
+              </p-inputgroup>
+              @if ((companyForm.email().touched() || hasSubmitAttempted()) && companyForm.email().invalid()) {
+                <p-message severity="error" variant="simple" size="small">{{ t('company.emailInvalid') }}</p-message>
+              }
+            </div>
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-globe" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <input pInputText id="website" type="url" [formField]="companyForm.website" />
+                <label for="website">{{ t('company.website') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
+          </div>
+        </p-fieldset>
+
+        <div class="flex justify-end md:col-span-2">
+          <p-button
+            type="submit"
+            icon="pi pi-check"
+            [label]="t('company.save')"
+            [loading]="isSaving()"
+            [disabled]="companyForm().invalid() || !companyForm().dirty()"
+          />
+        </div>
+      </form>
+    }
+  </main>
+</ng-container>

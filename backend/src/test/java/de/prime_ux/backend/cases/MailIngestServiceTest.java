@@ -9,8 +9,9 @@ import com.icegreen.greenmail.util.ServerSetupTest;
 import de.prime_ux.backend.TestcontainersConfiguration;
 import de.prime_ux.backend.mailsettings.MailSettingsMode;
 import de.prime_ux.backend.mailsettings.TenantMailSettings;
-import de.prime_ux.backend.users.Tenant;
-import de.prime_ux.backend.users.TenantRepository;
+import de.prime_ux.backend.tenants.Tenant;
+import de.prime_ux.backend.tenants.TenantLogoRepository;
+import de.prime_ux.backend.tenants.TenantRepository;
 import jakarta.activation.DataHandler;
 import jakarta.mail.Message;
 import jakarta.mail.Part;
@@ -46,6 +47,9 @@ class MailIngestServiceTest {
 
 	@Autowired
 	private TenantRepository tenantRepository;
+
+	@Autowired
+	private TenantLogoRepository tenantLogoRepository;
 
 	private Tenant tenant;
 

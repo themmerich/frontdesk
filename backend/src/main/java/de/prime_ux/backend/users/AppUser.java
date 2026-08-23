@@ -1,5 +1,7 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.tenants.Tenant;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

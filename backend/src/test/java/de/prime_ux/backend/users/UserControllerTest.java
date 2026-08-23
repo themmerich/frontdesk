@@ -1,5 +1,9 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.tenants.Tenant;
+import de.prime_ux.backend.tenants.TenantLogoRepository;
+import de.prime_ux.backend.tenants.TenantRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -35,6 +39,9 @@ class UserControllerTest {
 	private TenantRepository tenantRepository;
 
 	@Autowired
+	private TenantLogoRepository tenantLogoRepository;
+
+	@Autowired
 	private CaseRepository caseRepository;
 
 	@Autowired
@@ -50,6 +57,7 @@ class UserControllerTest {
 		// test classes sharing this context's database.
 		caseRepository.deleteAll();
 		tenantMailSettingsRepository.deleteAll();
+		tenantLogoRepository.deleteAll();
 		appUserRepository.deleteAll();
 		tenantRepository.deleteAll();
 		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));

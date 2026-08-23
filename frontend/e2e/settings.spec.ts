@@ -26,6 +26,7 @@ const greenMailSettings = {
 test.describe('Email settings', () => {
   test('lets an admin switch to a custom server and saves it', async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
+    await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/settings/mail', (route) => {
       if (route.request().method() === 'PUT') {
@@ -66,6 +67,7 @@ test.describe('Email settings', () => {
 
   test('validates the custom form before saving', async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
+    await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     await page.route('**/api/settings/mail', (route) => route.fulfill({ json: greenMailSettings }));
     let saved = false;
     await page.route('**/api/settings/mail', (route) => {
@@ -86,6 +88,7 @@ test.describe('Email settings', () => {
 
   test('hides the settings from regular users and redirects them away', async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: regularUser }));
+    await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
 
     await page.goto('/settings');

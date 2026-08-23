@@ -1,5 +1,8 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.tenants.Tenant;
+import de.prime_ux.backend.tenants.TenantRepository;
+
 import de.prime_ux.backend.mailsettings.TenantMailSettings;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import lombok.extern.slf4j.Slf4j;

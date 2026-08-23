@@ -13,6 +13,7 @@ const user = {
 test.describe('Profile', () => {
   test('opens from the sidebar and shows the stored data', async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: user }));
+    await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
 
     await page.goto('/');
@@ -27,6 +28,7 @@ test.describe('Profile', () => {
   test('saves a changed display name, which the sidebar picks up', async ({ page }) => {
     let currentName = 'Anna Admin';
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: { ...user, displayName: currentName } }));
+    await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     await page.route('**/api/profile', (route) => {
       currentName = 'Anna Anders';
       return route.fulfill({ json: { ...user, displayName: currentName } });
@@ -43,6 +45,7 @@ test.describe('Profile', () => {
 
   test('validates the password change before calling the backend', async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: user }));
+    await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     let passwordChanged = false;
     await page.route('**/api/profile/password', (route) => {
       passwordChanged = true;
