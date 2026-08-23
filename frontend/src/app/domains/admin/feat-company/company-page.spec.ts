@@ -18,6 +18,8 @@ const translations = {
     nameRequired: 'Please enter a company name.',
     logoWithName: 'Logo + name',
     logoOnly: 'Logo only',
+    color: 'Company color',
+    colorInvalid: 'Please enter a hex code like #RRGGBB.',
     address: 'Address',
     street: 'Street',
     postalCode: 'Postal code',
@@ -47,6 +49,7 @@ const storedCompany: Company = {
   email: 'info@musterfirma.example',
   website: null,
   logoDisplay: 'WITH_NAME',
+  primaryColor: null,
   hasLogo: false,
 };
 
@@ -138,6 +141,8 @@ describe('CompanyPage', () => {
     expect(savedUpdates).toHaveLength(1);
     expect(savedUpdates[0].name).toBe('Musterfirma AG');
     expect(savedUpdates[0].phone).toBe('+49 30 999');
+    // The empty color field goes out as null, matching the backend's hex validation.
+    expect(savedUpdates[0].primaryColor).toBeNull();
     expect(toasts[0].summary).toBe('Company data saved.');
     // The saved state is the new pristine baseline — the button disarms again.
     fixture.detectChanges();
@@ -189,6 +194,28 @@ describe('CompanyPage', () => {
 
     expect(savedUpdates).toHaveLength(0);
     expect(element.textContent).toContain('Please enter a valid email address.');
+  });
+
+  it('saves a valid company color and rejects a broken hex code', async () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+
+    setInput(element, 'primaryColor', 'rot');
+    await fixture.whenStable();
+    element.querySelector('form')!.dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(savedUpdates).toHaveLength(0);
+    expect(element.textContent).toContain('Please enter a hex code like #RRGGBB.');
+
+    setInput(element, 'primaryColor', '#10b981');
+    await fixture.whenStable();
+    element.querySelector('form')!.dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+
+    expect(savedUpdates).toHaveLength(1);
+    expect(savedUpdates[0].primaryColor).toBe('#10b981');
   });
 
   it('saves the switch to the large logo-only branding', async () => {

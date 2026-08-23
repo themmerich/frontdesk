@@ -51,6 +51,10 @@ public class Tenant {
 	@Column(name = "logo_display", nullable = false)
 	private LogoDisplay logoDisplay;
 
+	/** Brand color as hex (#RRGGBB); the app's default primary color for this tenant's users. */
+	@Column(name = "primary_color")
+	private String primaryColor;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
@@ -62,7 +66,7 @@ public class Tenant {
 
 	/** The name is the tenant's name everywhere — renaming here renames the tenant. */
 	public void updateCompany(String name, String street, String postalCode, String city, String country,
-			String phone, String fax, String email, String website, LogoDisplay logoDisplay) {
+			String phone, String fax, String email, String website, LogoDisplay logoDisplay, String primaryColor) {
 		this.name = name;
 		this.street = street;
 		this.postalCode = postalCode;
@@ -73,5 +77,6 @@ public class Tenant {
 		this.email = email;
 		this.website = website;
 		this.logoDisplay = logoDisplay;
+		this.primaryColor = primaryColor;
 	}
 }

@@ -14,6 +14,7 @@
     "lightMode": "Switch to light mode",
     "themeSettings": "Customize theme",
     "primaryColor": "Primary color",
+    "primaryDefault": "Default",
     "surfaceColor": "Surface",
     "preset": "Preset"
   },
@@ -74,6 +75,8 @@
     "data": "Company data",
     "name": "Company name",
     "nameRequired": "Please enter a company name.",
+    "color": "Company color",
+    "colorInvalid": "Please enter a hex code like #RRGGBB.",
     "address": "Address",
     "street": "Street",
     "postalCode": "Postal code",

@@ -17,6 +17,7 @@ const company: Company = {
   email: null,
   website: null,
   logoDisplay: 'WITH_NAME',
+  primaryColor: null,
   hasLogo: false,
 };
 
@@ -51,6 +52,13 @@ describe('CompanyService', () => {
     expect(service.logoUrl()).toBe('/api/company/logo?v=0');
     // The small-logo-beside-the-name mode never yields a large brand logo.
     expect(service.largeLogoUrl()).toBeNull();
+    httpTesting.verify();
+  });
+
+  it('exposes the tenant brand color once loaded', async () => {
+    await flushInitialLoad({ ...company, primaryColor: '#10b981' });
+
+    expect(service.primaryColor()).toBe('#10b981');
     httpTesting.verify();
   });
 

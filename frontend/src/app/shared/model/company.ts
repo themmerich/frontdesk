@@ -19,6 +19,8 @@ export type Company = {
   email: string | null;
   website: string | null;
   logoDisplay: LogoDisplay;
+  /** Brand color as hex (#RRGGBB); the app's default primary color for this tenant's users. */
+  primaryColor: string | null;
   hasLogo: boolean;
 };
 

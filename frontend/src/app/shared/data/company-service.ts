@@ -24,6 +24,8 @@ export class CompanyService {
   readonly logoUrl = computed(() => (this.company.value()?.hasLogo ? `/api/company/logo?v=${this.logoVersion()}` : null));
   /** The logo URL only when it should fill the whole brand area (replacing the name), else null. */
   readonly largeLogoUrl = computed(() => (this.company.value()?.logoDisplay === 'LOGO_ONLY' ? this.logoUrl() : null));
+  /** The tenant's brand color (hex), the app's default primary color; null while unset. */
+  readonly primaryColor = computed(() => this.company.value()?.primaryColor ?? null);
 
   /** Saves and reflects the server's answer in the resource, so every consumer shows the stored state. */
   async save(update: CompanyUpdate): Promise<void> {

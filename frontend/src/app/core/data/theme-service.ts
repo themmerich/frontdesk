@@ -2,6 +2,8 @@ import { DOCUMENT } from '@angular/common';
 import { effect, inject, InjectionToken, Service, signal } from '@angular/core';
 import { palette, updatePrimaryPalette, updateSurfacePalette, usePreset } from '@primeuix/themes';
 
+import { CompanyService } from '../../shared/data/company-service';
+
 const STORAGE_KEY = 'frontdesk-theme';
 
 export const PRESET_NAMES = ['aura', 'material', 'lara', 'nora'] as const;
@@ -102,6 +104,7 @@ export const THEME_STORAGE = new InjectionToken<Storage | null>('THEME_STORAGE',
 export class ThemeService {
   private readonly document = inject(DOCUMENT);
   private readonly storage = inject(THEME_STORAGE);
+  private readonly companyService = inject(CompanyService);
 
   private readonly settings = this.initialSettings();
 
@@ -113,6 +116,14 @@ export class ThemeService {
   constructor() {
     effect(() => {
       this.document.documentElement.classList.toggle('dark', this.isDark());
+    });
+    // The tenant's brand color is the default primary; it loads asynchronously
+    // and only applies while the user made no own choice (which always wins).
+    effect(() => {
+      const companyColor = this.companyService.primaryColor();
+      if (companyColor !== null && this.primary() === null) {
+        updatePrimaryPalette(palette(companyColor));
+      }
     });
     if (this.settings.preset !== 'aura') {
       void this.applyPreset(this.settings.preset);
@@ -138,6 +149,19 @@ export class ThemeService {
     updatePrimaryPalette(palette(`{${name}}`));
   }
 
+  /** Forgets the own primary choice: back to the company color, or the preset's default. */
+  resetPrimary(): void {
+    this.primary.set(null);
+    this.persist();
+    const companyColor = this.companyService.primaryColor();
+    if (companyColor !== null) {
+      updatePrimaryPalette(palette(companyColor));
+    } else {
+      // Re-applying the preset restores its default primary palette.
+      void this.applyPreset(this.preset());
+    }
+  }
+
   setSurface(name: string): void {
     this.surface.set(name);
     this.persist();
@@ -153,8 +177,11 @@ export class ThemeService {
 
   private applyPalettes(): void {
     const primary = this.primary();
+    const companyColor = this.companyService.primaryColor();
     if (primary !== null) {
       updatePrimaryPalette(palette(`{${primary}}`));
+    } else if (companyColor !== null) {
+      updatePrimaryPalette(palette(companyColor));
     }
     const surface = this.surface();
     if (surface !== null) {
