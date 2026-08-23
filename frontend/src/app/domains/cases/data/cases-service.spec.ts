@@ -4,9 +4,9 @@ import { ApplicationRef, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
 import { Case } from '../model/case';
-import { CasesStore } from './cases-store';
+import { CasesService } from './cases-service';
 
-describe('CasesStore', () => {
+describe('CasesService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [provideZonelessChangeDetection(), provideHttpClient(), provideHttpClientTesting()],
@@ -24,20 +24,20 @@ describe('CasesStore', () => {
         sizeBytes: 2048,
       },
     ];
-    const store = TestBed.inject(CasesStore);
+    const service = TestBed.inject(CasesService);
     const httpTesting = TestBed.inject(HttpTestingController);
     TestBed.tick();
 
     httpTesting.expectOne('/api/cases').flush(cases);
     await TestBed.inject(ApplicationRef).whenStable();
 
-    expect(store.cases.value()).toEqual(cases);
+    expect(service.cases.value()).toEqual(cases);
     httpTesting.verify();
   });
 
   it('starts with an empty list before the API answered', async () => {
-    const store = TestBed.inject(CasesStore);
+    const service = TestBed.inject(CasesService);
 
-    expect(store.cases.value()).toEqual([]);
+    expect(service.cases.value()).toEqual([]);
   });
 });
