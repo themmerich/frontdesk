@@ -1,5 +1,5 @@
 <ng-container *transloco="let t">
-  <main class="flex max-w-2xl flex-col gap-6">
+  <main class="mx-auto flex w-full max-w-4xl flex-col gap-6">
     <h1 class="text-2xl font-semibold">{{ t('settings.title') }}</h1>
 
     @if (mailSettingsService.settings.error()) {
@@ -11,155 +11,170 @@
     } @else {
       <!-- novalidate: Signal Forms attach per field, so Angular never disables the browser's
            own bubbles; validation and messages come from the form schema instead. -->
-      <form novalidate class="flex flex-col gap-6" (submit)="onSave($event)">
+      <form novalidate class="grid gap-6 md:grid-cols-2" (submit)="onSave($event)">
         <!-- mode choice -->
-        <fieldset class="flex flex-col gap-2">
-          <legend class="mb-2 font-medium">{{ t('settings.mode') }}</legend>
-          <div class="flex flex-wrap gap-2">
-            <button
-              type="button"
-              (click)="mode.set('GREENMAIL')"
-              [attr.aria-pressed]="mode() === 'GREENMAIL'"
-              class="cursor-pointer rounded-lg border border-surface-300 px-3 py-2 dark:border-surface-600"
-              [class.bg-primary]="mode() === 'GREENMAIL'"
-              [class.text-primary-contrast]="mode() === 'GREENMAIL'"
-            >
-              {{ t('settings.modeGreenmail') }}
-            </button>
-            <button
-              type="button"
-              (click)="mode.set('CUSTOM')"
-              [attr.aria-pressed]="mode() === 'CUSTOM'"
-              class="cursor-pointer rounded-lg border border-surface-300 px-3 py-2 dark:border-surface-600"
-              [class.bg-primary]="mode() === 'CUSTOM'"
-              [class.text-primary-contrast]="mode() === 'CUSTOM'"
-            >
-              {{ t('settings.modeCustom') }}
-            </button>
-          </div>
-        </fieldset>
+        <p-fieldset [legend]="t('settings.mode')" class="md:col-span-2">
+          <div class="flex flex-col gap-4 p-2">
+            <p-selectbutton
+              [options]="modeOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [allowEmpty]="false"
+              [formField]="settingsForm.mode"
+            />
 
-        @if (mode() === 'GREENMAIL') {
-          <!-- fixed dev values, read-only -->
-          <div class="rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-800">
-            <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">{{ t('settings.greenmailInfo') }}</p>
-            <dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
-              <dt class="font-medium">{{ t('settings.imap') }}</dt>
-              <dd>{{ greenMailDefaults.imapHost }}:{{ greenMailDefaults.imapPort }}</dd>
-              <dt class="font-medium">{{ t('settings.smtp') }}</dt>
-              <dd>{{ greenMailDefaults.smtpHost }}:{{ greenMailDefaults.smtpPort }}</dd>
-              <dt class="font-medium">{{ t('settings.username') }}</dt>
-              <dd>{{ greenMailDefaults.username }}</dd>
-              <dt class="font-medium">{{ t('settings.folder') }}</dt>
-              <dd>{{ greenMailDefaults.folder }}</dd>
-            </dl>
-          </div>
-        } @else {
-          <!-- provider presets: prefill the connection fields below -->
-          <div class="flex flex-col gap-2">
-            <span class="font-medium">{{ t('settings.presets') }}</span>
-            <div class="flex flex-wrap gap-2">
-              @for (preset of providerPresets; track preset.label) {
-                <button
-                  type="button"
-                  (click)="onApplyPreset(preset)"
-                  [attr.aria-pressed]="appliedPreset() === preset"
-                  class="cursor-pointer rounded-lg border border-surface-300 px-3 py-1.5 text-sm dark:border-surface-600"
-                  [class.bg-primary]="appliedPreset() === preset"
-                  [class.text-primary-contrast]="appliedPreset() === preset"
-                >
-                  {{ preset.label }}
-                </button>
-              }
-            </div>
-            @if (appliedPreset()?.noteKey; as noteKey) {
-              <p-message severity="info" variant="simple" size="small">{{ t(noteKey) }}</p-message>
+            @if (settingsForm.mode().value() === 'GREENMAIL') {
+              <!-- fixed dev values, read-only -->
+              <div class="rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-800">
+                <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">{{ t('settings.greenmailInfo') }}</p>
+                <dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
+                  <dt class="font-medium">{{ t('settings.imap') }}</dt>
+                  <dd>{{ greenMailDefaults.imapHost }}:{{ greenMailDefaults.imapPort }}</dd>
+                  <dt class="font-medium">{{ t('settings.smtp') }}</dt>
+                  <dd>{{ greenMailDefaults.smtpHost }}:{{ greenMailDefaults.smtpPort }}</dd>
+                  <dt class="font-medium">{{ t('settings.username') }}</dt>
+                  <dd>{{ greenMailDefaults.username }}</dd>
+                  <dt class="font-medium">{{ t('settings.folder') }}</dt>
+                  <dd>{{ greenMailDefaults.folder }}</dd>
+                </dl>
+              </div>
+            } @else {
+              <!-- provider presets: prefill the connection fields below -->
+              <div class="flex flex-col gap-2">
+                <span class="text-sm font-medium">{{ t('settings.presets') }}</span>
+                <div class="flex flex-wrap gap-2">
+                  @for (preset of providerPresets; track preset.label) {
+                    <button
+                      type="button"
+                      (click)="onApplyPreset(preset)"
+                      [attr.aria-pressed]="appliedPreset() === preset"
+                      class="cursor-pointer rounded-lg border border-surface-300 px-3 py-1.5 text-sm dark:border-surface-600"
+                      [class.bg-primary]="appliedPreset() === preset"
+                      [class.text-primary-contrast]="appliedPreset() === preset"
+                    >
+                      {{ preset.label }}
+                    </button>
+                  }
+                </div>
+                @if (appliedPreset()?.noteKey; as noteKey) {
+                  <p-message severity="info" variant="simple" size="small">{{ t(noteKey) }}</p-message>
+                }
+              </div>
             }
           </div>
+        </p-fieldset>
 
+        @if (settingsForm.mode().value() === 'CUSTOM') {
           <!-- IMAP -->
-          <fieldset class="flex flex-col gap-3">
-            <legend class="mb-2 font-medium">{{ t('settings.imap') }}</legend>
-            <div class="grid grid-cols-[2fr_1fr] gap-3">
-              <div class="flex flex-col gap-2">
-                <label for="imapHost">{{ t('settings.host') }}</label>
-                <input pInputText id="imapHost" type="text" [formField]="connectionForm.imapHost" />
-                @if ((connectionForm.imapHost().touched() || hasSubmitAttempted()) && connectionForm.imapHost().invalid()) {
-                  <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
-                }
+          <p-fieldset [legend]="t('settings.imap')">
+            <div class="flex flex-col gap-4 p-2">
+              <div class="flex gap-3">
+                <div class="flex min-w-0 flex-1 flex-col gap-2">
+                  <p-floatlabel variant="on">
+                    <input pInputText id="imapHost" type="text" class="w-full" [formField]="settingsForm.imapHost" />
+                    <label for="imapHost">{{ t('settings.host') }}</label>
+                  </p-floatlabel>
+                  @if ((settingsForm.imapHost().touched() || hasSubmitAttempted()) && settingsForm.imapHost().invalid()) {
+                    <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
+                  }
+                </div>
+                <div class="flex w-28 shrink-0 flex-col gap-2">
+                  <p-floatlabel variant="on">
+                    <input pInputText id="imapPort" type="number" class="w-full" [formField]="settingsForm.imapPort" />
+                    <label for="imapPort">{{ t('settings.port') }}</label>
+                  </p-floatlabel>
+                  @if ((settingsForm.imapPort().touched() || hasSubmitAttempted()) && settingsForm.imapPort().invalid()) {
+                    <p-message severity="error" variant="simple" size="small">{{ t('settings.invalidPort') }}</p-message>
+                  }
+                </div>
               </div>
-              <div class="flex flex-col gap-2">
-                <label for="imapPort">{{ t('settings.port') }}</label>
-                <input pInputText id="imapPort" type="number" [formField]="connectionForm.imapPort" />
-                @if ((connectionForm.imapPort().touched() || hasSubmitAttempted()) && connectionForm.imapPort().invalid()) {
-                  <p-message severity="error" variant="simple" size="small">{{ t('settings.invalidPort') }}</p-message>
-                }
+              <div class="flex items-center gap-2">
+                <p-checkbox inputId="imapTls" [binary]="true" [formField]="settingsForm.imapTls" />
+                <label for="imapTls">{{ t('settings.tls') }}</label>
               </div>
             </div>
-            <div class="flex items-center gap-2">
-              <p-checkbox inputId="imapTls" [binary]="true" [(ngModel)]="isImapTls" [ngModelOptions]="{ standalone: true }" />
-              <label for="imapTls">{{ t('settings.tls') }}</label>
-            </div>
-          </fieldset>
+          </p-fieldset>
 
           <!-- SMTP -->
-          <fieldset class="flex flex-col gap-3">
-            <legend class="mb-2 font-medium">{{ t('settings.smtp') }}</legend>
-            <div class="grid grid-cols-[2fr_1fr] gap-3">
+          <p-fieldset [legend]="t('settings.smtp')">
+            <div class="flex flex-col gap-4 p-2">
+              <div class="flex gap-3">
+                <div class="flex min-w-0 flex-1 flex-col gap-2">
+                  <p-floatlabel variant="on">
+                    <input pInputText id="smtpHost" type="text" class="w-full" [formField]="settingsForm.smtpHost" />
+                    <label for="smtpHost">{{ t('settings.host') }}</label>
+                  </p-floatlabel>
+                  @if ((settingsForm.smtpHost().touched() || hasSubmitAttempted()) && settingsForm.smtpHost().invalid()) {
+                    <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
+                  }
+                </div>
+                <div class="flex w-28 shrink-0 flex-col gap-2">
+                  <p-floatlabel variant="on">
+                    <input pInputText id="smtpPort" type="number" class="w-full" [formField]="settingsForm.smtpPort" />
+                    <label for="smtpPort">{{ t('settings.port') }}</label>
+                  </p-floatlabel>
+                  @if ((settingsForm.smtpPort().touched() || hasSubmitAttempted()) && settingsForm.smtpPort().invalid()) {
+                    <p-message severity="error" variant="simple" size="small">{{ t('settings.invalidPort') }}</p-message>
+                  }
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <p-checkbox inputId="smtpTls" [binary]="true" [formField]="settingsForm.smtpTls" />
+                <label for="smtpTls">{{ t('settings.tls') }}</label>
+              </div>
+            </div>
+          </p-fieldset>
+
+          <!-- credentials and folder -->
+          <p-fieldset [legend]="t('settings.credentials')" class="md:col-span-2">
+            <div class="flex flex-col gap-4 p-2">
+              <div class="grid gap-4 md:grid-cols-2">
+                <div class="flex flex-col gap-2">
+                  <p-inputgroup>
+                    <p-inputgroup-addon><i class="pi pi-user" aria-hidden="true"></i></p-inputgroup-addon>
+                    <p-floatlabel variant="on">
+                      <input pInputText id="username" type="text" autocomplete="off" [formField]="settingsForm.username" />
+                      <label for="username">{{ t('settings.username') }}</label>
+                    </p-floatlabel>
+                  </p-inputgroup>
+                  @if ((settingsForm.username().touched() || hasSubmitAttempted()) && settingsForm.username().invalid()) {
+                    <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
+                  }
+                </div>
+                <div class="flex flex-col gap-2">
+                  <p-inputgroup>
+                    <p-inputgroup-addon><i class="pi pi-key" aria-hidden="true"></i></p-inputgroup-addon>
+                    <p-floatlabel variant="on">
+                      <input pInputText id="password" type="password" autocomplete="new-password" [formField]="settingsForm.password" />
+                      <label for="password">{{ t('settings.password') }}</label>
+                    </p-floatlabel>
+                  </p-inputgroup>
+                  <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('settings.passwordHint') }}</p>
+                </div>
+              </div>
               <div class="flex flex-col gap-2">
-                <label for="smtpHost">{{ t('settings.host') }}</label>
-                <input pInputText id="smtpHost" type="text" [formField]="connectionForm.smtpHost" />
-                @if ((connectionForm.smtpHost().touched() || hasSubmitAttempted()) && connectionForm.smtpHost().invalid()) {
+                <p-inputgroup>
+                  <p-inputgroup-addon><i class="pi pi-folder" aria-hidden="true"></i></p-inputgroup-addon>
+                  <p-floatlabel variant="on">
+                    <input pInputText id="folder" type="text" [formField]="settingsForm.folder" />
+                    <label for="folder">{{ t('settings.folder') }}</label>
+                  </p-floatlabel>
+                </p-inputgroup>
+                @if ((settingsForm.folder().touched() || hasSubmitAttempted()) && settingsForm.folder().invalid()) {
                   <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
                 }
               </div>
-              <div class="flex flex-col gap-2">
-                <label for="smtpPort">{{ t('settings.port') }}</label>
-                <input pInputText id="smtpPort" type="number" [formField]="connectionForm.smtpPort" />
-                @if ((connectionForm.smtpPort().touched() || hasSubmitAttempted()) && connectionForm.smtpPort().invalid()) {
-                  <p-message severity="error" variant="simple" size="small">{{ t('settings.invalidPort') }}</p-message>
-                }
-              </div>
             </div>
-            <div class="flex items-center gap-2">
-              <p-checkbox inputId="smtpTls" [binary]="true" [(ngModel)]="isSmtpTls" [ngModelOptions]="{ standalone: true }" />
-              <label for="smtpTls">{{ t('settings.tls') }}</label>
-            </div>
-          </fieldset>
-
-          <!-- credentials and folder -->
-          <fieldset class="flex flex-col gap-3">
-            <legend class="mb-2 font-medium">{{ t('settings.credentials') }}</legend>
-            <div class="flex flex-col gap-2">
-              <label for="username">{{ t('settings.username') }}</label>
-              <input pInputText id="username" type="text" autocomplete="off" [formField]="connectionForm.username" />
-              @if ((connectionForm.username().touched() || hasSubmitAttempted()) && connectionForm.username().invalid()) {
-                <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
-              }
-            </div>
-            <div class="flex flex-col gap-2">
-              <label for="password">{{ t('settings.password') }}</label>
-              <input pInputText id="password" type="password" autocomplete="new-password" [formField]="connectionForm.password" />
-              <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('settings.passwordHint') }}</p>
-            </div>
-            <div class="flex flex-col gap-2">
-              <label for="folder">{{ t('settings.folder') }}</label>
-              <input pInputText id="folder" type="text" [formField]="connectionForm.folder" />
-              @if ((connectionForm.folder().touched() || hasSubmitAttempted()) && connectionForm.folder().invalid()) {
-                <p-message severity="error" variant="simple" size="small">{{ t('settings.required') }}</p-message>
-              }
-            </div>
-          </fieldset>
+          </p-fieldset>
         }
 
-        <div class="flex items-center gap-2">
-          <p-checkbox inputId="pollingEnabled" [binary]="true" [(ngModel)]="isPollingEnabled" [ngModelOptions]="{ standalone: true }" />
+        <div class="flex items-center gap-2 md:col-span-2">
+          <p-checkbox inputId="pollingEnabled" [binary]="true" [formField]="settingsForm.pollingEnabled" />
           <label for="pollingEnabled">{{ t('settings.pollingEnabled') }}</label>
         </div>
 
-        <div class="flex items-center gap-2">
-          <p-button type="submit" [label]="t('settings.save')" [loading]="isSaving()" />
-          @if (mode() === 'CUSTOM') {
+        <div class="flex items-center justify-end gap-2 md:col-span-2">
+          @if (settingsForm.mode().value() === 'CUSTOM') {
             <p-button
               type="button"
               severity="secondary"
@@ -169,6 +184,13 @@
               (onClick)="onTestConnection()"
             />
           }
+          <p-button
+            type="submit"
+            icon="pi pi-check"
+            [label]="t('settings.save')"
+            [loading]="isSaving()"
+            [disabled]="settingsForm().invalid() || !(settingsForm().dirty() || hasPendingPreset())"
+          />
         </div>
       </form>
     }
