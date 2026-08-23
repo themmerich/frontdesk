@@ -42,6 +42,8 @@ test.describe('Email settings', () => {
     await expect(page.getByRole('heading', { name: 'E-Mail-Einstellungen' })).toBeVisible();
     // GreenMail mode shows the fixed values without editable fields.
     await expect(page.getByText('localhost:3143')).toBeVisible();
+    // Nothing edited yet, so there is nothing to save.
+    await expect(page.getByRole('button', { name: 'Speichern' })).toBeDisabled();
 
     await page.route('**/api/settings/mail/test', (route) => route.fulfill({ json: { success: true, message: '' } }));
 
@@ -80,9 +82,11 @@ test.describe('Email settings', () => {
     await page.goto('/settings');
     await page.getByRole('button', { name: 'Eigener Server (IMAP/SMTP)' }).click();
     await page.getByLabel('Host').first().fill('');
-    await page.getByRole('button', { name: 'Speichern' }).click();
+    // Leaving the field reveals its error; the save button never arms.
+    await page.getByLabel('Benutzername').click();
 
     await expect(page.getByText('Pflichtfeld.').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Speichern' })).toBeDisabled();
     expect(saved).toBe(false);
   });
 

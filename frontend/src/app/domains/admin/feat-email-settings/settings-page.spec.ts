@@ -105,6 +105,19 @@ describe('SettingsPage', () => {
     return fixture;
   }
 
+  // PrimeNG's toggle buttons are host-based: the p-togglebutton element itself is the button.
+  async function switchToCustomMode(fixture: ReturnType<typeof createFixture>) {
+    const customToggle = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('p-selectbutton [role="button"]'),
+    ).find((toggle) => toggle.textContent?.includes('Own server'));
+    customToggle!.click();
+    await fixture.whenStable();
+  }
+
+  function saveButton(fixture: ReturnType<typeof createFixture>): HTMLButtonElement {
+    return (fixture.nativeElement as HTMLElement).querySelector('button[type="submit"]') as HTMLButtonElement;
+  }
+
   it('shows the fixed GreenMail values read-only in GreenMail mode', () => {
     const element = createFixture().nativeElement as HTMLElement;
 
@@ -115,12 +128,7 @@ describe('SettingsPage', () => {
 
   it('opens the connection form when switching to the custom mode', async () => {
     const fixture = createFixture();
-
-    const customButton = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Own server'),
-    ) as HTMLButtonElement;
-    customButton.click();
-    await fixture.whenStable();
+    await switchToCustomMode(fixture);
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('#imapHost')).not.toBeNull();
@@ -143,15 +151,46 @@ describe('SettingsPage', () => {
     expect(toasts[0].summary).toBe('Settings saved.');
   });
 
-  it('does not save an incomplete custom configuration', async () => {
+  it('enables saving only while the form is valid and dirty', async () => {
+    const fixture = createFixture();
+
+    // Freshly loaded means pristine — there is nothing to save yet.
+    expect(saveButton(fixture).disabled).toBe(true);
+
+    await switchToCustomMode(fixture);
+    fixture.detectChanges();
+    expect(saveButton(fixture).disabled).toBe(false);
+
+    const element = fixture.nativeElement as HTMLElement;
+    const imapHost = element.querySelector('#imapHost') as HTMLInputElement;
+    imapHost.value = '';
+    imapHost.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(saveButton(fixture).disabled).toBe(true);
+  });
+
+  it('arms the save button when a preset is applied to an otherwise pristine form', async () => {
+    settingsValue.set({ ...greenMailSettings, mode: 'CUSTOM' });
     const fixture = createFixture();
     const element = fixture.nativeElement as HTMLElement;
 
-    const customButton = Array.from(element.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Own server'),
+    expect(saveButton(fixture).disabled).toBe(true);
+
+    const gmxButton = Array.from(element.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'GMX',
     ) as HTMLButtonElement;
-    customButton.click();
+    gmxButton.click();
     await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(saveButton(fixture).disabled).toBe(false);
+  });
+
+  it('does not save an incomplete custom configuration', async () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+    await switchToCustomMode(fixture);
 
     const imapHost = element.querySelector('#imapHost') as HTMLInputElement;
     imapHost.value = '';
@@ -169,12 +208,7 @@ describe('SettingsPage', () => {
   it('prefills the connection from a provider preset, leaving the credentials alone', async () => {
     const fixture = createFixture();
     const element = fixture.nativeElement as HTMLElement;
-
-    const customButton = Array.from(element.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Own server'),
-    ) as HTMLButtonElement;
-    customButton.click();
-    await fixture.whenStable();
+    await switchToCustomMode(fixture);
 
     const usernameInput = element.querySelector('#username') as HTMLInputElement;
     usernameInput.value = 'buero@musterfirma.de';
@@ -196,29 +230,17 @@ describe('SettingsPage', () => {
   it('shows the app-password note for providers that need one', async () => {
     const fixture = createFixture();
     const element = fixture.nativeElement as HTMLElement;
-
-    const customButton = Array.from(element.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Own server'),
-    ) as HTMLButtonElement;
-    customButton.click();
-    await fixture.whenStable();
+    await switchToCustomMode(fixture);
 
     const gmailButton = Array.from(element.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === 'Gmail',
     ) as HTMLButtonElement;
     gmailButton.click();
     await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(element.textContent).toContain('This provider requires an app password.');
   });
-
-  async function switchToCustomMode(fixture: ReturnType<typeof createFixture>) {
-    const customButton = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Own server'),
-    ) as HTMLButtonElement;
-    customButton.click();
-    await fixture.whenStable();
-  }
 
   it('probes the mailbox with the current form values without saving, raising a success toast', async () => {
     const fixture = createFixture();

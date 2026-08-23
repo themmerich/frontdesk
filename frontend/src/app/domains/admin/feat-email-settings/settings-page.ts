@@ -1,43 +1,83 @@
-import { Component, inject, linkedSignal, signal } from '@angular/core';
-import { form, FormField, max, min, required, submit } from '@angular/forms/signals';
+import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { applyWhen, form, FormField, max, min, required, submit } from '@angular/forms/signals';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
-import { FormsModule } from '@angular/forms';
+import { FieldsetModule } from 'primeng/fieldset';
+import { FloatLabelModule } from 'primeng/floatlabel';
+import { InputGroupModule } from 'primeng/inputgroup';
+import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
+import { SelectButtonModule } from 'primeng/selectbutton';
 
 import { MailSettingsService } from '../data/mail-settings-service';
 import { GREENMAIL_DEFAULTS, MAIL_PROVIDER_PRESETS, MailProviderPreset, MailSettings, MailSettingsMode } from '../model/mail-settings';
 
-type ConnectionFormModel = {
+type MailSettingsFormModel = {
+  mode: MailSettingsMode;
   imapHost: string;
   imapPort: number;
+  imapTls: boolean;
   smtpHost: string;
   smtpPort: number;
+  smtpTls: boolean;
   username: string;
   /** Empty means: keep the stored password. */
   password: string;
   folder: string;
+  pollingEnabled: boolean;
 };
 
-function toFormModel(settings: MailSettings | undefined): ConnectionFormModel {
+function toFormModel(settings: MailSettings | undefined): MailSettingsFormModel {
+  if (settings === undefined) {
+    return {
+      mode: 'GREENMAIL',
+      imapHost: '',
+      imapPort: 993,
+      imapTls: true,
+      smtpHost: '',
+      smtpPort: 587,
+      smtpTls: true,
+      username: '',
+      password: '',
+      folder: 'INBOX',
+      pollingEnabled: true,
+    };
+  }
   return {
-    imapHost: settings?.imapHost ?? '',
-    imapPort: settings?.imapPort ?? 993,
-    smtpHost: settings?.smtpHost ?? '',
-    smtpPort: settings?.smtpPort ?? 587,
-    username: settings?.username ?? '',
+    mode: settings.mode,
+    imapHost: settings.imapHost,
+    imapPort: settings.imapPort,
+    imapTls: settings.imapTls,
+    smtpHost: settings.smtpHost,
+    smtpPort: settings.smtpPort,
+    smtpTls: settings.smtpTls,
+    username: settings.username,
     password: '',
-    folder: settings?.folder ?? 'INBOX',
+    folder: settings.folder,
+    pollingEnabled: settings.pollingEnabled,
   };
 }
 
 /** Mail settings of the signed-in admin's tenant: GreenMail dev mode or a custom IMAP/SMTP server. */
 @Component({
   selector: 'app-settings-page',
-  imports: [FormField, FormsModule, TranslocoDirective, ButtonModule, CheckboxModule, InputTextModule, MessageModule],
+  imports: [
+    FormField,
+    TranslocoDirective,
+    ButtonModule,
+    CheckboxModule,
+    FieldsetModule,
+    FloatLabelModule,
+    InputGroupModule,
+    InputGroupAddonModule,
+    InputTextModule,
+    MessageModule,
+    SelectButtonModule,
+  ],
   templateUrl: './settings-page.html',
 })
 export class SettingsPage {
@@ -49,24 +89,38 @@ export class SettingsPage {
   protected readonly providerPresets = MAIL_PROVIDER_PRESETS;
   /** The last applied preset, so its caveat (e.g. app password) stays visible. */
   protected readonly appliedPreset = signal<MailProviderPreset | null>(null);
+  /** Presets write the model programmatically, which the form's dirty flag cannot see. */
+  protected readonly hasPendingPreset = signal(false);
 
-  // Every piece of state re-anchors on the loaded (or freshly saved) settings,
-  // while staying freely editable in between.
-  protected readonly mode = linkedSignal<MailSettingsMode>(() => this.mailSettingsService.settings.value()?.mode ?? 'GREENMAIL');
-  protected readonly isPollingEnabled = linkedSignal(() => this.mailSettingsService.settings.value()?.pollingEnabled ?? true);
-  protected readonly isImapTls = linkedSignal(() => this.mailSettingsService.settings.value()?.imapTls ?? true);
-  protected readonly isSmtpTls = linkedSignal(() => this.mailSettingsService.settings.value()?.smtpTls ?? true);
-  protected readonly connection = linkedSignal(() => toFormModel(this.mailSettingsService.settings.value()));
+  // One model for everything on the page, re-anchoring on the loaded (or
+  // freshly saved) settings while staying freely editable in between.
+  protected readonly model = linkedSignal(() => toFormModel(this.mailSettingsService.settings.value()));
+  protected readonly settingsForm = form(this.model, (schemaPath) => {
+    // The connection only matters for a custom server; GreenMail ignores it.
+    applyWhen(
+      schemaPath,
+      ({ valueOf }) => valueOf(schemaPath.mode) === 'CUSTOM',
+      (customPath) => {
+        required(customPath.imapHost);
+        min(customPath.imapPort, 1);
+        max(customPath.imapPort, 65_535);
+        required(customPath.smtpHost);
+        min(customPath.smtpPort, 1);
+        max(customPath.smtpPort, 65_535);
+        required(customPath.username);
+        required(customPath.folder);
+      },
+    );
+  });
 
-  protected readonly connectionForm = form(this.connection, (schemaPath) => {
-    required(schemaPath.imapHost);
-    min(schemaPath.imapPort, 1);
-    max(schemaPath.imapPort, 65_535);
-    required(schemaPath.smtpHost);
-    min(schemaPath.smtpPort, 1);
-    max(schemaPath.smtpPort, 65_535);
-    required(schemaPath.username);
-    required(schemaPath.folder);
+  // Re-evaluates the options once the active translation file (re)loads.
+  private readonly translation = toSignal(this.transloco.selectTranslation());
+  protected readonly modeOptions = computed<{ label: string; value: MailSettingsMode }[]>(() => {
+    this.translation();
+    return [
+      { label: this.transloco.translate('settings.modeGreenmail'), value: 'GREENMAIL' },
+      { label: this.transloco.translate('settings.modeCustom'), value: 'CUSTOM' },
+    ];
   });
 
   protected readonly isSaving = signal(false);
@@ -77,16 +131,17 @@ export class SettingsPage {
 
   /** Prefills the connection fields; username, password, and folder stay untouched. */
   protected onApplyPreset(preset: MailProviderPreset): void {
-    this.connection.update((connection) => ({
-      ...connection,
+    this.model.update((model) => ({
+      ...model,
       imapHost: preset.imapHost,
       imapPort: preset.imapPort,
+      imapTls: preset.imapTls,
       smtpHost: preset.smtpHost,
       smtpPort: preset.smtpPort,
+      smtpTls: preset.smtpTls,
     }));
-    this.isImapTls.set(preset.imapTls);
-    this.isSmtpTls.set(preset.smtpTls);
     this.appliedPreset.set(preset);
+    this.hasPendingPreset.set(true);
   }
 
   /**
@@ -94,25 +149,14 @@ export class SettingsPage {
    * fields the probe actually needs (IMAP, username, folder) have to be valid.
    */
   protected async onTestConnection(): Promise<void> {
-    const fieldsForTest = [
-      this.connectionForm.imapHost,
-      this.connectionForm.imapPort,
-      this.connectionForm.username,
-      this.connectionForm.folder,
-    ];
+    const fieldsForTest = [this.settingsForm.imapHost, this.settingsForm.imapPort, this.settingsForm.username, this.settingsForm.folder];
     if (fieldsForTest.some((field) => field().invalid())) {
       this.hasSubmitAttempted.set(true);
       return;
     }
     this.isTesting.set(true);
     try {
-      const result = await this.mailSettingsService.test({
-        mode: this.mode(),
-        ...this.connection(),
-        imapTls: this.isImapTls(),
-        smtpTls: this.isSmtpTls(),
-        pollingEnabled: this.isPollingEnabled(),
-      });
+      const result = await this.mailSettingsService.test(this.model());
       if (result.success) {
         this.messageService.add({ severity: 'success', summary: this.transloco.translate('settings.testSuccess') });
       } else {
@@ -133,33 +177,23 @@ export class SettingsPage {
 
   protected async onSave(event: Event): Promise<void> {
     event.preventDefault();
-    if (this.mode() === 'GREENMAIL') {
-      // The connection form is ignored in GreenMail mode, so it must not block saving.
-      await this.persist();
-      return;
-    }
     this.hasSubmitAttempted.set(true);
-    await submit(this.connectionForm, async () => {
-      await this.persist();
+    // The conditional schema keeps the connection fields valid in GreenMail
+    // mode, so submit() never blocks on the hidden form there.
+    await submit(this.settingsForm, async () => {
+      this.isSaving.set(true);
+      try {
+        await this.mailSettingsService.save(this.model());
+        this.hasSubmitAttempted.set(false);
+        this.hasPendingPreset.set(false);
+        // Back to pristine: the save button stays disabled until the next edit.
+        this.settingsForm().reset();
+        this.messageService.add({ severity: 'success', summary: this.transloco.translate('settings.saved') });
+      } catch {
+        this.messageService.add({ severity: 'error', summary: this.transloco.translate('settings.saveError') });
+      } finally {
+        this.isSaving.set(false);
+      }
     });
-  }
-
-  private async persist(): Promise<void> {
-    this.isSaving.set(true);
-    try {
-      await this.mailSettingsService.save({
-        mode: this.mode(),
-        ...this.connection(),
-        imapTls: this.isImapTls(),
-        smtpTls: this.isSmtpTls(),
-        pollingEnabled: this.isPollingEnabled(),
-      });
-      this.hasSubmitAttempted.set(false);
-      this.messageService.add({ severity: 'success', summary: this.transloco.translate('settings.saved') });
-    } catch {
-      this.messageService.add({ severity: 'error', summary: this.transloco.translate('settings.saveError') });
-    } finally {
-      this.isSaving.set(false);
-    }
   }
 }
