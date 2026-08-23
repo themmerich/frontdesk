@@ -91,14 +91,18 @@
 
         <p-fieldset [legend]="t('profile.companyData')">
           <div class="flex flex-col gap-4 p-2">
-            <p-inputgroup>
-              <p-inputgroup-addon><i class="pi pi-building" aria-hidden="true"></i></p-inputgroup-addon>
-              <p-floatlabel variant="on">
-                <!-- Free text until companies grow branches — then this becomes a dropdown. -->
-                <input pInputText id="company" type="text" [formField]="profileForm.company" />
-                <label for="company">{{ t('profile.company') }}</label>
-              </p-floatlabel>
-            </p-inputgroup>
+            <p-floatlabel variant="on">
+              <p-select
+                inputId="branch"
+                class="w-full"
+                [options]="branchOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [showClear]="true"
+                [formField]="profileForm.branchId"
+              />
+              <label for="branch">{{ t('profile.company') }}</label>
+            </p-floatlabel>
             <p-floatlabel variant="on">
               <p-datepicker inputId="joinedAt" class="w-full" [showIcon]="true" iconDisplay="input" [formField]="profileForm.joinedAt" />
               <label for="joinedAt">{{ t('profile.joinedAt') }}</label>

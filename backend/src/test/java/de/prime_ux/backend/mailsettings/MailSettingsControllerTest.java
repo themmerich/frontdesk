@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.ServerSetupTest;
 import de.prime_ux.backend.TestcontainersConfiguration;
+import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
@@ -74,6 +75,9 @@ class MailSettingsControllerTest {
 	@Autowired
 	private TenantLogoRepository tenantLogoRepository;
 
+	@Autowired
+	private BranchRepository branchRepository;
+
 	private Tenant tenant;
 
 	@BeforeEach
@@ -84,6 +88,7 @@ class MailSettingsControllerTest {
 		tenantMailSettingsRepository.deleteAll();
 		tenantLogoRepository.deleteAll();
 		appUserRepository.deleteAll();
+		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		appUserRepository.save(new AppUser(tenant, "admin", "Anna", "Admin", "{noop}irrelevant",

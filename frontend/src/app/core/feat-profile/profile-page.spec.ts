@@ -4,6 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { MessageService, ToastMessageOptions } from 'primeng/api';
 
+import { BranchService } from '../../shared/data/branch-service';
+import { Branch } from '../../shared/model/branch';
 import { AuthStore } from '../data/auth-store';
 import { Profile, ProfileService, ProfileUpdate } from '../data/profile-service';
 import { ProfilePage } from './profile-page';
@@ -24,7 +26,8 @@ const translations = {
     lastNameRequired: 'Please enter a last name.',
     birthDate: 'Date of birth',
     companyData: 'Company',
-    company: 'Company',
+    company: 'Branch',
+    headquarters: 'Headquarters',
     joinedAt: 'Joining date',
     contact: 'Contact',
     email: 'Email address',
@@ -56,15 +59,45 @@ const storedProfile: Profile = {
   lastName: 'Admin',
   birthDate: '1990-04-23',
   joinedAt: '2020-01-01',
-  company: 'Musterfirma GmbH',
+  branchId: 'b1',
   email: 'anna@musterfirma.example',
   phone: null,
   fax: null,
 };
 
+const branches: Branch[] = [
+  {
+    id: 'b1',
+    name: 'Musterfirma GmbH',
+    headquarters: true,
+    street: null,
+    postalCode: null,
+    city: null,
+    country: null,
+    phone: null,
+    fax: null,
+    email: null,
+  },
+  {
+    id: 'b2',
+    name: 'Filiale Hamburg',
+    headquarters: false,
+    street: null,
+    postalCode: null,
+    city: null,
+    country: null,
+    phone: null,
+    fax: null,
+    email: null,
+  },
+];
+
 describe('ProfilePage', () => {
   const avatarUrl = signal<string | null>(null);
   const authStoreStub = { avatarUrl } as unknown as AuthStore;
+
+  const branchesValue = signal<Branch[]>(branches);
+  const branchServiceStub = { branches: { value: branchesValue } } as unknown as BranchService;
 
   const profileValue = signal<Profile | null>(null);
   const error = signal<Error | undefined>(undefined);
@@ -119,6 +152,7 @@ describe('ProfilePage', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: AuthStore, useValue: authStoreStub },
+        { provide: BranchService, useValue: branchServiceStub },
         { provide: ProfileService, useValue: profileServiceStub },
         { provide: MessageService, useValue: { add: (toast: ToastMessageOptions) => toasts.push(toast) } },
       ],
@@ -142,7 +176,8 @@ describe('ProfilePage', () => {
 
     expect((element.querySelector('#firstName') as HTMLInputElement).value).toBe('Anna');
     expect((element.querySelector('#lastName') as HTMLInputElement).value).toBe('Admin');
-    expect((element.querySelector('#company') as HTMLInputElement).value).toBe('Musterfirma GmbH');
+    // The assigned site shows as the dropdown's selection, with the headquarters marked.
+    expect(element.querySelector('p-select')?.textContent).toContain('Musterfirma GmbH (Headquarters)');
     expect((element.querySelector('#email') as HTMLInputElement).value).toBe('anna@musterfirma.example');
     // Absent optional fields render as empty inputs.
     expect((element.querySelector('#phone') as HTMLInputElement).value).toBe('');
@@ -164,6 +199,7 @@ describe('ProfilePage', () => {
     expect(savedUpdates).toHaveLength(1);
     expect(savedUpdates[0].lastName).toBe('Anders');
     expect(savedUpdates[0].phone).toBe('0123 456789');
+    expect(savedUpdates[0].branchId).toBe('b1');
     // The stored ISO dates survive the datepicker round trip without a timezone shift.
     expect(savedUpdates[0].birthDate).toBe('1990-04-23');
     expect(savedUpdates[0].joinedAt).toBe('2020-01-01');
@@ -218,6 +254,25 @@ describe('ProfilePage', () => {
 
     expect(savedUpdates).toHaveLength(0);
     expect(element.textContent).toContain('Please enter a valid email address.');
+  });
+
+  it('offers the company sites in the dropdown and saves the choice', async () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+
+    (element.querySelector('p-select') as HTMLElement).click();
+    await fixture.whenStable();
+
+    const options = Array.from(document.querySelectorAll('li[role="option"]'));
+    expect(options.map((option) => option.textContent?.trim())).toEqual(['Musterfirma GmbH (Headquarters)', 'Filiale Hamburg']);
+
+    (options[1] as HTMLElement).click();
+    await fixture.whenStable();
+    element.querySelectorAll('form')[0].dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+
+    expect(savedUpdates).toHaveLength(1);
+    expect(savedUpdates[0].branchId).toBe('b2');
   });
 
   it('changes the password and clears the form', async () => {

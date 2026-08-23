@@ -13,8 +13,8 @@ export type Profile = {
   birthDate: string | null;
   /** The day the user joined the company (Eintrittsdatum). */
   joinedAt: string | null;
-  /** Free text until companies grow branches — then this becomes a dropdown choice. */
-  company: string | null;
+  /** The site (headquarters or branch) the user works at; null while unassigned. */
+  branchId: string | null;
   /** Contact address only; the login name is the username above. */
   email: string | null;
   phone: string | null;

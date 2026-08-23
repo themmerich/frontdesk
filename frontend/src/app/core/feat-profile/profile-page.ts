@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, linkedSignal, signal, viewChild } from '@angular/core';
+import { Component, computed, inject, linkedSignal, signal, viewChild } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { email, form, FormField, minLength, required, submit, validate } from '@angular/forms/signals';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { MessageService } from 'primeng/api';
@@ -13,8 +14,10 @@ import { InputGroupModule } from 'primeng/inputgroup';
 import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
+import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
 
+import { BranchService } from '../../shared/data/branch-service';
 import { AuthStore } from '../data/auth-store';
 import { Profile, ProfileService } from '../data/profile-service';
 
@@ -27,7 +30,8 @@ type ProfileFormModel = {
   /** Datepicker values; null while no date is picked. */
   birthDate: Date | null;
   joinedAt: Date | null;
-  company: string;
+  /** Dropdown choice; null while no site is picked. */
+  branchId: string | null;
   email: string;
   phone: string;
   fax: string;
@@ -64,7 +68,7 @@ function toFormModel(profile: Profile | null): ProfileFormModel {
     lastName: profile?.lastName ?? '',
     birthDate: parseIsoDate(profile?.birthDate ?? null),
     joinedAt: parseIsoDate(profile?.joinedAt ?? null),
-    company: profile?.company ?? '',
+    branchId: profile?.branchId ?? null,
     email: profile?.email ?? '',
     phone: profile?.phone ?? '',
     fax: profile?.fax ?? '',
@@ -87,6 +91,7 @@ function toFormModel(profile: Profile | null): ProfileFormModel {
     InputGroupAddonModule,
     InputTextModule,
     MessageModule,
+    SelectModule,
     TooltipModule,
   ],
   templateUrl: './profile-page.html',
@@ -94,6 +99,7 @@ function toFormModel(profile: Profile | null): ProfileFormModel {
 export class ProfilePage {
   protected readonly authStore = inject(AuthStore);
   protected readonly profileService = inject(ProfileService);
+  private readonly branchService = inject(BranchService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
 
@@ -105,6 +111,17 @@ export class ProfilePage {
     required(schemaPath.firstName);
     required(schemaPath.lastName);
     email(schemaPath.email);
+  });
+
+  // Re-evaluates the options once the active translation file (re)loads.
+  private readonly translation = toSignal(this.transloco.selectTranslation());
+  /** The company's sites; the headquarters is marked so the dropdown reads unambiguously. */
+  protected readonly branchOptions = computed<{ label: string; value: string }[]>(() => {
+    this.translation();
+    return this.branchService.branches.value().map((branch) => ({
+      label: branch.headquarters ? `${branch.name} (${this.transloco.translate('profile.headquarters')})` : branch.name,
+      value: branch.id,
+    }));
   });
 
   protected readonly passwordChange = signal<PasswordChange>({
@@ -177,7 +194,7 @@ export class ProfilePage {
           lastName: model.lastName.trim(),
           birthDate: toIsoDate(model.birthDate),
           joinedAt: toIsoDate(model.joinedAt),
-          company: model.company,
+          branchId: model.branchId,
           email: model.email,
           phone: model.phone,
           fax: model.fax,

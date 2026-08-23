@@ -1,5 +1,7 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.branches.Branch;
+import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.tenants.TenantRepository;
 
@@ -29,13 +31,16 @@ class DemoDataSeeder implements ApplicationRunner {
 
 	private final TenantRepository tenantRepository;
 	private final AppUserRepository appUserRepository;
+	private final BranchRepository branchRepository;
 	private final TenantMailSettingsRepository tenantMailSettingsRepository;
 	private final PasswordEncoder passwordEncoder;
 
 	DemoDataSeeder(TenantRepository tenantRepository, AppUserRepository appUserRepository,
-			TenantMailSettingsRepository tenantMailSettingsRepository, PasswordEncoder passwordEncoder) {
+			BranchRepository branchRepository, TenantMailSettingsRepository tenantMailSettingsRepository,
+			PasswordEncoder passwordEncoder) {
 		this.tenantRepository = tenantRepository;
 		this.appUserRepository = appUserRepository;
+		this.branchRepository = branchRepository;
 		this.tenantMailSettingsRepository = tenantMailSettingsRepository;
 		this.passwordEncoder = passwordEncoder;
 	}
@@ -52,6 +57,8 @@ class DemoDataSeeder implements ApplicationRunner {
 			return;
 		}
 		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		branchRepository.save(new Branch(tenant, tenant.getName(), true));
+		branchRepository.save(new Branch(tenant, "Filiale Hamburg", false));
 		// Same demo password as the GreenMail mailbox, so dev needs to remember only one.
 		String passwordHash = passwordEncoder.encode("secret");
 		appUserRepository.save(new AppUser(tenant, "admin", "Anna", "Admin", passwordHash, UserRole.ADMIN));

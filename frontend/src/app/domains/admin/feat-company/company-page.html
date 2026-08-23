@@ -39,6 +39,14 @@
                   <p-message severity="error" variant="simple" size="small">{{ t('company.colorInvalid') }}</p-message>
                 }
               </div>
+              <!-- The website belongs to the company itself, not to any of its sites. -->
+              <p-inputgroup>
+                <p-inputgroup-addon><i class="pi pi-globe" aria-hidden="true"></i></p-inputgroup-addon>
+                <p-floatlabel variant="on">
+                  <input pInputText id="website" type="url" [formField]="companyForm.website" />
+                  <label for="website">{{ t('company.website') }}</label>
+                </p-floatlabel>
+              </p-inputgroup>
             </div>
             <div class="flex shrink-0 flex-col items-center gap-3 self-center sm:self-start">
               <div
@@ -91,67 +99,6 @@
           </div>
         </p-fieldset>
 
-        <p-fieldset [legend]="t('company.address')">
-          <div class="flex flex-col gap-4 p-2">
-            <p-floatlabel variant="on">
-              <input pInputText id="street" type="text" class="w-full" [formField]="companyForm.street" />
-              <label for="street">{{ t('company.street') }}</label>
-            </p-floatlabel>
-            <div class="flex gap-3">
-              <p-floatlabel variant="on" class="w-28 shrink-0">
-                <input pInputText id="postalCode" type="text" class="w-full" [formField]="companyForm.postalCode" />
-                <label for="postalCode">{{ t('company.postalCode') }}</label>
-              </p-floatlabel>
-              <p-floatlabel variant="on" class="min-w-0 flex-1">
-                <input pInputText id="city" type="text" class="w-full" [formField]="companyForm.city" />
-                <label for="city">{{ t('company.city') }}</label>
-              </p-floatlabel>
-            </div>
-            <p-floatlabel variant="on">
-              <p-select inputId="country" class="w-full" [options]="countryOptions" [showClear]="true" [formField]="companyForm.country" />
-              <label for="country">{{ t('company.country') }}</label>
-            </p-floatlabel>
-          </div>
-        </p-fieldset>
-
-        <p-fieldset [legend]="t('company.contact')">
-          <div class="flex flex-col gap-4 p-2">
-            <p-inputgroup>
-              <p-inputgroup-addon><i class="pi pi-phone" aria-hidden="true"></i></p-inputgroup-addon>
-              <p-floatlabel variant="on">
-                <input pInputText id="phone" type="tel" [formField]="companyForm.phone" />
-                <label for="phone">{{ t('company.phone') }}</label>
-              </p-floatlabel>
-            </p-inputgroup>
-            <p-inputgroup>
-              <p-inputgroup-addon><i class="pi pi-print" aria-hidden="true"></i></p-inputgroup-addon>
-              <p-floatlabel variant="on">
-                <input pInputText id="fax" type="tel" [formField]="companyForm.fax" />
-                <label for="fax">{{ t('company.fax') }}</label>
-              </p-floatlabel>
-            </p-inputgroup>
-            <div class="flex flex-col gap-2">
-              <p-inputgroup>
-                <p-inputgroup-addon><i class="pi pi-at" aria-hidden="true"></i></p-inputgroup-addon>
-                <p-floatlabel variant="on">
-                  <input pInputText id="email" type="email" [formField]="companyForm.email" />
-                  <label for="email">{{ t('company.email') }}</label>
-                </p-floatlabel>
-              </p-inputgroup>
-              @if ((companyForm.email().touched() || hasSubmitAttempted()) && companyForm.email().invalid()) {
-                <p-message severity="error" variant="simple" size="small">{{ t('company.emailInvalid') }}</p-message>
-              }
-            </div>
-            <p-inputgroup>
-              <p-inputgroup-addon><i class="pi pi-globe" aria-hidden="true"></i></p-inputgroup-addon>
-              <p-floatlabel variant="on">
-                <input pInputText id="website" type="url" [formField]="companyForm.website" />
-                <label for="website">{{ t('company.website') }}</label>
-              </p-floatlabel>
-            </p-inputgroup>
-          </div>
-        </p-fieldset>
-
         <div class="flex justify-end md:col-span-2">
           <p-button
             type="submit"
@@ -162,6 +109,155 @@
           />
         </div>
       </form>
+
+      <!-- Every site of the company, the headquarters among them. -->
+      <p-fieldset [legend]="t('company.branches')">
+        <div class="flex flex-col gap-4 p-2">
+          @if (branchService.branches.value().length === 0) {
+            <p class="text-surface-500 dark:text-surface-400">{{ t('company.branchesEmpty') }}</p>
+          } @else {
+            <p-table [value]="branchService.branches.value()" dataKey="id">
+              <ng-template #header>
+                <tr>
+                  <th scope="col">{{ t('company.branchName') }}</th>
+                  <th scope="col">{{ t('company.city') }}</th>
+                  <th scope="col">{{ t('company.phone') }}</th>
+                  <th scope="col" class="w-24">
+                    <span class="sr-only">{{ t('company.branchActions') }}</span>
+                  </th>
+                </tr>
+              </ng-template>
+              <ng-template #body let-branch>
+                <tr>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      {{ branch.name }}
+                      @if (branch.headquarters) {
+                        <p-tag severity="info" [value]="t('company.headquarters')" />
+                      }
+                    </div>
+                  </td>
+                  <td>{{ branch.city }}</td>
+                  <td>{{ branch.phone }}</td>
+                  <td>
+                    <div class="flex items-center">
+                      <p-button
+                        icon="pi pi-pencil"
+                        variant="text"
+                        severity="secondary"
+                        [ariaLabel]="t('company.branchEdit')"
+                        [pTooltip]="t('company.branchEdit')"
+                        tooltipPosition="left"
+                        (onClick)="onEditBranch(branch)"
+                      />
+                      <p-button
+                        icon="pi pi-trash"
+                        variant="text"
+                        severity="danger"
+                        [ariaLabel]="t('company.branchDelete')"
+                        [pTooltip]="t('company.branchDelete')"
+                        tooltipPosition="left"
+                        (onClick)="onDeleteBranch(branch)"
+                      />
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          }
+          <div class="flex justify-end">
+            <p-button icon="pi pi-plus" severity="secondary" [outlined]="true" [label]="t('company.branchAdd')" (onClick)="onAddBranch()" />
+          </div>
+        </div>
+      </p-fieldset>
+
+      <p-dialog
+        [header]="t(editingBranchId() === null ? 'company.branchAdd' : 'company.branchEdit')"
+        [modal]="true"
+        [(visible)]="isBranchDialogVisible"
+        [style]="{ width: '28rem' }"
+      >
+        <form novalidate class="flex flex-col gap-4 pt-2" (submit)="onSaveBranch($event)">
+          <div class="flex flex-col gap-2">
+            <p-floatlabel variant="on">
+              <input pInputText id="branchName" type="text" class="w-full" [formField]="branchForm.name" />
+              <label for="branchName">{{ t('company.branchName') }}</label>
+            </p-floatlabel>
+            @if ((branchForm.name().touched() || hasBranchSubmitAttempted()) && branchForm.name().invalid()) {
+              <p-message severity="error" variant="simple" size="small">{{ t('company.branchNameRequired') }}</p-message>
+            }
+          </div>
+          <div class="flex items-center gap-2">
+            <p-toggleswitch inputId="branchHeadquarters" [formField]="branchForm.headquarters" />
+            <label for="branchHeadquarters" class="cursor-pointer">{{ t('company.headquarters') }}</label>
+          </div>
+          @if (branchForm.headquarters().value() && otherHeadquartersName(); as previousName) {
+            <p-message severity="info" variant="simple" size="small">
+              {{ t('company.headquartersMoves', { name: previousName }) }}
+            </p-message>
+          }
+          <p-floatlabel variant="on">
+            <input pInputText id="branchStreet" type="text" class="w-full" [formField]="branchForm.street" />
+            <label for="branchStreet">{{ t('company.street') }}</label>
+          </p-floatlabel>
+          <div class="flex gap-3">
+            <p-floatlabel variant="on" class="w-28 shrink-0">
+              <input pInputText id="branchPostalCode" type="text" class="w-full" [formField]="branchForm.postalCode" />
+              <label for="branchPostalCode">{{ t('company.postalCode') }}</label>
+            </p-floatlabel>
+            <p-floatlabel variant="on" class="min-w-0 flex-1">
+              <input pInputText id="branchCity" type="text" class="w-full" [formField]="branchForm.city" />
+              <label for="branchCity">{{ t('company.city') }}</label>
+            </p-floatlabel>
+          </div>
+          <p-floatlabel variant="on">
+            <p-select
+              inputId="branchCountry"
+              class="w-full"
+              [options]="countryOptions"
+              [showClear]="true"
+              [formField]="branchForm.country"
+            />
+            <label for="branchCountry">{{ t('company.country') }}</label>
+          </p-floatlabel>
+          <p-inputgroup>
+            <p-inputgroup-addon><i class="pi pi-phone" aria-hidden="true"></i></p-inputgroup-addon>
+            <p-floatlabel variant="on">
+              <input pInputText id="branchPhone" type="tel" [formField]="branchForm.phone" />
+              <label for="branchPhone">{{ t('company.phone') }}</label>
+            </p-floatlabel>
+          </p-inputgroup>
+          <p-inputgroup>
+            <p-inputgroup-addon><i class="pi pi-print" aria-hidden="true"></i></p-inputgroup-addon>
+            <p-floatlabel variant="on">
+              <input pInputText id="branchFax" type="tel" [formField]="branchForm.fax" />
+              <label for="branchFax">{{ t('company.fax') }}</label>
+            </p-floatlabel>
+          </p-inputgroup>
+          <div class="flex flex-col gap-2">
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-at" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <input pInputText id="branchEmail" type="email" [formField]="branchForm.email" />
+                <label for="branchEmail">{{ t('company.email') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
+            @if ((branchForm.email().touched() || hasBranchSubmitAttempted()) && branchForm.email().invalid()) {
+              <p-message severity="error" variant="simple" size="small">{{ t('company.emailInvalid') }}</p-message>
+            }
+          </div>
+          <div class="flex justify-end gap-2">
+            <p-button
+              type="button"
+              severity="secondary"
+              [outlined]="true"
+              [label]="t('company.cancel')"
+              (onClick)="isBranchDialogVisible.set(false)"
+            />
+            <p-button type="submit" icon="pi pi-check" [label]="t('company.save')" [loading]="isSavingBranch()" />
+          </div>
+        </form>
+      </p-dialog>
     }
   </main>
 </ng-container>

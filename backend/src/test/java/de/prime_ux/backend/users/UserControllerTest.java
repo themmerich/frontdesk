@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import de.prime_ux.backend.TestcontainersConfiguration;
+import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +48,9 @@ class UserControllerTest {
 	@Autowired
 	private TenantMailSettingsRepository tenantMailSettingsRepository;
 
+	@Autowired
+	private BranchRepository branchRepository;
+
 	private AppUser anna;
 	private AppUser ben;
 	private AppUser fritz;
@@ -59,6 +63,7 @@ class UserControllerTest {
 		tenantMailSettingsRepository.deleteAll();
 		tenantLogoRepository.deleteAll();
 		appUserRepository.deleteAll();
+		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
 		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));

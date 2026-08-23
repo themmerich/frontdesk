@@ -23,8 +23,10 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * The signed-in user's own company (their tenant). Reading is open to every user — the sidebar
- * shows name and logo app-wide; the writes are restricted to admins in the SecurityConfig.
+ * The signed-in user's own company (their tenant): identity and branding only. Reading is open to
+ * every user — the sidebar shows name and logo app-wide; the writes are restricted to admins in
+ * the SecurityConfig. Address and contact data belong to the company's branches (/api/branches),
+ * the headquarters among them.
  */
 @RestController
 @RequestMapping("/api/company")
@@ -55,10 +57,8 @@ class CompanyController {
 	@Transactional
 	CompanyResponse updateCompany(@Valid @RequestBody UpdateCompanyRequest request, Authentication authentication) {
 		Tenant tenant = currentTenant(authentication);
-		tenant.updateCompany(request.name().trim(), blankToNull(request.street()), blankToNull(request.postalCode()),
-				blankToNull(request.city()), blankToNull(request.country()), blankToNull(request.phone()),
-				blankToNull(request.fax()), blankToNull(request.email()), blankToNull(request.website()),
-				request.logoDisplay(), request.primaryColor());
+		tenant.updateCompany(request.name().trim(), blankToNull(request.website()), request.logoDisplay(),
+				request.primaryColor());
 		tenantRepository.save(tenant);
 		return CompanyResponse.from(tenant, tenantLogoRepository.existsByTenantId(tenant.getId()));
 	}

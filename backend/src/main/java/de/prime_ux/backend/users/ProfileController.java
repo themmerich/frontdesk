@@ -1,8 +1,11 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.branches.Branch;
+import de.prime_ux.backend.branches.BranchRepository;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -36,12 +39,14 @@ class ProfileController {
 
 	private final AppUserRepository appUserRepository;
 	private final UserAvatarRepository userAvatarRepository;
+	private final BranchRepository branchRepository;
 	private final PasswordEncoder passwordEncoder;
 
 	ProfileController(AppUserRepository appUserRepository, UserAvatarRepository userAvatarRepository,
-			PasswordEncoder passwordEncoder) {
+			BranchRepository branchRepository, PasswordEncoder passwordEncoder) {
 		this.appUserRepository = appUserRepository;
 		this.userAvatarRepository = userAvatarRepository;
+		this.branchRepository = branchRepository;
 		this.passwordEncoder = passwordEncoder;
 	}
 
@@ -56,7 +61,7 @@ class ProfileController {
 			Authentication authentication) {
 		AppUser user = currentUser(authentication);
 		user.updateProfile(request.firstName().trim(), request.lastName().trim(), request.birthDate(),
-				request.joinedAt(), normalize(request.company()), normalize(request.email()),
+				request.joinedAt(), resolveBranch(request.branchId(), user), normalize(request.email()),
 				normalize(request.phone()), normalize(request.fax()));
 		appUserRepository.save(user);
 		return ProfileResponse.from(user);
@@ -117,6 +122,15 @@ class ProfileController {
 		} catch (IOException e) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "image could not be read", e);
 		}
+	}
+
+	/** Branches of other tenants answer like broken input — nobody assigns themselves elsewhere. */
+	private Branch resolveBranch(UUID branchId, AppUser user) {
+		if (branchId == null) {
+			return null;
+		}
+		return branchRepository.findByIdAndTenantId(branchId, user.getTenant().getId())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "unknown branch"));
 	}
 
 	/** Optional free-text fields: whitespace-only input is stored as "not set". */

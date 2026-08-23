@@ -30,21 +30,8 @@ public class Tenant {
 	@Column(nullable = false)
 	private String name;
 
-	private String street;
-
-	@Column(name = "postal_code")
-	private String postalCode;
-
-	private String city;
-
-	private String country;
-
-	private String phone;
-
-	private String fax;
-
-	private String email;
-
+	// Address and contact data live on the headquarters branch; the tenant
+	// keeps only its identity and branding.
 	private String website;
 
 	@Enumerated(EnumType.STRING)
@@ -65,16 +52,8 @@ public class Tenant {
 	}
 
 	/** The name is the tenant's name everywhere — renaming here renames the tenant. */
-	public void updateCompany(String name, String street, String postalCode, String city, String country,
-			String phone, String fax, String email, String website, LogoDisplay logoDisplay, String primaryColor) {
+	public void updateCompany(String name, String website, LogoDisplay logoDisplay, String primaryColor) {
 		this.name = name;
-		this.street = street;
-		this.postalCode = postalCode;
-		this.city = city;
-		this.country = country;
-		this.phone = phone;
-		this.fax = fax;
-		this.email = email;
 		this.website = website;
 		this.logoDisplay = logoDisplay;
 		this.primaryColor = primaryColor;
