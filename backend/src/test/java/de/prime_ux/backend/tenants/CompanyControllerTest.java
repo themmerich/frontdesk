@@ -92,12 +92,13 @@ class CompanyControllerTest {
 						{"name": " Musterfirma AG ", "street": "Hauptstr. 1", "postalCode": "12345",
 						 "city": "Musterstadt", "country": "Deutschland", "phone": "+49 30 123",
 						 "fax": "", "email": "info@musterfirma.example", "website": "https://musterfirma.example",
-						 "logoDisplay": "LOGO_ONLY"}
+						 "logoDisplay": "LOGO_ONLY", "primaryColor": "#10b981"}
 						"""))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.name").value("Musterfirma AG"))
 				.andExpect(jsonPath("$.city").value("Musterstadt"))
 				.andExpect(jsonPath("$.logoDisplay").value("LOGO_ONLY"))
+				.andExpect(jsonPath("$.primaryColor").value("#10b981"))
 				.andExpect(jsonPath("$.fax").isEmpty());
 
 		// The company name is the tenant name — the rename shows up in the session response too.
@@ -123,6 +124,10 @@ class CompanyControllerTest {
 		mockMvc.perform(put("/api/company").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"name\": \"Musterfirma GmbH\"}"))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(put("/api/company").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\": \"Musterfirma GmbH\", \"logoDisplay\": \"WITH_NAME\", \"primaryColor\": \"red\"}"))
 				.andExpect(status().isBadRequest());
 	}
 

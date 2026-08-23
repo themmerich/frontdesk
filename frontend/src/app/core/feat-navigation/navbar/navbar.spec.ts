@@ -2,6 +2,7 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
+import { CompanyService } from '../../../shared/data/company-service';
 import { AuthStore } from '../../data/auth-store';
 import { THEME_STORAGE } from '../../data/theme-service';
 import { Navbar } from './navbar';
@@ -14,6 +15,7 @@ const translations = {
     lightMode: 'Switch to light mode',
     themeSettings: 'Customize theme',
     primaryColor: 'Primary color',
+    primaryDefault: 'Default',
     surfaceColor: 'Surface',
     preset: 'Preset',
   },
@@ -37,6 +39,8 @@ describe('Navbar', () => {
         provideZonelessChangeDetection(),
         { provide: THEME_STORAGE, useValue: null },
         { provide: AuthStore, useValue: { avatarUrl: signal<string | null>(null) } as unknown as AuthStore },
+        // The theme service reads the tenant's brand color from the company service.
+        { provide: CompanyService, useValue: { primaryColor: signal<string | null>(null) } as unknown as CompanyService },
       ],
     }).compileComponents();
   });

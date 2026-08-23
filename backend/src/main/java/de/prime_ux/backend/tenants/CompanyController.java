@@ -58,7 +58,7 @@ class CompanyController {
 		tenant.updateCompany(request.name().trim(), blankToNull(request.street()), blankToNull(request.postalCode()),
 				blankToNull(request.city()), blankToNull(request.country()), blankToNull(request.phone()),
 				blankToNull(request.fax()), blankToNull(request.email()), blankToNull(request.website()),
-				request.logoDisplay());
+				request.logoDisplay(), request.primaryColor());
 		tenantRepository.save(tenant);
 		return CompanyResponse.from(tenant, tenantLogoRepository.existsByTenantId(tenant.getId()));
 	}

@@ -9,14 +9,36 @@
         <!-- brand: logo beside the company name -->
         <p-fieldset [legend]="t('company.data')" class="md:col-span-2">
           <div class="flex flex-col gap-6 p-2 sm:flex-row sm:items-start">
-            <div class="flex w-full flex-1 flex-col gap-2">
-              <p-floatlabel variant="on">
-                <input pInputText id="name" type="text" class="w-full" [formField]="companyForm.name" />
-                <label for="name">{{ t('company.name') }}</label>
-              </p-floatlabel>
-              @if ((companyForm.name().touched() || hasSubmitAttempted()) && companyForm.name().invalid()) {
-                <p-message severity="error" variant="simple" size="small">{{ t('company.nameRequired') }}</p-message>
-              }
+            <div class="flex w-full flex-1 flex-col gap-4">
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on">
+                  <input pInputText id="name" type="text" class="w-full" [formField]="companyForm.name" />
+                  <label for="name">{{ t('company.name') }}</label>
+                </p-floatlabel>
+                @if ((companyForm.name().touched() || hasSubmitAttempted()) && companyForm.name().invalid()) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('company.nameRequired') }}</p-message>
+                }
+              </div>
+              <div class="flex flex-col gap-2">
+                <p-inputgroup>
+                  <p-inputgroup-addon>
+                    <!-- Swatch and picker in one; it edits the same field as the hex input beside it. -->
+                    <input
+                      type="color"
+                      class="h-7 w-9 cursor-pointer rounded border-0 bg-transparent"
+                      [attr.aria-label]="t('company.color')"
+                      [formField]="companyForm.primaryColor"
+                    />
+                  </p-inputgroup-addon>
+                  <p-floatlabel variant="on">
+                    <input pInputText id="primaryColor" type="text" [formField]="companyForm.primaryColor" />
+                    <label for="primaryColor">{{ t('company.color') }}</label>
+                  </p-floatlabel>
+                </p-inputgroup>
+                @if ((companyForm.primaryColor().touched() || hasSubmitAttempted()) && companyForm.primaryColor().invalid()) {
+                  <p-message severity="error" variant="simple" size="small">{{ t('company.colorInvalid') }}</p-message>
+                }
+              </div>
             </div>
             <div class="flex shrink-0 flex-col items-center gap-3 self-center sm:self-start">
               <div

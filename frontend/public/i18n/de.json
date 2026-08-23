@@ -14,6 +14,7 @@
     "lightMode": "Helles Design aktivieren",
     "themeSettings": "Design anpassen",
     "primaryColor": "Primärfarbe",
+    "primaryDefault": "Standard",
     "surfaceColor": "Oberfläche",
     "preset": "Preset"
   },
@@ -74,6 +75,8 @@
     "data": "Firmendaten",
     "name": "Firmenname",
     "nameRequired": "Bitte einen Firmennamen eingeben.",
+    "color": "Firmenfarbe",
+    "colorInvalid": "Bitte einen Hexcode im Format #RRGGBB angeben.",
     "address": "Anschrift",
     "street": "Straße",
     "postalCode": "PLZ",

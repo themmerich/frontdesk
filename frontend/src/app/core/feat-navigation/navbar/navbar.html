@@ -51,7 +51,17 @@
       <div class="flex w-60 flex-col gap-4 p-1">
         <div>
           <span class="mb-2 block text-sm font-medium">{{ t('shell.primaryColor') }}</span>
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Back to the default: the tenant's company color, or the preset's own primary. -->
+            <button
+              type="button"
+              (click)="themeService.resetPrimary()"
+              [attr.aria-pressed]="themeService.primary() === null"
+              class="h-5 cursor-pointer rounded-full border border-surface-300 px-2 text-xs leading-none outline-offset-2 outline-primary dark:border-surface-600"
+              [class.outline-2]="themeService.primary() === null"
+            >
+              {{ t('shell.primaryDefault') }}
+            </button>
             @for (swatch of primarySwatches; track swatch.name) {
               <button
                 type="button"

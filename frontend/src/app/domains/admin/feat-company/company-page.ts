@@ -1,6 +1,6 @@
 import { Component, computed, inject, linkedSignal, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { email, form, FormField, required, submit } from '@angular/forms/signals';
+import { email, form, FormField, required, submit, validate } from '@angular/forms/signals';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -33,6 +33,8 @@ type CompanyFormModel = {
   email: string;
   website: string;
   logoDisplay: LogoDisplay;
+  /** Hex color (#RRGGBB); empty means no company color. */
+  primaryColor: string;
 };
 
 function toFormModel(company: Company | null): CompanyFormModel {
@@ -48,6 +50,7 @@ function toFormModel(company: Company | null): CompanyFormModel {
       email: '',
       website: '',
       logoDisplay: 'WITH_NAME',
+      primaryColor: '',
     };
   }
   return {
@@ -61,6 +64,7 @@ function toFormModel(company: Company | null): CompanyFormModel {
     email: company.email ?? '',
     website: company.website ?? '',
     logoDisplay: company.logoDisplay,
+    primaryColor: company.primaryColor ?? '',
   };
 }
 
@@ -96,6 +100,7 @@ export class CompanyPage {
   protected readonly companyForm = form(this.model, (schemaPath) => {
     required(schemaPath.name);
     email(schemaPath.email);
+    validate(schemaPath.primaryColor, ({ value }) => (value() === '' || /^#[0-9a-fA-F]{6}$/.test(value()) ? null : { kind: 'pattern' }));
   });
 
   /** The app serves the DACH region for now; free-text countries return when needed. */
@@ -159,7 +164,13 @@ export class CompanyPage {
     await submit(this.companyForm, async () => {
       this.isSaving.set(true);
       try {
-        await this.companyService.save({ ...this.model(), name: this.model().name.trim() });
+        const model = this.model();
+        await this.companyService.save({
+          ...model,
+          name: model.name.trim(),
+          // The backend validates the hex pattern, which an empty string would fail.
+          primaryColor: model.primaryColor === '' ? null : model.primaryColor,
+        });
         this.hasSubmitAttempted.set(false);
         // Back to pristine: the save button stays disabled until the next edit.
         this.companyForm().reset();

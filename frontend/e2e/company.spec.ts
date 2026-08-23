@@ -21,6 +21,7 @@ const company = {
   email: null,
   website: null,
   logoDisplay: 'WITH_NAME',
+  primaryColor: null,
   hasLogo: false,
 };
 
@@ -51,10 +52,13 @@ test.describe('Company', () => {
 
     await page.getByLabel('Firmenname').fill('Musterfirma AG');
     await page.getByLabel('Telefon', { exact: true }).fill('+49 30 123');
+    // The text field beside the color swatch takes the hex code directly (the
+    // swatch itself is also labeled "Firmenfarbe", so the id disambiguates).
+    await page.locator('#primaryColor').fill('#10b981');
     await saveButton.click();
 
     await expect(page.getByText('Firmendaten gespeichert.')).toBeVisible();
-    expect(saved).toMatchObject({ name: 'Musterfirma AG', phone: '+49 30 123' });
+    expect(saved).toMatchObject({ name: 'Musterfirma AG', phone: '+49 30 123', primaryColor: '#10b981' });
     // The sidebar reflects the rename immediately, without a reload.
     await expect(page.getByText('Musterfirma AG').first()).toBeVisible();
     await expect(page.getByText('Musterfirma GmbH')).toHaveCount(0);

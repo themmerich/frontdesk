@@ -20,6 +20,7 @@ describe('Shell', () => {
     name: signal<string | undefined>(undefined),
     logoUrl: signal<string | null>(null),
     largeLogoUrl: signal<string | null>(null),
+    primaryColor: signal<string | null>(null),
   } as unknown as CompanyService;
 
   beforeEach(async () => {
