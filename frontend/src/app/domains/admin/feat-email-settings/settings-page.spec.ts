@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { MessageService, ToastMessageOptions } from 'primeng/api';
 
-import { MailSettingsStore } from '../data/mail-settings-store';
+import { MailSettingsService } from '../data/mail-settings-service';
 import { MailSettings, MailSettingsUpdate } from '../model/mail-settings';
 import { SettingsPage } from './settings-page';
 
@@ -60,7 +60,7 @@ describe('SettingsPage', () => {
   let savedUpdates: MailSettingsUpdate[];
   let testedUpdates: MailSettingsUpdate[];
   let testResult: { success: boolean; message: string };
-  const storeStub = {
+  const mailSettingsServiceStub = {
     settings: { value: settingsValue, error: settingsError, isLoading: settingsLoading },
     save: (update: MailSettingsUpdate) => {
       savedUpdates.push(update);
@@ -70,7 +70,7 @@ describe('SettingsPage', () => {
       testedUpdates.push(update);
       return Promise.resolve(testResult);
     },
-  } as unknown as MailSettingsStore;
+  } as unknown as MailSettingsService;
 
   let toasts: ToastMessageOptions[];
 
@@ -93,7 +93,7 @@ describe('SettingsPage', () => {
       ],
       providers: [
         provideZonelessChangeDetection(),
-        { provide: MailSettingsStore, useValue: storeStub },
+        { provide: MailSettingsService, useValue: mailSettingsServiceStub },
         { provide: MessageService, useValue: { add: (toast: ToastMessageOptions) => toasts.push(toast) } },
       ],
     }).compileComponents();

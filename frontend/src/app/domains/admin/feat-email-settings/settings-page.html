@@ -2,9 +2,9 @@
   <main class="flex max-w-2xl flex-col gap-6">
     <h1 class="text-2xl font-semibold">{{ t('settings.title') }}</h1>
 
-    @if (store.settings.error()) {
+    @if (mailSettingsService.settings.error()) {
       <p-message severity="error">{{ t('settings.loadError') }}</p-message>
-    } @else if (store.settings.isLoading()) {
+    } @else if (mailSettingsService.settings.isLoading()) {
       <!-- The form must not exist before the stored settings arrived: a save in that
            window would silently write the defaults over the stored configuration. -->
       <i class="pi pi-spinner pi-spin" role="img" [attr.aria-label]="t('settings.loading')"></i>

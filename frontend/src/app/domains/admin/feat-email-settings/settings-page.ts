@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 
-import { MailSettingsStore } from '../data/mail-settings-store';
+import { MailSettingsService } from '../data/mail-settings-service';
 import { GREENMAIL_DEFAULTS, MAIL_PROVIDER_PRESETS, MailProviderPreset, MailSettings, MailSettingsMode } from '../model/mail-settings';
 
 type ConnectionFormModel = {
@@ -41,7 +41,7 @@ function toFormModel(settings: MailSettings | undefined): ConnectionFormModel {
   templateUrl: './settings-page.html',
 })
 export class SettingsPage {
-  protected readonly store = inject(MailSettingsStore);
+  protected readonly mailSettingsService = inject(MailSettingsService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
 
@@ -52,11 +52,11 @@ export class SettingsPage {
 
   // Every piece of state re-anchors on the loaded (or freshly saved) settings,
   // while staying freely editable in between.
-  protected readonly mode = linkedSignal<MailSettingsMode>(() => this.store.settings.value()?.mode ?? 'GREENMAIL');
-  protected readonly isPollingEnabled = linkedSignal(() => this.store.settings.value()?.pollingEnabled ?? true);
-  protected readonly isImapTls = linkedSignal(() => this.store.settings.value()?.imapTls ?? true);
-  protected readonly isSmtpTls = linkedSignal(() => this.store.settings.value()?.smtpTls ?? true);
-  protected readonly connection = linkedSignal(() => toFormModel(this.store.settings.value()));
+  protected readonly mode = linkedSignal<MailSettingsMode>(() => this.mailSettingsService.settings.value()?.mode ?? 'GREENMAIL');
+  protected readonly isPollingEnabled = linkedSignal(() => this.mailSettingsService.settings.value()?.pollingEnabled ?? true);
+  protected readonly isImapTls = linkedSignal(() => this.mailSettingsService.settings.value()?.imapTls ?? true);
+  protected readonly isSmtpTls = linkedSignal(() => this.mailSettingsService.settings.value()?.smtpTls ?? true);
+  protected readonly connection = linkedSignal(() => toFormModel(this.mailSettingsService.settings.value()));
 
   protected readonly connectionForm = form(this.connection, (schemaPath) => {
     required(schemaPath.imapHost);
@@ -106,7 +106,7 @@ export class SettingsPage {
     }
     this.isTesting.set(true);
     try {
-      const result = await this.store.test({
+      const result = await this.mailSettingsService.test({
         mode: this.mode(),
         ...this.connection(),
         imapTls: this.isImapTls(),
@@ -147,7 +147,7 @@ export class SettingsPage {
   private async persist(): Promise<void> {
     this.isSaving.set(true);
     try {
-      await this.store.save({
+      await this.mailSettingsService.save({
         mode: this.mode(),
         ...this.connection(),
         imapTls: this.isImapTls(),

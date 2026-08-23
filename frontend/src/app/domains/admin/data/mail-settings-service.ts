@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { MailConnectionTestResult, MailSettings, MailSettingsUpdate } from '../model/mail-settings';
 
 @Service()
-export class MailSettingsStore {
+export class MailSettingsService {
   private readonly http = inject(HttpClient);
 
   readonly settings = httpResource<MailSettings>(() => '/api/settings/mail');

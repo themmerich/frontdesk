@@ -2,7 +2,7 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
-import { CasesStore } from '../data/cases-store';
+import { CasesService } from '../data/cases-service';
 import { Case } from '../model/case';
 import { CasesPage } from './cases-page';
 
@@ -20,7 +20,7 @@ const translations = {
 describe('CasesPage', () => {
   const cases = signal<Case[]>([]);
   const error = signal<Error | undefined>(undefined);
-  const storeStub = { cases: { value: cases, error } } as unknown as CasesStore;
+  const casesServiceStub = { cases: { value: cases, error } } as unknown as CasesService;
 
   beforeEach(async () => {
     cases.set([]);
@@ -34,7 +34,7 @@ describe('CasesPage', () => {
           preloadLangs: true,
         }),
       ],
-      providers: [provideZonelessChangeDetection(), { provide: CasesStore, useValue: storeStub }],
+      providers: [provideZonelessChangeDetection(), { provide: CasesService, useValue: casesServiceStub }],
     }).compileComponents();
   });
 

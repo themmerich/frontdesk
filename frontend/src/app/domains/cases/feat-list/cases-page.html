@@ -2,11 +2,11 @@
   <main class="flex flex-col gap-4">
     <h1 class="text-2xl font-semibold">{{ t('cases.title') }}</h1>
     <!-- value() throws while the resource is in the error state, so the list only renders in the else branch. -->
-    @if (store.cases.error()) {
+    @if (casesService.cases.error()) {
       <p class="text-red-600 dark:text-red-400">{{ t('cases.loadError') }}</p>
     } @else {
       <app-case-list
-        [cases]="store.cases.value()"
+        [cases]="casesService.cases.value()"
         [(columnOrder)]="columnsService.order"
         [(visibleFields)]="columnsService.visibleFields"
       />
