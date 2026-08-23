@@ -1,4 +1,4 @@
-package de.prime_ux.backend.users;
+package de.prime_ux.backend.tenants;
 
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -47,8 +47,10 @@ export const config: SheriffConfig = {
 
     // Access restrictions by type: api exposes features and types; features
     // orchestrate ui, data, and model; ui and data may see the model only.
+    // Features may also reach the shared kernel (e.g. the company service that
+    // core's sidebar and the admin's company page meet on).
     'type:api': ['type:feat', 'type:model'],
-    'type:feat': ['type:ui', 'type:data', 'type:model'],
+    'type:feat': ['type:ui', 'type:data', 'type:model', 'shared'],
     'type:ui': ['type:model'],
     'type:data': ['type:model'],
     'type:model': [],

@@ -4,6 +4,7 @@ import { TranslocoDirective } from '@jsverse/transloco';
 import { AvatarModule } from 'primeng/avatar';
 import { StyleClassModule } from 'primeng/styleclass';
 
+import { CompanyService } from '../../../shared/data/company-service';
 import { AuthStore } from '../../data/auth-store';
 
 /**
@@ -20,6 +21,7 @@ import { AuthStore } from '../../data/auth-store';
 })
 export class Sidebar {
   protected readonly authStore = inject(AuthStore);
+  protected readonly companyService = inject(CompanyService);
   private readonly router = inject(Router);
 
   protected async onSignOut(): Promise<void> {

@@ -2,6 +2,7 @@ package de.prime_ux.backend.auth;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
@@ -38,6 +39,10 @@ class SecurityConfig {
 				// the admins' realm.
 				.requestMatchers("/api/settings/**").hasRole("ADMIN")
 				.requestMatchers("/api/users/**").hasRole("ADMIN")
+				// Everyone reads the company (the sidebar shows name and logo);
+				// only admins change it.
+				.requestMatchers(HttpMethod.PUT, "/api/company/**").hasRole("ADMIN")
+				.requestMatchers(HttpMethod.DELETE, "/api/company/**").hasRole("ADMIN")
 				.anyRequest().authenticated())
 			.csrf(csrf -> csrf
 				.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())

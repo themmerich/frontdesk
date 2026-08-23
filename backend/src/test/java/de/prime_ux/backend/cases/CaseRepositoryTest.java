@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import de.prime_ux.backend.TestcontainersConfiguration;
-import de.prime_ux.backend.users.Tenant;
-import de.prime_ux.backend.users.TenantRepository;
+import de.prime_ux.backend.tenants.Tenant;
+import de.prime_ux.backend.tenants.TenantRepository;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

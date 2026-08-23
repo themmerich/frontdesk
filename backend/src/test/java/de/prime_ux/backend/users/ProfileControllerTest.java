@@ -1,5 +1,9 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.tenants.Tenant;
+import de.prime_ux.backend.tenants.TenantLogoRepository;
+import de.prime_ux.backend.tenants.TenantRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -44,6 +48,9 @@ class ProfileControllerTest {
 	private TenantRepository tenantRepository;
 
 	@Autowired
+	private TenantLogoRepository tenantLogoRepository;
+
+	@Autowired
 	private TenantMailSettingsRepository tenantMailSettingsRepository;
 
 	@Autowired
@@ -60,6 +67,7 @@ class ProfileControllerTest {
 		caseRepository.deleteAll();
 		tenantMailSettingsRepository.deleteAll();
 		userAvatarRepository.deleteAll();
+		tenantLogoRepository.deleteAll();
 		appUserRepository.deleteAll();
 		tenantRepository.deleteAll();
 		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));

@@ -31,6 +31,11 @@ export const routes: Routes = [
         loadChildren: () => import('./domains/admin/api/users-routes').then((m) => m.usersRoutes),
       },
       {
+        path: 'company',
+        canActivate: [adminGuard],
+        loadChildren: () => import('./domains/admin/api/company-routes').then((m) => m.companyRoutes),
+      },
+      {
         path: 'profile',
         loadComponent: () => import('./core/feat-profile/profile-page').then((m) => m.ProfilePage),
       },

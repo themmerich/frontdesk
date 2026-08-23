@@ -34,6 +34,7 @@ const mockUser = {
 test.describe('Cases page', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: mockUser }));
+    await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
   });
 
   test('lists the cases returned by the API', async ({ page }) => {

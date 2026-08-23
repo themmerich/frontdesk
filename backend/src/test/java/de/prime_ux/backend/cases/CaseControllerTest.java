@@ -8,8 +8,9 @@ import de.prime_ux.backend.TestcontainersConfiguration;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
-import de.prime_ux.backend.users.Tenant;
-import de.prime_ux.backend.users.TenantRepository;
+import de.prime_ux.backend.tenants.Tenant;
+import de.prime_ux.backend.tenants.TenantLogoRepository;
+import de.prime_ux.backend.tenants.TenantRepository;
 import de.prime_ux.backend.users.UserRole;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +40,9 @@ class CaseControllerTest {
 	private TenantRepository tenantRepository;
 
 	@Autowired
+	private TenantLogoRepository tenantLogoRepository;
+
+	@Autowired
 	private TenantMailSettingsRepository tenantMailSettingsRepository;
 
 	private Tenant tenant;
@@ -50,6 +54,7 @@ class CaseControllerTest {
 		// Mail settings reference tenants and may linger from other test classes
 		// sharing this context's database.
 		tenantMailSettingsRepository.deleteAll();
+		tenantLogoRepository.deleteAll();
 		appUserRepository.deleteAll();
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
