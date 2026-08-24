@@ -44,7 +44,7 @@ describe('CasesPage', () => {
         id: '1',
         sender: 'anna@example.com',
         subject: 'Delivery status',
-        receivedAt: '2026-08-19T08:30:00Z',
+        receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
         sizeBytes: 2048,
       },

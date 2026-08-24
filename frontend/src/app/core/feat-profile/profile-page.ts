@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, linkedSignal, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { email, form, FormField, minLength, required, submit, validate } from '@angular/forms/signals';
+import { ChildFieldContext, email, form, FormField, minLength, required, submit, validate } from '@angular/forms/signals';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { MessageService } from 'primeng/api';
 import { AvatarModule } from 'primeng/avatar';
@@ -18,6 +18,7 @@ import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
 
 import { BranchService } from '../../shared/data/branch-service';
+import { CompanyService } from '../../shared/data/company-service';
 import { AuthStore } from '../data/auth-store';
 import { Profile, ProfileService } from '../data/profile-service';
 
@@ -99,6 +100,7 @@ function toFormModel(profile: Profile | null): ProfileFormModel {
 export class ProfilePage {
   protected readonly authStore = inject(AuthStore);
   protected readonly profileService = inject(ProfileService);
+  protected readonly companyService = inject(CompanyService);
   private readonly branchService = inject(BranchService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
@@ -124,28 +126,36 @@ export class ProfilePage {
     }));
   });
 
+  protected readonly isSaving = signal(false);
+  protected readonly isChangingPassword = signal(false);
+  protected readonly isSavingAvatar = signal(false);
+  // A submit attempt judges every field at once — submit() alone does not flip
+  // the fields' touched state.
+  protected readonly hasSubmitAttempted = signal(false);
+  protected readonly hasPasswordSubmitAttempted = signal(false);
+
+  // The three password fields start empty and required, and PrimeNG marks an
+  // invalid field red the moment it is bound — so they are only judged once
+  // the user typed in them, or once they tried to change the password.
+  private readonly whenPasswordEdited = ({ state }: ChildFieldContext<string>) => state.dirty() || this.hasPasswordSubmitAttempted();
+
   protected readonly passwordChange = signal<PasswordChange>({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
   protected readonly passwordForm = form(this.passwordChange, (schemaPath) => {
-    required(schemaPath.currentPassword);
-    required(schemaPath.newPassword);
-    minLength(schemaPath.newPassword, 8);
-    required(schemaPath.confirmPassword);
-    validate(schemaPath.confirmPassword, ({ value, valueOf }) =>
-      value() === valueOf(schemaPath.newPassword) ? null : { kind: 'mismatch' },
-    );
+    required(schemaPath.currentPassword, { when: this.whenPasswordEdited });
+    required(schemaPath.newPassword, { when: this.whenPasswordEdited });
+    minLength(schemaPath.newPassword, 8, { when: this.whenPasswordEdited });
+    required(schemaPath.confirmPassword, { when: this.whenPasswordEdited });
+    validate(schemaPath.confirmPassword, (context) => {
+      if (!this.whenPasswordEdited(context)) {
+        return null;
+      }
+      return context.value() === context.valueOf(schemaPath.newPassword) ? null : { kind: 'mismatch' };
+    });
   });
-
-  protected readonly isSaving = signal(false);
-  protected readonly isChangingPassword = signal(false);
-  protected readonly isSavingAvatar = signal(false);
-  // Validation errors stay hidden until the field was visited or a submit was
-  // attempted — submit() alone does not flip the fields' touched state.
-  protected readonly hasSubmitAttempted = signal(false);
-  protected readonly hasPasswordSubmitAttempted = signal(false);
 
   /** Called by the upload widget right after a file was chosen (auto mode). */
   protected async onUploadAvatar(event: FileUploadHandlerEvent): Promise<void> {

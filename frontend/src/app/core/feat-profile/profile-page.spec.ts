@@ -5,6 +5,7 @@ import { TranslocoTestingModule } from '@jsverse/transloco';
 import { MessageService, ToastMessageOptions } from 'primeng/api';
 
 import { BranchService } from '../../shared/data/branch-service';
+import { CompanyService } from '../../shared/data/company-service';
 import { Branch } from '../../shared/model/branch';
 import { AuthStore } from '../data/auth-store';
 import { Profile, ProfileService, ProfileUpdate } from '../data/profile-service';
@@ -26,7 +27,8 @@ const translations = {
     lastNameRequired: 'Please enter a last name.',
     birthDate: 'Date of birth',
     companyData: 'Company',
-    company: 'Branch',
+    company: 'Company name',
+    branch: 'Branch',
     headquarters: 'Headquarters',
     joinedAt: 'Joining date',
     contact: 'Contact',
@@ -98,6 +100,7 @@ describe('ProfilePage', () => {
 
   const branchesValue = signal<Branch[]>(branches);
   const branchServiceStub = { branches: { value: branchesValue } } as unknown as BranchService;
+  const companyServiceStub = { name: () => 'Musterfirma GmbH' } as unknown as CompanyService;
 
   const profileValue = signal<Profile | null>(null);
   const error = signal<Error | undefined>(undefined);
@@ -153,6 +156,7 @@ describe('ProfilePage', () => {
         provideZonelessChangeDetection(),
         { provide: AuthStore, useValue: authStoreStub },
         { provide: BranchService, useValue: branchServiceStub },
+        { provide: CompanyService, useValue: companyServiceStub },
         { provide: ProfileService, useValue: profileServiceStub },
         { provide: MessageService, useValue: { add: (toast: ToastMessageOptions) => toasts.push(toast) } },
       ],
@@ -170,6 +174,32 @@ describe('ProfilePage', () => {
     input.value = value;
     input.dispatchEvent(new Event('input'));
   }
+
+  it("names the company beside the site, both beyond the user's reach", () => {
+    const element = createFixture().nativeElement as HTMLElement;
+
+    const company = element.querySelector('#company') as HTMLInputElement;
+    expect(company.value).toBe('Musterfirma GmbH');
+    expect(company.disabled).toBe(true);
+  });
+
+  it('opens the password fields unjudged, and marks them once edited', async () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+
+    // Empty and required, but the user has not touched them yet.
+    expect(element.querySelectorAll('.p-invalid')).toHaveLength(0);
+    expect(element.textContent).not.toContain('Required.');
+
+    setInput(element, 'newPassword', 'kurz');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect((element.querySelector('#newPassword') as HTMLInputElement).classList).toContain('p-invalid');
+    expect(element.textContent).toContain('At least 8 characters.');
+    // The neighbours stay unjudged until they are edited themselves.
+    expect((element.querySelector('#currentPassword') as HTMLInputElement).classList).not.toContain('p-invalid');
+  });
 
   it('shows the stored profile with the read-only username', () => {
     const element = createFixture().nativeElement as HTMLElement;

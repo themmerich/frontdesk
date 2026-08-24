@@ -13,8 +13,9 @@ describe('CasesService', () => {
     });
   });
 
-  it('loads the cases from the API', async () => {
-    const cases: Case[] = [
+  it('loads the cases from the API and parses the ISO date into a Date', async () => {
+    // The wire shape: receivedAt arrives as an ISO string.
+    const response = [
       {
         id: '1',
         sender: 'anna@example.com',
@@ -28,10 +29,13 @@ describe('CasesService', () => {
     const httpTesting = TestBed.inject(HttpTestingController);
     TestBed.tick();
 
-    httpTesting.expectOne('/api/cases').flush(cases);
+    httpTesting.expectOne('/api/cases').flush(response);
     await TestBed.inject(ApplicationRef).whenStable();
 
-    expect(service.cases.value()).toEqual(cases);
+    const expected: Case[] = [{ ...response[0], receivedAt: new Date('2026-08-19T08:30:00Z') }];
+    expect(service.cases.value()).toEqual(expected);
+    // The table's date filter compares real Date objects.
+    expect(service.cases.value()[0].receivedAt).toBeInstanceOf(Date);
     httpTesting.verify();
   });
 

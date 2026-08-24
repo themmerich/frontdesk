@@ -91,6 +91,11 @@
 
         <p-fieldset [legend]="t('profile.companyData')">
           <div class="flex flex-col gap-4 p-2">
+            <!-- The company one belongs to is not a choice; only the site is. -->
+            <p-floatlabel variant="on">
+              <input pInputText id="company" type="text" class="w-full" disabled [value]="companyService.name() ?? ''" />
+              <label for="company">{{ t('profile.company') }}</label>
+            </p-floatlabel>
             <p-floatlabel variant="on">
               <p-select
                 inputId="branch"
@@ -101,7 +106,7 @@
                 [showClear]="true"
                 [formField]="profileForm.branchId"
               />
-              <label for="branch">{{ t('profile.company') }}</label>
+              <label for="branch">{{ t('profile.branch') }}</label>
             </p-floatlabel>
             <p-floatlabel variant="on">
               <p-datepicker inputId="joinedAt" class="w-full" [showIcon]="true" iconDisplay="input" [formField]="profileForm.joinedAt" />
@@ -183,9 +188,7 @@
                   />
                   <label for="currentPassword">{{ t('profile.currentPassword') }}</label>
                 </p-floatlabel>
-                @if (
-                  (passwordForm.currentPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.currentPassword().invalid()
-                ) {
+                @if (passwordForm.currentPassword().invalid()) {
                   <p-message severity="error" variant="simple" size="small">{{ t('profile.required') }}</p-message>
                 }
               </div>
@@ -201,7 +204,7 @@
                   />
                   <label for="newPassword">{{ t('profile.newPassword') }}</label>
                 </p-floatlabel>
-                @if ((passwordForm.newPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.newPassword().invalid()) {
+                @if (passwordForm.newPassword().invalid()) {
                   <p-message severity="error" variant="simple" size="small">{{ t('profile.passwordTooShort') }}</p-message>
                 }
               </div>
@@ -217,9 +220,7 @@
                   />
                   <label for="confirmPassword">{{ t('profile.confirmPassword') }}</label>
                 </p-floatlabel>
-                @if (
-                  (passwordForm.confirmPassword().touched() || hasPasswordSubmitAttempted()) && passwordForm.confirmPassword().invalid()
-                ) {
+                @if (passwordForm.confirmPassword().invalid()) {
                   <p-message severity="error" variant="simple" size="small">{{ t('profile.passwordMismatch') }}</p-message>
                 }
               </div>

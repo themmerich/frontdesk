@@ -14,10 +14,13 @@ export type CaseColumnDefinition = {
 };
 
 export const CASE_COLUMNS: readonly CaseColumnDefinition[] = [
-  { field: 'hasAttachments', labelKey: 'cases.attachment', sortable: false, filterable: false },
+  // Filtered through a tri-state checkbox: with attachment, without, or either.
+  { field: 'hasAttachments', labelKey: 'cases.attachment', sortable: false, filterable: true },
   { field: 'sender', labelKey: 'cases.sender', sortable: true, filterable: true },
   { field: 'subject', labelKey: 'cases.subject', sortable: true, filterable: true },
-  { field: 'receivedAt', labelKey: 'cases.receivedAt', sortable: true, filterable: false },
+  // Filtered through PrimeNG's date filter; the list component picks the
+  // control per field, this flag only says that a filter exists.
+  { field: 'receivedAt', labelKey: 'cases.receivedAt', sortable: true, filterable: true },
   { field: 'sizeBytes', labelKey: 'cases.size', sortable: true, filterable: false },
 ];
 

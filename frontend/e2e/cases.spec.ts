@@ -51,6 +51,37 @@ test.describe('Cases page', () => {
     await expect(page.getByRole('row', { name: /anna@example\.com/ })).toContainText('2 KB');
   });
 
+  test('filters the list down to the cases with an attachment', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    // The attachment column is the first one and filters through a tri-state checkbox.
+    await page.getByRole('columnheader', { name: 'Anhang' }).getByRole('button').click();
+    await page.getByRole('checkbox').click();
+
+    await expect(page.getByRole('row', { name: /Invoice copy/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
+  });
+
+  test('lets the admin resize a column', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    const senderColumn = page.getByRole('columnheader').first();
+    const before = (await senderColumn.boundingBox())!.width;
+
+    // Drag the handle at the column's right edge to the left. Fit mode hands the
+    // width to the neighbour, which always has room for it — widening instead
+    // would stop at whatever the neighbour can spare.
+    const handle = (await senderColumn.locator('.p-datatable-column-resizer').boundingBox())!;
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handle.x - 50, handle.y + handle.height / 2, { steps: 10 });
+    await page.mouse.up();
+
+    expect((await senderColumn.boundingBox())!.width).toBeLessThan(before - 20);
+  });
+
   test('shows an empty state when there are no cases', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
 
