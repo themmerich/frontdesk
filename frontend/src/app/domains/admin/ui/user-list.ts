@@ -56,9 +56,15 @@ export class UserList {
   /** Asks the page to activate or deactivate this user (read-only list, smart page). */
   readonly toggleActive = output<User>();
 
+  /** Asks the page to open its dialog for a new user. */
+  readonly add = output<void>();
+
+  /** Asks the page to open its dialog for this user. */
+  readonly edit = output<User>();
+
   private readonly table = viewChild.required(Table);
 
-  protected readonly globalFilterFields: UserColumnField[] = ['displayName', 'username'];
+  protected readonly globalFilterFields: UserColumnField[] = ['lastName', 'firstName', 'username'];
 
   // Re-evaluates the columns once the active translation file (re)loads, so the
   // popover labels, table headers, and CSV export headers are translated.

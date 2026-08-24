@@ -9,7 +9,8 @@ import { UserList } from './user-list';
 
 const translations = {
   users: {
-    displayName: 'Name',
+    lastName: 'Surname',
+    firstName: 'First name',
     username: 'Username',
     role: 'Role',
     roleAdmin: 'Admin',
@@ -22,11 +23,13 @@ const translations = {
     actions: 'Actions',
     activate: 'Activate',
     deactivate: 'Deactivate',
+    edit: 'Edit',
     filter: 'Filter …',
     columns: 'Columns',
     reset: 'Reset',
     search: 'Search …',
     export: 'Export',
+    add: 'Add',
     empty: 'No users found',
   },
 };
@@ -65,7 +68,9 @@ describe('UserList', () => {
   const anna: User = {
     id: '1',
     username: 'anna',
-    displayName: 'Anna Admin',
+    firstName: 'Anna',
+    lastName: 'Admin',
+    branchId: null,
     role: 'admin',
     active: true,
     createdAt: new Date('2026-08-01T10:00:00Z'),
@@ -73,7 +78,9 @@ describe('UserList', () => {
   const ben: User = {
     id: '2',
     username: 'ben',
-    displayName: 'Ben Benutzer',
+    firstName: 'Ben',
+    lastName: 'Benutzer',
+    branchId: null,
     role: 'user',
     active: false,
     createdAt: new Date('2026-08-02T10:00:00Z'),
@@ -83,9 +90,10 @@ describe('UserList', () => {
     const fixture = createFixture([anna, ben]);
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
-    expect(text).toContain('Anna Admin');
+    // Surname and first name have their own cells now.
+    expect(text).toContain('Anna');
     expect(text).toContain('anna');
-    expect(text).toContain('Ben Benutzer');
+    expect(text).toContain('Benutzer');
     expect(text).toContain('ben');
   });
 
@@ -98,26 +106,47 @@ describe('UserList', () => {
     expect(element.textContent).toContain('Aug 1, 2026');
   });
 
+  it('lets every data column be resized', () => {
+    const element = createFixture([anna]).nativeElement as HTMLElement;
+
+    expect(element.querySelector('.p-datatable-resizable')).not.toBeNull();
+    // A handle per data column; the action column keeps its fixed width.
+    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(6);
+  });
+
   it('shows the empty message when there are no users', () => {
     const fixture = createFixture([]);
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No users found');
   });
 
-  it('renders the toolbar with column toggler, global search, and export', () => {
+  it('renders the toolbar with column toggler, global search, export, and add', () => {
     const fixture = createFixture([]);
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('input[aria-label="Search …"]')).not.toBeNull();
     const buttonLabels = Array.from(element.querySelectorAll('p-button')).map((button) => button.textContent?.trim());
-    expect(buttonLabels).toEqual(['Columns', 'Export']);
+    // Add sits right of Export, the rightmost action of the toolbar.
+    expect(buttonLabels).toEqual(['Columns', 'Export', 'Add']);
+  });
+
+  it('asks the page for a new user when the add button is pressed', () => {
+    const fixture = createFixture([]);
+    const added: void[] = [];
+    fixture.componentInstance.add.subscribe(() => added.push(undefined));
+
+    const element = fixture.nativeElement as HTMLElement;
+    const addButton = Array.from(element.querySelectorAll('button')).find((button) => button.textContent?.trim() === 'Add')!;
+    addButton.click();
+
+    expect(added).toHaveLength(1);
   });
 
   it('hides an unchecked column and restores it on reset', async () => {
     const fixture = createFixture([anna]);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelectorAll('th')).toHaveLength(6);
+    expect(element.querySelectorAll('th')).toHaveLength(7);
 
     const columnsButton = element.querySelector('p-button button') as HTMLButtonElement;
     columnsButton.click();
@@ -128,8 +157,8 @@ describe('UserList', () => {
     usernameCheckbox.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(5);
-    // The username cell is gone; "Anna Admin" stays, but the lowercase login name disappears.
+    expect(element.querySelectorAll('th')).toHaveLength(6);
+    // The username cell is gone; "Anna" stays, but the lowercase login name disappears.
     expect(element.textContent).not.toContain('anna');
 
     const resetButton = Array.from(document.querySelectorAll('button')).find((button) =>
@@ -139,7 +168,7 @@ describe('UserList', () => {
     resetButton.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(6);
+    expect(element.querySelectorAll('th')).toHaveLength(7);
     expect(element.textContent).toContain('anna');
   });
 
@@ -153,15 +182,15 @@ describe('UserList', () => {
     (document.querySelector('input#username') as HTMLInputElement).click();
     await fixture.whenStable();
 
-    expect(fixture.componentInstance.visibleFields()).toEqual(['displayName', 'role', 'active', 'createdAt']);
+    expect(fixture.componentInstance.visibleFields()).toEqual(['lastName', 'firstName', 'role', 'createdAt', 'active']);
   });
 
   it('offers sorting and a filter on every column', () => {
     const fixture = createFixture([]);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelectorAll('p-sorticon')).toHaveLength(5);
-    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(5);
+    expect(element.querySelectorAll('p-sorticon')).toHaveLength(6);
+    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(6);
   });
 
   it('emits the row when its activate or deactivate action is clicked', () => {
@@ -170,15 +199,26 @@ describe('UserList', () => {
     fixture.componentInstance.toggleActive.subscribe((user) => toggled.push(user));
 
     const actionButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('tbody button'));
-    expect(actionButtons.map((button) => button.getAttribute('aria-label'))).toEqual(['Deactivate', 'Activate']);
+    expect(actionButtons.map((button) => button.getAttribute('aria-label'))).toEqual(['Edit', 'Deactivate', 'Edit', 'Activate']);
 
-    actionButtons[0].click();
     actionButtons[1].click();
+    actionButtons[3].click();
 
     expect(toggled).toEqual([anna, ben]);
   });
 
-  // Filter toggle order matches the column order: name, username, role, active, created at.
+  it('emits the row when its edit action is clicked', () => {
+    const fixture = createFixture([anna, ben]);
+    const edited: User[] = [];
+    fixture.componentInstance.edit.subscribe((user) => edited.push(user));
+
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelectorAll<HTMLButtonElement>('tbody button[aria-label="Edit"]')[1].click();
+
+    expect(edited).toEqual([ben]);
+  });
+
+  // Filter toggle order matches the column order: surname, first name, username, role, created at, status.
   async function openFilterMenu(fixture: ReturnType<typeof createFixture>, index: number): Promise<void> {
     const filterToggles = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('p-columnfilter button');
     filterToggles[index].click();
@@ -196,7 +236,7 @@ describe('UserList', () => {
   it('offers the role filter as a multi-select with both roles', async () => {
     const fixture = createFixture([anna, ben]);
 
-    await openFilterMenu(fixture, 2);
+    await openFilterMenu(fixture, 3);
 
     expect(await openedMultiSelectOptions(fixture)).toEqual(['Admin', 'User']);
   });
@@ -204,7 +244,7 @@ describe('UserList', () => {
   it('offers the active filter as a multi-select with both states', async () => {
     const fixture = createFixture([anna, ben]);
 
-    await openFilterMenu(fixture, 3);
+    await openFilterMenu(fixture, 5);
 
     expect(await openedMultiSelectOptions(fixture)).toEqual(['Active', 'Inactive']);
   });
@@ -231,8 +271,8 @@ describe('UserList', () => {
     await applyFilter(fixture, ['admin'], 'role', 'in');
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
-    expect(text).toContain('Anna Admin');
-    expect(text).not.toContain('Ben Benutzer');
+    expect(text).toContain('Anna');
+    expect(text).not.toContain('Benutzer');
   });
 
   it('filters the rows down to the chosen active states', async () => {
@@ -241,8 +281,8 @@ describe('UserList', () => {
     await applyFilter(fixture, [false], 'active', 'in');
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
-    expect(text).toContain('Ben Benutzer');
-    expect(text).not.toContain('Anna Admin');
+    expect(text).toContain('Benutzer');
+    expect(text).not.toContain('Anna');
   });
 
   it('filters the rows down to a creation date', async () => {
@@ -251,7 +291,7 @@ describe('UserList', () => {
     await applyFilter(fixture, new Date('2026-08-02T00:00:00'), 'createdAt', 'dateIs');
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
-    expect(text).toContain('Ben Benutzer');
-    expect(text).not.toContain('Anna Admin');
+    expect(text).toContain('Benutzer');
+    expect(text).not.toContain('Anna');
   });
 });

@@ -4,7 +4,7 @@
  * build on the same definitions.
  */
 
-export type UserColumnField = 'displayName' | 'username' | 'role' | 'active' | 'createdAt';
+export type UserColumnField = 'lastName' | 'firstName' | 'username' | 'role' | 'createdAt' | 'active';
 
 export type UserColumnDefinition = {
   field: UserColumnField;
@@ -14,16 +14,18 @@ export type UserColumnDefinition = {
 };
 
 export const USER_COLUMNS: readonly UserColumnDefinition[] = [
-  { field: 'displayName', labelKey: 'users.displayName', sortable: true, filterable: true },
+  // The name leads, surname first — that is how a staff list is read.
+  { field: 'lastName', labelKey: 'users.lastName', sortable: true, filterable: true },
+  { field: 'firstName', labelKey: 'users.firstName', sortable: true, filterable: true },
   { field: 'username', labelKey: 'users.username', sortable: true, filterable: true },
   // Role and active are filtered through multi-selects (not the text filter):
   // their cells show translated labels while the rows keep the raw values, so
   // free text would have to match the untranslated value — confusing.
   { field: 'role', labelKey: 'users.role', sortable: true, filterable: true },
-  { field: 'active', labelKey: 'users.active', sortable: true, filterable: true },
   // Filtered through PrimeNG's date filter; the list component picks the
   // control per field, this flag only says that a filter exists.
   { field: 'createdAt', labelKey: 'users.createdAt', sortable: true, filterable: true },
+  { field: 'active', labelKey: 'users.active', sortable: true, filterable: true },
 ];
 
 export const DEFAULT_COLUMN_ORDER: readonly UserColumnField[] = USER_COLUMNS.map((column) => column.field);

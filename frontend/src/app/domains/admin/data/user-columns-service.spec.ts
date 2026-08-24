@@ -25,7 +25,7 @@ function createFakeStorage(): Storage {
 }
 
 function storedPreferences(storage: Storage): Record<string, unknown> {
-  return JSON.parse(storage.getItem('frontdesk-user-columns') ?? '{}') as Record<string, unknown>;
+  return JSON.parse(storage.getItem('frontdesk-user-columns-v2') ?? '{}') as Record<string, unknown>;
 }
 
 describe('UserColumnsService', () => {
@@ -47,8 +47,8 @@ describe('UserColumnsService', () => {
 
   it('restores a stored order and visibility', () => {
     storage.setItem(
-      'frontdesk-user-columns',
-      JSON.stringify({ order: ['username', 'displayName', 'role', 'active', 'createdAt'], visibleFields: ['username'] }),
+      'frontdesk-user-columns-v2',
+      JSON.stringify({ order: ['username', 'lastName', 'firstName', 'role', 'createdAt', 'active'], visibleFields: ['username'] }),
     );
 
     const service = TestBed.inject(UserColumnsService);
@@ -58,7 +58,7 @@ describe('UserColumnsService', () => {
   });
 
   it('falls back to the defaults for unparseable stored values', () => {
-    storage.setItem('frontdesk-user-columns', 'not json at all');
+    storage.setItem('frontdesk-user-columns-v2', 'not json at all');
 
     const service = TestBed.inject(UserColumnsService);
 
@@ -69,19 +69,19 @@ describe('UserColumnsService', () => {
   it('persists a changed visibility', () => {
     const service = TestBed.inject(UserColumnsService);
 
-    service.visibleFields.set(['displayName', 'username']);
+    service.visibleFields.set(['lastName', 'username']);
     TestBed.tick();
 
-    expect(storedPreferences(storage)['visibleFields']).toEqual(['displayName', 'username']);
+    expect(storedPreferences(storage)['visibleFields']).toEqual(['lastName', 'username']);
   });
 
   it('persists a changed order', () => {
     const service = TestBed.inject(UserColumnsService);
 
-    service.order.set(['username', 'displayName', 'role', 'active', 'createdAt']);
+    service.order.set(['username', 'lastName', 'firstName', 'role', 'createdAt', 'active']);
     TestBed.tick();
 
-    expect(storedPreferences(storage)['order']).toEqual(['username', 'displayName', 'role', 'active', 'createdAt']);
+    expect(storedPreferences(storage)['order']).toEqual(['username', 'lastName', 'firstName', 'role', 'createdAt', 'active']);
   });
 
   it('works without a storage, so the app still runs where localStorage is blocked', () => {
@@ -91,9 +91,9 @@ describe('UserColumnsService', () => {
     });
 
     const service = TestBed.inject(UserColumnsService);
-    service.visibleFields.set(['displayName']);
+    service.visibleFields.set(['lastName']);
     TestBed.tick();
 
-    expect(service.visibleFields()).toEqual(['displayName']);
+    expect(service.visibleFields()).toEqual(['lastName']);
   });
 });

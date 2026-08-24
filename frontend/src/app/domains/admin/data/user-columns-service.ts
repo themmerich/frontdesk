@@ -3,7 +3,10 @@ import { effect, inject, InjectionToken, Service, signal } from '@angular/core';
 
 import { UserColumnField, defaultColumnPreferences, parseColumnPreferences } from '../model/user-column';
 
-const STORAGE_KEY = 'frontdesk-user-columns';
+// Bumped when the name column was split into surname and first name: the
+// stored orders of that era would have appended both at the far end, burying
+// the very columns the table now leads with.
+const STORAGE_KEY = 'frontdesk-user-columns-v2';
 
 /**
  * The storage backing the column choice. Injectable so tests can provide an

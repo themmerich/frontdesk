@@ -14,8 +14,19 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 	@EntityGraph(attributePaths = { "tenant", "branch" })
 	List<AppUser> findAllByUsernameIgnoreCase(String username);
 
+	// The branch comes along eagerly: the responses carry its id, which a lazy
+	// proxy could not resolve anymore outside the transaction.
+	@EntityGraph(attributePaths = "branch")
 	List<AppUser> findAllByTenantIdOrderByLastNameAscFirstNameAsc(UUID tenantId);
 
+	/**
+	 * Names are unique per tenant in the database, but the login resolves them globally (see
+	 * below), so a name taken anywhere is refused when creating a user — otherwise the new
+	 * account and the existing namesake would both be locked out.
+	 */
+	boolean existsByUsernameIgnoreCase(String username);
+
+	@EntityGraph(attributePaths = "branch")
 	Optional<AppUser> findByIdAndTenantId(UUID id, UUID tenantId);
 
 	/**

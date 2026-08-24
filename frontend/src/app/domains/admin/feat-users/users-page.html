@@ -10,7 +10,122 @@
         [(columnOrder)]="columnsService.order"
         [(visibleFields)]="columnsService.visibleFields"
         (toggleActive)="onToggleActive($event)"
+        (add)="onAdd()"
+        (edit)="onEdit($event)"
       />
+
+      <p-dialog
+        [header]="t(editingUserId() === null ? 'users.addTitle' : 'users.editTitle')"
+        [modal]="true"
+        [(visible)]="isDialogVisible"
+        [style]="{ width: '28rem' }"
+      >
+        <form novalidate class="flex flex-col gap-4 pt-2" (submit)="onSave($event)">
+          <div class="flex flex-col gap-2">
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-user" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <input pInputText id="username" type="text" autocomplete="off" [formField]="userForm.username" />
+                <label for="username">{{ t('users.username') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
+            @if (userForm.username().invalid()) {
+              <p-message severity="error" variant="simple" size="small">{{ t('users.usernameRequired') }}</p-message>
+            }
+          </div>
+          <!-- Only a new user gets a password here; an existing one changes their own in their profile. -->
+          @if (editingUserId() === null) {
+            <div class="flex flex-col gap-2">
+              <p-inputgroup>
+                <p-inputgroup-addon><i class="pi pi-key" aria-hidden="true"></i></p-inputgroup-addon>
+                <p-floatlabel variant="on">
+                  <input
+                    pInputText
+                    id="password"
+                    [type]="isPasswordVisible() ? 'text' : 'password'"
+                    autocomplete="new-password"
+                    [formField]="userForm.password"
+                  />
+                  <label for="password">{{ t('users.password') }}</label>
+                </p-floatlabel>
+                <p-button
+                  type="button"
+                  icon="pi pi-sync"
+                  severity="secondary"
+                  [outlined]="true"
+                  [ariaLabel]="t('users.generatePassword')"
+                  [pTooltip]="t('users.generatePassword')"
+                  tooltipPosition="bottom"
+                  (onClick)="onGeneratePassword()"
+                />
+              </p-inputgroup>
+              @if (userForm.password().invalid()) {
+                <p-message severity="error" variant="simple" size="small">{{ t('users.passwordTooShort') }}</p-message>
+              }
+            </div>
+          }
+          <div class="flex flex-col gap-2">
+            <p-floatlabel variant="on">
+              <input pInputText id="firstName" type="text" class="w-full" [formField]="userForm.firstName" />
+              <label for="firstName">{{ t('users.firstName') }}</label>
+            </p-floatlabel>
+            @if (userForm.firstName().invalid()) {
+              <p-message severity="error" variant="simple" size="small">{{ t('users.firstNameRequired') }}</p-message>
+            }
+          </div>
+          <div class="flex flex-col gap-2">
+            <p-floatlabel variant="on">
+              <input pInputText id="lastName" type="text" class="w-full" [formField]="userForm.lastName" />
+              <label for="lastName">{{ t('users.lastName') }}</label>
+            </p-floatlabel>
+            @if (userForm.lastName().invalid()) {
+              <p-message severity="error" variant="simple" size="small">{{ t('users.lastNameRequired') }}</p-message>
+            }
+          </div>
+          <!-- A user always joins the admin's own company; only the site is a choice. -->
+          <p-floatlabel variant="on">
+            <input pInputText id="company" type="text" class="w-full" disabled [value]="companyService.name() ?? ''" />
+            <label for="company">{{ t('users.company') }}</label>
+          </p-floatlabel>
+          <p-floatlabel variant="on">
+            <p-select
+              inputId="branch"
+              class="w-full"
+              [options]="branchOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [showClear]="true"
+              [formField]="userForm.branchId"
+            />
+            <label for="branch">{{ t('users.branch') }}</label>
+          </p-floatlabel>
+          <p-floatlabel variant="on">
+            <p-select
+              inputId="role"
+              class="w-full"
+              [options]="roleOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [formField]="userForm.role"
+            />
+            <label for="role">{{ t('users.role') }}</label>
+          </p-floatlabel>
+          <div class="flex items-center gap-2">
+            <p-checkbox inputId="active" [binary]="true" [formField]="userForm.active" />
+            <label for="active" class="cursor-pointer">{{ t('users.activeField') }}</label>
+          </div>
+          <div class="flex justify-end gap-2">
+            <p-button
+              type="button"
+              severity="secondary"
+              [outlined]="true"
+              [label]="t('users.cancel')"
+              (onClick)="isDialogVisible.set(false)"
+            />
+            <p-button type="submit" icon="pi pi-check" [label]="t('users.save')" [loading]="isSaving()" />
+          </div>
+        </form>
+      </p-dialog>
     }
   </main>
 </ng-container>
