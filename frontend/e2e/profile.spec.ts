@@ -42,8 +42,13 @@ test.describe('Profile', () => {
     await expect(page.getByRole('heading', { name: 'Profil', exact: true })).toBeVisible();
     await expect(page.getByLabel('Vorname')).toHaveValue('Anna');
     await expect(page.getByLabel('Nachname')).toHaveValue('Admin');
+    // The company is stated above the site and is nobody's choice here.
+    await expect(page.getByLabel('Firma', { exact: true })).toHaveValue('Musterfirma GmbH');
+    await expect(page.getByLabel('Firma', { exact: true })).toBeDisabled();
     // The assigned site shows in the dropdown, with the headquarters marked.
     await expect(page.locator('p-select')).toContainText('Musterfirma GmbH (Hauptfiliale)');
+    // The empty password fields are not judged before the user touches them.
+    await expect(page.locator('.p-invalid')).toHaveCount(0);
     await expect(page.getByLabel('E-Mail-Adresse')).toHaveValue('anna@musterfirma.example');
     await expect(page.getByLabel('Benutzername')).toHaveValue('admin');
     await expect(page.getByLabel('Benutzername')).toBeDisabled();
