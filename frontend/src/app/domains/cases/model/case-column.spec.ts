@@ -34,8 +34,8 @@ describe('parseColumnPreferences', () => {
 
     const preferences = parseColumnPreferences(stored);
 
-    expect(preferences.order).toEqual(['subject', 'sender', 'hasAttachments', 'sizeBytes', 'receivedAt']);
-    expect(preferences.visibleFields).toEqual(['subject', 'hasAttachments', 'sizeBytes', 'receivedAt']);
+    expect(preferences.order).toEqual(['subject', 'sender', 'hasAttachments', 'receivedAt', 'sizeBytes']);
+    expect(preferences.visibleFields).toEqual(['subject', 'hasAttachments', 'receivedAt', 'sizeBytes']);
   });
 
   it('keeps an empty visibility list, which hides every column', () => {

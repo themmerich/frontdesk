@@ -170,7 +170,7 @@ describe('CaseList', () => {
     (document.querySelector('input#subject') as HTMLInputElement).click();
     await fixture.whenStable();
 
-    expect(fixture.componentInstance.visibleFields()).toEqual(['sender', 'hasAttachments', 'sizeBytes', 'receivedAt']);
+    expect(fixture.componentInstance.visibleFields()).toEqual(['hasAttachments', 'sender', 'receivedAt', 'sizeBytes']);
   });
 
   it('offers sorting on sender, subject, size, and received, and filters for sender and subject', () => {
