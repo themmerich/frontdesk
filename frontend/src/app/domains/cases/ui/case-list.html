@@ -3,6 +3,7 @@
     [value]="cases()"
     [columns]="visibleColumns()"
     [globalFilterFields]="globalFilterFields"
+    [resizableColumns]="true"
     dataKey="id"
     exportFilename="cases"
     sortField="receivedAt"
@@ -68,19 +69,30 @@
     <ng-template #header let-columns>
       <tr>
         @for (col of columns; track col.field) {
-          @if (col.sortable) {
-            <th scope="col" [pSortableColumn]="col.field">
-              <div class="flex items-center gap-2">
-                {{ col.header }}
+          <!-- One header for both kinds of column: the attachment column carries a
+               filter but no sorting, so the sortable behaviour is switched off
+               rather than the header being written twice. -->
+          <th scope="col" pResizableColumn [pSortableColumn]="col.field" [pSortableColumnDisabled]="!col.sortable">
+            <div class="flex items-center gap-2">
+              {{ col.header }}
+              @if (col.sortable) {
                 <p-sorticon [field]="col.field" />
-                @if (col.filterable) {
-                  <p-columnfilter type="text" display="menu" [field]="col.field" [placeholder]="t('cases.filter')" />
+              }
+              @if (col.filterable) {
+                @switch (col.field) {
+                  @case ('hasAttachments') {
+                    <p-columnfilter type="boolean" display="menu" field="hasAttachments" [showOperator]="false" [showAddButton]="false" />
+                  }
+                  @case ('receivedAt') {
+                    <p-columnfilter type="date" display="menu" field="receivedAt" [showOperator]="false" [showAddButton]="false" />
+                  }
+                  @default {
+                    <p-columnfilter type="text" display="menu" [field]="col.field" [placeholder]="t('cases.filter')" />
+                  }
                 }
-              </div>
-            </th>
-          } @else {
-            <th scope="col">{{ col.header }}</th>
-          }
+              }
+            </div>
+          </th>
         }
       </tr>
     </ng-template>

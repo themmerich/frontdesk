@@ -1,6 +1,8 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { TranslocoTestingModule } from '@jsverse/transloco';
+import { Table } from 'primeng/table';
 
 import { Case } from '../model/case';
 import { CaseList } from './case-list';
@@ -60,7 +62,7 @@ describe('CaseList', () => {
         id: '1',
         sender: 'anna@example.com',
         subject: 'Delivery status',
-        receivedAt: '2026-08-19T08:30:00Z',
+        receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
         sizeBytes: 2048,
       },
@@ -68,7 +70,7 @@ describe('CaseList', () => {
         id: '2',
         sender: 'ben@example.com',
         subject: 'Invoice copy',
-        receivedAt: '2026-08-19T09:15:00Z',
+        receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
         sizeBytes: 1.4 * 1024 * 1024,
       },
@@ -87,7 +89,7 @@ describe('CaseList', () => {
         id: '1',
         sender: 'anna@example.com',
         subject: 'No attachment',
-        receivedAt: '2026-08-19T08:30:00Z',
+        receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
         sizeBytes: 2048,
       },
@@ -95,7 +97,7 @@ describe('CaseList', () => {
         id: '2',
         sender: 'ben@example.com',
         subject: 'With attachment',
-        receivedAt: '2026-08-19T09:15:00Z',
+        receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
         sizeBytes: 1.4 * 1024 * 1024,
       },
@@ -105,6 +107,14 @@ describe('CaseList', () => {
     expect(element.querySelectorAll('.pi-paperclip')).toHaveLength(1);
     expect(element.textContent).toContain('2 KB');
     expect(element.textContent).toContain('1.4 MB');
+  });
+
+  it('lets every column be resized', () => {
+    const element = createFixture([]).nativeElement as HTMLElement;
+
+    expect(element.querySelector('.p-datatable-resizable')).not.toBeNull();
+    // A handle per column; the inbox has no action column beside them.
+    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(5);
   });
 
   it('shows the empty message when there are no cases', () => {
@@ -128,7 +138,7 @@ describe('CaseList', () => {
         id: '1',
         sender: 'anna@example.com',
         subject: 'Delivery status',
-        receivedAt: '2026-08-19T08:30:00Z',
+        receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
         sizeBytes: 2048,
       },
@@ -173,11 +183,97 @@ describe('CaseList', () => {
     expect(fixture.componentInstance.visibleFields()).toEqual(['hasAttachments', 'sender', 'receivedAt', 'sizeBytes']);
   });
 
-  it('offers sorting on sender, subject, size, and received, and filters for sender and subject', () => {
+  it('offers sorting on sender, subject, size, and received, and a filter on all but the size', () => {
     const fixture = createFixture([]);
 
     const element = fixture.nativeElement as HTMLElement;
+    // The attachment column filters without sorting, the size column does the opposite.
     expect(element.querySelectorAll('p-sorticon')).toHaveLength(4);
-    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(2);
+    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(4);
+  });
+
+  // Filter toggle order matches the column order: attachment, sender, subject, received at.
+  async function openFilterMenu(fixture: ReturnType<typeof createFixture>, index: number): Promise<void> {
+    const filterToggles = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('p-columnfilter button');
+    filterToggles[index].click();
+    await fixture.whenStable();
+  }
+
+  it('offers a tri-state checkbox for the attachment column', async () => {
+    const fixture = createFixture([]);
+
+    await openFilterMenu(fixture, 0);
+
+    expect(document.querySelector('p-checkbox')).not.toBeNull();
+  });
+
+  it('offers a date filter for the received-at column', async () => {
+    const fixture = createFixture([]);
+
+    await openFilterMenu(fixture, 3);
+
+    expect(document.querySelector('p-datepicker')).not.toBeNull();
+  });
+
+  it('sorts the size column by its byte value, not by the rendered unit', async () => {
+    const fixture = createFixture([
+      {
+        id: '1',
+        sender: 'anna@example.com',
+        subject: 'Small with the bigger unit',
+        receivedAt: new Date('2026-08-19T08:30:00Z'),
+        hasAttachments: false,
+        // 900 KB reads "bigger" than "1.4 MB" only if the text is compared.
+        sizeBytes: 900 * 1024,
+      },
+      {
+        id: '2',
+        sender: 'ben@example.com',
+        subject: 'Large with the smaller number',
+        receivedAt: new Date('2026-08-19T09:15:00Z'),
+        hasAttachments: true,
+        sizeBytes: 1.4 * 1024 * 1024,
+      },
+    ]);
+    const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
+
+    table.sort({ field: 'sizeBytes', order: 1 });
+    await fixture.whenStable();
+
+    const subjects = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')).map((row) =>
+      row.querySelectorAll('td')[2].textContent?.trim(),
+    );
+    expect(subjects).toEqual(['Small with the bigger unit', 'Large with the smaller number']);
+  });
+
+  it('filters the rows down to the cases with an attachment', async () => {
+    const fixture = createFixture([
+      {
+        id: '1',
+        sender: 'anna@example.com',
+        subject: 'Delivery status',
+        receivedAt: new Date('2026-08-19T08:30:00Z'),
+        hasAttachments: false,
+        sizeBytes: 2048,
+      },
+      {
+        id: '2',
+        sender: 'ben@example.com',
+        subject: 'Invoice copy',
+        receivedAt: new Date('2026-08-19T09:15:00Z'),
+        hasAttachments: true,
+        sizeBytes: 4096,
+      },
+    ]);
+    const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
+
+    table.filter(true, 'hasAttachments', 'equals');
+    // The table applies filters after its debounce delay (300 ms by default).
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await fixture.whenStable();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent;
+    expect(text).toContain('Invoice copy');
+    expect(text).not.toContain('Delivery status');
   });
 });
