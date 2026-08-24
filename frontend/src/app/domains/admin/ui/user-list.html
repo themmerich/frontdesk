@@ -3,9 +3,10 @@
     [value]="users()"
     [columns]="visibleColumns()"
     [globalFilterFields]="globalFilterFields"
+    [resizableColumns]="true"
     dataKey="id"
     exportFilename="users"
-    sortField="displayName"
+    sortField="lastName"
     [sortOrder]="1"
   >
     <ng-template #caption>
@@ -60,13 +61,15 @@
         </p-iconfield>
 
         <p-button icon="pi pi-download" severity="secondary" [outlined]="true" [label]="t('users.export')" (onClick)="onExportCsv()" />
+
+        <p-button icon="pi pi-plus" [label]="t('users.add')" (onClick)="add.emit()" />
       </div>
     </ng-template>
     <ng-template #header let-columns>
       <tr>
         @for (col of columns; track col.field) {
           @if (col.sortable) {
-            <th scope="col" [pSortableColumn]="col.field">
+            <th scope="col" pResizableColumn [pSortableColumn]="col.field">
               <div class="flex items-center gap-2">
                 {{ col.header }}
                 <p-sorticon [field]="col.field" />
@@ -127,10 +130,10 @@
               </div>
             </th>
           } @else {
-            <th scope="col">{{ col.header }}</th>
+            <th scope="col" pResizableColumn>{{ col.header }}</th>
           }
         }
-        <th scope="col" class="w-16">
+        <th scope="col" class="w-24">
           <span class="sr-only">{{ t('users.actions') }}</span>
         </th>
       </tr>
@@ -159,15 +162,26 @@
           </td>
         }
         <td>
-          <p-button
-            [icon]="row.active ? 'pi pi-ban' : 'pi pi-check'"
-            variant="text"
-            severity="secondary"
-            [ariaLabel]="t(row.active ? 'users.deactivate' : 'users.activate')"
-            [pTooltip]="t(row.active ? 'users.deactivate' : 'users.activate')"
-            tooltipPosition="left"
-            (onClick)="toggleActive.emit(row)"
-          />
+          <div class="flex items-center">
+            <p-button
+              icon="pi pi-pencil"
+              variant="text"
+              severity="secondary"
+              [ariaLabel]="t('users.edit')"
+              [pTooltip]="t('users.edit')"
+              tooltipPosition="left"
+              (onClick)="edit.emit(row)"
+            />
+            <p-button
+              [icon]="row.active ? 'pi pi-ban' : 'pi pi-check'"
+              variant="text"
+              severity="secondary"
+              [ariaLabel]="t(row.active ? 'users.deactivate' : 'users.activate')"
+              [pTooltip]="t(row.active ? 'users.deactivate' : 'users.activate')"
+              tooltipPosition="left"
+              (onClick)="toggleActive.emit(row)"
+            />
+          </div>
         </td>
       </tr>
     </ng-template>

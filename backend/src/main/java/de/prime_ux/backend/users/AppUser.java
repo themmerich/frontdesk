@@ -112,6 +112,21 @@ public class AppUser {
 		this.fax = fax;
 	}
 
+	/** The site the user works at; null unassigns them. */
+	public void assignBranch(Branch branch) {
+		this.branch = branch;
+	}
+
+	/** What an admin manages about a user; the password stays the user's own. */
+	public void updateAccount(String username, String firstName, String lastName, UserRole role,
+			Branch branch) {
+		this.username = username;
+		this.firstName = firstName;
+		this.lastName = lastName;
+		this.role = role;
+		this.branch = branch;
+	}
+
 	public void changePassword(String passwordHash) {
 		this.passwordHash = passwordHash;
 	}
