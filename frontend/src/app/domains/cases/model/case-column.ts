@@ -14,11 +14,11 @@ export type CaseColumnDefinition = {
 };
 
 export const CASE_COLUMNS: readonly CaseColumnDefinition[] = [
+  { field: 'hasAttachments', labelKey: 'cases.attachment', sortable: false, filterable: false },
   { field: 'sender', labelKey: 'cases.sender', sortable: true, filterable: true },
   { field: 'subject', labelKey: 'cases.subject', sortable: true, filterable: true },
-  { field: 'hasAttachments', labelKey: 'cases.attachment', sortable: false, filterable: false },
-  { field: 'sizeBytes', labelKey: 'cases.size', sortable: true, filterable: false },
   { field: 'receivedAt', labelKey: 'cases.receivedAt', sortable: true, filterable: false },
+  { field: 'sizeBytes', labelKey: 'cases.size', sortable: true, filterable: false },
 ];
 
 export const DEFAULT_COLUMN_ORDER: readonly CaseColumnField[] = CASE_COLUMNS.map((column) => column.field);
