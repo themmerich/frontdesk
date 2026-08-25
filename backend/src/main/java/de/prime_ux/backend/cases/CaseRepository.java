@@ -2,11 +2,19 @@ package de.prime_ux.backend.cases;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Limit;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CaseRepository extends JpaRepository<Case, UUID> {
 
+	// The category comes along eagerly: the inbox names it, and the lazy proxy
+	// could not be resolved anymore outside the transaction.
+	@EntityGraph(attributePaths = "category")
 	List<Case> findAllByTenantIdOrderByReceivedAtDesc(UUID tenantId);
+
+	/** The cases the triage has not looked at yet, oldest first — mail waits in the order it came. */
+	List<Case> findByTenantIdAndTierIsNullOrderByReceivedAtAsc(UUID tenantId, Limit limit);
 
 	boolean existsByTenantIdAndMessageId(UUID tenantId, String messageId);
 }
