@@ -33,7 +33,16 @@
     "export": "Exportieren",
     "delete": "Löschen",
     "empty": "Noch keine Vorgänge — sobald eine E-Mail eingeht, erscheint sie hier.",
-    "loadError": "Vorgänge konnten nicht geladen werden. Läuft das Backend?"
+    "loadError": "Vorgänge konnten nicht geladen werden. Läuft das Backend?",
+    "category": "Kategorie",
+    "tier": "Stufe",
+    "tierAutomatic": "Automatisch",
+    "tierDraft": "Entwurf",
+    "tierManual": "Manuell",
+    "tierAll": "Alle",
+    "notTriaged": "Noch nicht bewertet",
+    "summary": "Anliegen",
+    "confidence": "Sicherheit"
   },
   "users": {
     "title": "Benutzer",

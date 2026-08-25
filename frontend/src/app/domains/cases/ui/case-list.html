@@ -80,6 +80,28 @@
               }
               @if (col.filterable) {
                 @switch (col.field) {
+                  @case ('tier') {
+                    <p-columnfilter
+                      field="tier"
+                      matchMode="in"
+                      display="menu"
+                      [showMatchModes]="false"
+                      [showOperator]="false"
+                      [showAddButton]="false"
+                    >
+                      <ng-template #filter let-value let-filter="filterCallback">
+                        <p-multiselect
+                          [ngModel]="value"
+                          [options]="tierOptions()"
+                          optionLabel="label"
+                          optionValue="value"
+                          [placeholder]="t('cases.tierAll')"
+                          [showToggleAll]="false"
+                          (onChange)="filter($event.value)"
+                        />
+                      </ng-template>
+                    </p-columnfilter>
+                  }
                   @case ('hasAttachments') {
                     <p-columnfilter type="boolean" display="menu" field="hasAttachments" [showOperator]="false" [showAddButton]="false" />
                   }
@@ -104,6 +126,35 @@
               @case ('hasAttachments') {
                 @if (row.hasAttachments) {
                   <i class="pi pi-paperclip" role="img" [attr.aria-label]="t('cases.hasAttachment')"></i>
+                }
+              }
+              @case ('summary') {
+                @if (row.summary) {
+                  <!-- One sentence, kept on one line; the full text is in the tooltip. -->
+                  <span class="block max-w-md truncate" [title]="row.summary">{{ row.summary }}</span>
+                } @else {
+                  <span class="text-surface-400 dark:text-surface-500">–</span>
+                }
+              }
+              @case ('confidence') {
+                @if (row.confidence !== null) {
+                  {{ row.confidence | percent }}
+                } @else {
+                  <span class="text-surface-400 dark:text-surface-500">–</span>
+                }
+              }
+              @case ('category') {
+                @if (row.categoryName) {
+                  {{ row.categoryName }}
+                } @else {
+                  <span class="text-surface-400 dark:text-surface-500">–</span>
+                }
+              }
+              @case ('tier') {
+                @if (row.tier) {
+                  <p-tag [value]="t(tierLabelKey(row.tier))" [severity]="tierSeverity(row.tier)" />
+                } @else {
+                  <span class="text-surface-400 dark:text-surface-500" [attr.aria-label]="t('cases.notTriaged')">–</span>
                 }
               }
               @case ('sizeBytes') {

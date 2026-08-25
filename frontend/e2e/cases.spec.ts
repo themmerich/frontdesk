@@ -11,6 +11,10 @@ const mockCases = [
     receivedAt: '2026-08-19T08:30:00Z',
     hasAttachments: false,
     sizeBytes: 2048,
+    summary: 'Kunde fragt nach dem Liefertermin zu Bestellung 4711.',
+    categoryName: 'Statusanfrage Bestellung',
+    tier: 'automatic',
+    confidence: 0.95,
   },
   {
     id: '2',
@@ -19,6 +23,11 @@ const mockCases = [
     receivedAt: '2026-08-19T09:15:00Z',
     hasAttachments: true,
     sizeBytes: 1.4 * 1024 * 1024,
+    // Not triaged yet: the row shows a dash in every triage column.
+    summary: null,
+    categoryName: null,
+    tier: null,
+    confidence: null,
   },
 ];
 
@@ -80,6 +89,41 @@ test.describe('Cases page', () => {
     await page.mouse.up();
 
     expect((await senderColumn.boundingBox())!.width).toBeLessThan(before - 20);
+  });
+
+  test('shows the triage verdict per case', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+
+    const triaged = page.getByRole('row', { name: /Delivery status/ });
+    await expect(triaged).toContainText('Statusanfrage Bestellung');
+    await expect(triaged.locator('p-tag')).toHaveText('Automatisch');
+    // The sentence the model wrote, and how sure it was.
+    await expect(triaged).toContainText('Kunde fragt nach dem Liefertermin zu Bestellung 4711.');
+    await expect(triaged).toContainText('95');
+    // The case still waiting for the triage shows no tag at all.
+    await expect(page.getByRole('row', { name: /Invoice copy/ }).locator('p-tag')).toHaveCount(0);
+  });
+
+  test('picks up a newly ingested case without a reload', async ({ page }) => {
+    // The second answer carries a mail that arrived while the page was open.
+    let arrived = false;
+    await page.route('**/api/cases', (route) => {
+      const cases = arrived ? mockCases : [mockCases[0]];
+      arrived = true;
+      return route.fulfill({ json: cases });
+    });
+
+    await page.goto('/');
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Invoice copy/ })).toHaveCount(0);
+
+    // Looking at the tab again refreshes it at once; the ten-second tick would
+    // get there too, only slower.
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+
+    await expect(page.getByRole('row', { name: /Invoice copy/ })).toBeVisible();
   });
 
   test('shows an empty state when there are no cases', async ({ page }) => {
