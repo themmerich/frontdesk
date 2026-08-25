@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Component
 @ConditionalOnBooleanProperty("frontdesk.auth.seed-demo-data")
+// Before the TriageProvisioner, so a tenant seeded here is configured on the same start.
+@Order(1)
 @Slf4j
 class DemoDataSeeder implements ApplicationRunner {
 
