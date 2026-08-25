@@ -12,6 +12,15 @@ const translations = {
     sender: 'From',
     subject: 'Subject',
     receivedAt: 'Received',
+    summary: 'Request',
+    category: 'Category',
+    confidence: 'Confidence',
+    tier: 'Tier',
+    tierAutomatic: 'Automatic',
+    tierDraft: 'Draft',
+    tierManual: 'Manual',
+    tierAll: 'All tiers',
+    notTriaged: 'Not triaged yet',
     attachment: 'Attachment',
     hasAttachment: 'Has attachment',
     size: 'Size',
@@ -65,6 +74,10 @@ describe('CaseList', () => {
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
         sizeBytes: 2048,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
       {
         id: '2',
@@ -73,6 +86,10 @@ describe('CaseList', () => {
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
         sizeBytes: 1.4 * 1024 * 1024,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
     ]);
 
@@ -92,6 +109,10 @@ describe('CaseList', () => {
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
         sizeBytes: 2048,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
       {
         id: '2',
@@ -100,6 +121,10 @@ describe('CaseList', () => {
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
         sizeBytes: 1.4 * 1024 * 1024,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
     ]);
 
@@ -114,7 +139,63 @@ describe('CaseList', () => {
 
     expect(element.querySelector('.p-datatable-resizable')).not.toBeNull();
     // A handle per column; the inbox has no action column beside them.
-    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(5);
+    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(9);
+  });
+
+  it('shows the triage verdict, and a dash while a case is still waiting for it', () => {
+    const element = createFixture([
+      {
+        id: '1',
+        sender: 'anna@example.com',
+        subject: 'Lieferung 4711',
+        receivedAt: new Date('2026-08-19T08:30:00Z'),
+        hasAttachments: false,
+        sizeBytes: 2048,
+        summary: 'Kunde fragt nach dem Liefertermin zu Bestellung 4711.',
+        categoryName: 'Statusanfrage Bestellung',
+        tier: 'automatic',
+        confidence: 0.95,
+      },
+      {
+        id: '2',
+        sender: 'ben@example.com',
+        subject: 'Noch unbewertet',
+        receivedAt: new Date('2026-08-19T09:15:00Z'),
+        hasAttachments: false,
+        sizeBytes: 2048,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
+      },
+    ]).nativeElement as HTMLElement;
+
+    // The table sorts newest first, so the rows are found by their subject.
+    const rows = Array.from(element.querySelectorAll('tbody tr'));
+    const triaged = rows.find((row) => row.textContent?.includes('Lieferung 4711'))!;
+    const waiting = rows.find((row) => row.textContent?.includes('Noch unbewertet'))!;
+
+    expect(triaged.textContent).toContain('Statusanfrage Bestellung');
+    expect(triaged.querySelector('p-tag')?.textContent?.trim()).toBe('Automatic');
+    // What the sender wants, in one sentence, plus how sure the model was.
+    expect(triaged.textContent).toContain('Kunde fragt nach dem Liefertermin zu Bestellung 4711.');
+    expect(triaged.textContent).toContain('95%');
+    // Nothing to show yet, and the dash says so to a screen reader too.
+    expect(waiting.querySelector('p-tag')).toBeNull();
+    expect(waiting.querySelector('[aria-label="Not triaged yet"]')).not.toBeNull();
+  });
+
+  it('offers a multi-select for the tier column', async () => {
+    const fixture = createFixture([]);
+
+    await openFilterMenu(fixture, 5);
+
+    const multiSelect = document.querySelector('p-multiselect') as HTMLElement;
+    expect(multiSelect).not.toBeNull();
+    multiSelect.click();
+    await fixture.whenStable();
+    const options = Array.from(document.querySelectorAll('li[role="option"]')).map((option) => option.textContent?.trim());
+    expect(options).toEqual(['Automatic', 'Draft', 'Manual']);
   });
 
   it('shows the empty message when there are no cases', () => {
@@ -141,11 +222,15 @@ describe('CaseList', () => {
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
         sizeBytes: 2048,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
     ]);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelectorAll('th')).toHaveLength(5);
+    expect(element.querySelectorAll('th')).toHaveLength(9);
 
     const columnsButton = element.querySelector('p-button button') as HTMLButtonElement;
     columnsButton.click();
@@ -156,7 +241,7 @@ describe('CaseList', () => {
     subjectCheckbox.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(4);
+    expect(element.querySelectorAll('th')).toHaveLength(8);
     expect(element.textContent).not.toContain('Delivery status');
 
     const resetButton = Array.from(document.querySelectorAll('button')).find((button) =>
@@ -166,7 +251,7 @@ describe('CaseList', () => {
     resetButton.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(5);
+    expect(element.querySelectorAll('th')).toHaveLength(9);
     expect(element.textContent).toContain('Delivery status');
   });
 
@@ -180,7 +265,16 @@ describe('CaseList', () => {
     (document.querySelector('input#subject') as HTMLInputElement).click();
     await fixture.whenStable();
 
-    expect(fixture.componentInstance.visibleFields()).toEqual(['hasAttachments', 'sender', 'receivedAt', 'sizeBytes']);
+    expect(fixture.componentInstance.visibleFields()).toEqual([
+      'hasAttachments',
+      'sender',
+      'summary',
+      'category',
+      'tier',
+      'confidence',
+      'receivedAt',
+      'sizeBytes',
+    ]);
   });
 
   it('offers sorting on sender, subject, size, and received, and a filter on all but the size', () => {
@@ -188,11 +282,14 @@ describe('CaseList', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     // The attachment column filters without sorting, the size column does the opposite.
-    expect(element.querySelectorAll('p-sorticon')).toHaveLength(4);
-    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(4);
+    // Sortable: sender, subject, category, tier, confidence, received at, size.
+    // Filterable: everything but the size and the confidence.
+    expect(element.querySelectorAll('p-sorticon')).toHaveLength(7);
+    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(7);
   });
 
-  // Filter toggle order matches the column order: attachment, sender, subject, received at.
+  // Filter toggle order matches the column order: attachment, sender, subject,
+  // request, category, tier, received at. The confidence has no filter.
   async function openFilterMenu(fixture: ReturnType<typeof createFixture>, index: number): Promise<void> {
     const filterToggles = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('p-columnfilter button');
     filterToggles[index].click();
@@ -210,7 +307,7 @@ describe('CaseList', () => {
   it('offers a date filter for the received-at column', async () => {
     const fixture = createFixture([]);
 
-    await openFilterMenu(fixture, 3);
+    await openFilterMenu(fixture, 6);
 
     expect(document.querySelector('p-datepicker')).not.toBeNull();
   });
@@ -225,6 +322,10 @@ describe('CaseList', () => {
         hasAttachments: false,
         // 900 KB reads "bigger" than "1.4 MB" only if the text is compared.
         sizeBytes: 900 * 1024,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
       {
         id: '2',
@@ -233,6 +334,10 @@ describe('CaseList', () => {
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
         sizeBytes: 1.4 * 1024 * 1024,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
     ]);
     const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
@@ -255,6 +360,10 @@ describe('CaseList', () => {
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
         sizeBytes: 2048,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
       {
         id: '2',
@@ -263,6 +372,10 @@ describe('CaseList', () => {
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
         sizeBytes: 4096,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
     ]);
     const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;

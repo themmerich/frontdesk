@@ -33,7 +33,16 @@
     "export": "Export",
     "delete": "Delete",
     "empty": "No cases yet — as soon as a mail arrives, it shows up here.",
-    "loadError": "Could not load cases. Is the backend running?"
+    "loadError": "Could not load cases. Is the backend running?",
+    "category": "Category",
+    "tier": "Tier",
+    "tierAutomatic": "Automatic",
+    "tierDraft": "Draft",
+    "tierManual": "Manual",
+    "tierAll": "All",
+    "notTriaged": "Not triaged yet",
+    "summary": "Request",
+    "confidence": "Confidence"
   },
   "users": {
     "title": "Users",

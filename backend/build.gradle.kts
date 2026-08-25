@@ -17,6 +17,16 @@ repositories {
 	mavenCentral()
 }
 
+// Spring AI 2.0 is the line built against Spring Boot 4; the BOM pins every
+// spring-ai-* module to one version.
+extra["springAiVersion"] = "2.0.1"
+
+dependencyManagement {
+	imports {
+		mavenBom("org.springframework.ai:spring-ai-bom:${property("springAiVersion")}")
+	}
+}
+
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-flyway")
@@ -25,6 +35,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
+	implementation("org.springframework.ai:spring-ai-starter-model-anthropic")
 	implementation("org.flywaydb:flyway-database-postgresql")
 	compileOnly("org.projectlombok:lombok")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
@@ -51,7 +62,9 @@ tasks.withType<Test> {
 
 // bootRun is the dev run mode; the dev profile unlocks dev-only behavior such
 // as the demo-data seeder (application-dev.properties). A packaged jar never
-// activates it.
+// activates it. The local profile carries the developer's own secrets
+// (application-local.properties, git-ignored) and is simply absent when nobody
+// created that file.
 tasks.bootRun {
-	args("--spring.profiles.active=dev")
+	args("--spring.profiles.active=dev,local")
 }

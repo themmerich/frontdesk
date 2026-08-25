@@ -2,6 +2,11 @@ package de.prime_ux.backend.cases;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+
+import de.prime_ux.backend.triage.CaseCategory;
+import de.prime_ux.backend.triage.CaseCategoryRepository;
+import de.prime_ux.backend.triage.CaseTier;
+import java.math.BigDecimal;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import de.prime_ux.backend.TestcontainersConfiguration;
@@ -52,6 +57,9 @@ class CaseControllerTest {
 	private Tenant tenant;
 	private Tenant otherTenant;
 
+	@Autowired
+	private CaseCategoryRepository caseCategoryRepository;
+
 	@BeforeEach
 	void cleanDatabaseAndCreateTenants() {
 		caseRepository.deleteAll();
@@ -87,7 +95,33 @@ class CaseControllerTest {
 				.andExpect(jsonPath("$[0].hasAttachments").value(true))
 				.andExpect(jsonPath("$[0].sizeBytes").value(512_000))
 				.andExpect(jsonPath("$[1].sender").value("anna@example.com"))
-				.andExpect(jsonPath("$[1].hasAttachments").value(false));
+				.andExpect(jsonPath("$[1].hasAttachments").value(false))
+				// Untriaged cases carry no verdict yet.
+				.andExpect(jsonPath("$[0].categoryName").doesNotExist())
+				.andExpect(jsonPath("$[0].tier").doesNotExist())
+				.andExpect(jsonPath("$[0].summary").doesNotExist())
+				.andExpect(jsonPath("$[0].confidence").doesNotExist());
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void namesTheCategoryAndTierOfATriagedCase() throws Exception {
+		CaseCategory category = caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS",
+				"Statusanfrage Bestellung", "Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0));
+		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "Lieferung 4711", "body",
+				Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		triaged.applyTriage(category, CaseTier.DRAFT, new BigDecimal("0.72"),
+				"Kunde fragt nach dem Liefertermin zu Bestellung 4711.");
+		caseRepository.save(triaged);
+
+		mockMvc.perform(get("/api/cases"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].categoryName").value("Statusanfrage Bestellung"))
+				// The stored tier, not the category's — the confidence had lowered it.
+				.andExpect(jsonPath("$[0].tier").value("draft"))
+				.andExpect(jsonPath("$[0].confidence").value(0.72))
+				.andExpect(jsonPath("$[0].summary")
+						.value("Kunde fragt nach dem Liefertermin zu Bestellung 4711."));
 	}
 
 	@Test

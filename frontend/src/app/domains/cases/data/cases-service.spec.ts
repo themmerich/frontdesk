@@ -23,6 +23,10 @@ describe('CasesService', () => {
         receivedAt: '2026-08-19T08:30:00Z',
         hasAttachments: false,
         sizeBytes: 2048,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
     ];
     const service = TestBed.inject(CasesService);
@@ -43,5 +47,68 @@ describe('CasesService', () => {
     const service = TestBed.inject(CasesService);
 
     expect(service.cases.value()).toEqual([]);
+  });
+
+  /** The visibility state is a getter, so it has to be redefined rather than assigned. */
+  function setVisibility(state: DocumentVisibilityState) {
+    Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+  }
+
+  describe('keeping the list current', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      setVisibility('visible');
+    });
+
+    it('reloads on its own while the tab is visible', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      setVisibility('visible');
+      const service = TestBed.inject(CasesService);
+      const httpTesting = TestBed.inject(HttpTestingController);
+      TestBed.tick();
+      httpTesting.expectOne('/api/cases').flush([]);
+      await TestBed.inject(ApplicationRef).whenStable();
+
+      // Mail arrives while the page just sits there.
+      vi.advanceTimersByTime(10_000);
+      TestBed.tick();
+
+      httpTesting.expectOne('/api/cases').flush([]);
+      expect(service.cases.value()).toEqual([]);
+      httpTesting.verify();
+    });
+
+    it('spares a hidden tab the request', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      setVisibility('hidden');
+      TestBed.inject(CasesService);
+      const httpTesting = TestBed.inject(HttpTestingController);
+      TestBed.tick();
+      httpTesting.expectOne('/api/cases').flush([]);
+      await TestBed.inject(ApplicationRef).whenStable();
+
+      vi.advanceTimersByTime(30_000);
+      TestBed.tick();
+
+      // Nobody is looking, so nothing is asked.
+      httpTesting.verify();
+    });
+
+    it('refreshes right away when the tab is looked at again', async () => {
+      setVisibility('hidden');
+      TestBed.inject(CasesService);
+      const httpTesting = TestBed.inject(HttpTestingController);
+      TestBed.tick();
+      httpTesting.expectOne('/api/cases').flush([]);
+      await TestBed.inject(ApplicationRef).whenStable();
+
+      setVisibility('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      TestBed.tick();
+
+      // No waiting for the next tick — the rows are current the moment they are seen.
+      httpTesting.expectOne('/api/cases').flush([]);
+      httpTesting.verify();
+    });
   });
 });

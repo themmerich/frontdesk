@@ -47,6 +47,10 @@ describe('CasesPage', () => {
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
         sizeBytes: 2048,
+        summary: null,
+        categoryName: null,
+        tier: null,
+        confidence: null,
       },
     ]);
     const fixture = TestBed.createComponent(CasesPage);

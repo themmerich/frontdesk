@@ -15,3 +15,8 @@ out/
 
 # VS Code
 .vscode/
+
+# Local secrets: the Anthropic API key lives here, never in the repo. Matches
+# both places Spring Boot reads it from — the classpath (src/main/resources)
+# and the working directory bootRun starts in (backend/).
+application-local.properties

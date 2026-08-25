@@ -11,10 +11,13 @@ describe('parseColumnPreferences', () => {
   });
 
   it('restores a stored order and visibility', () => {
-    const stored = { order: ['subject', 'sender', 'hasAttachments', 'sizeBytes', 'receivedAt'], visibleFields: ['subject', 'sender'] };
+    const stored = {
+      order: ['subject', 'sender', 'hasAttachments', 'summary', 'category', 'tier', 'confidence', 'sizeBytes', 'receivedAt'],
+      visibleFields: ['subject', 'sender'],
+    };
 
     expect(parseColumnPreferences(stored)).toEqual({
-      order: ['subject', 'sender', 'hasAttachments', 'sizeBytes', 'receivedAt'],
+      order: ['subject', 'sender', 'hasAttachments', 'summary', 'category', 'tier', 'confidence', 'sizeBytes', 'receivedAt'],
       visibleFields: ['subject', 'sender'],
     });
   });
@@ -34,8 +37,27 @@ describe('parseColumnPreferences', () => {
 
     const preferences = parseColumnPreferences(stored);
 
-    expect(preferences.order).toEqual(['subject', 'sender', 'hasAttachments', 'receivedAt', 'sizeBytes']);
-    expect(preferences.visibleFields).toEqual(['subject', 'hasAttachments', 'receivedAt', 'sizeBytes']);
+    expect(preferences.order).toEqual([
+      'subject',
+      'sender',
+      'hasAttachments',
+      'summary',
+      'category',
+      'tier',
+      'confidence',
+      'receivedAt',
+      'sizeBytes',
+    ]);
+    expect(preferences.visibleFields).toEqual([
+      'subject',
+      'hasAttachments',
+      'summary',
+      'category',
+      'tier',
+      'confidence',
+      'receivedAt',
+      'sizeBytes',
+    ]);
   });
 
   it('keeps an empty visibility list, which hides every column', () => {
