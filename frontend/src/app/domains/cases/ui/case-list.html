@@ -4,6 +4,8 @@
     [columns]="visibleColumns()"
     [globalFilterFields]="globalFilterFields"
     [resizableColumns]="true"
+    [scrollable]="true"
+    [tableStyle]="{ 'min-width': minTableWidth() }"
     dataKey="id"
     exportFilename="cases"
     sortField="receivedAt"
@@ -47,8 +49,10 @@
           </ng-template>
         </p-popover>
 
-        <p-iconfield class="mx-auto min-w-48 max-w-md flex-1">
-          <p-inputicon styleClass="pi pi-search" />
+        <!-- Shaped after PrimeNG's own toolbar example: a compact field with the
+             icon in front, not a bar stretched across the toolbar. -->
+        <p-iconfield iconPosition="left" class="mx-auto w-64">
+          <p-inputicon class="pi pi-search" />
           <input
             #globalSearchInput
             pInputText
@@ -74,7 +78,14 @@
                rather than the header being written twice. -->
           <th scope="col" pResizableColumn [pSortableColumn]="col.field" [pSortableColumnDisabled]="!col.sortable">
             <div class="flex items-center gap-2">
-              {{ col.header }}
+              @if (col.field === 'hasAttachments') {
+                <!-- The paperclip in the cells says it; the word above them only
+                     takes room. Kept for screen readers, and for the column
+                     toggle and the CSV export, which read the same header. -->
+                <span class="sr-only">{{ col.header }}</span>
+              } @else {
+                {{ col.header }}
+              }
               @if (col.sortable) {
                 <p-sorticon [field]="col.field" />
               }

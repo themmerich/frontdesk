@@ -27,7 +27,7 @@ const translations = {
     filter: 'Filter …',
     columns: 'Columns',
     reset: 'Reset',
-    search: 'Search …',
+    search: 'Search',
     export: 'Export',
     delete: 'Delete',
     empty: 'No cases yet',
@@ -142,6 +142,15 @@ describe('CaseList', () => {
     expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(9);
   });
 
+  it('keeps the attachment header out of sight but not out of reach', () => {
+    const element = createFixture([]).nativeElement as HTMLElement;
+
+    const header = element.querySelectorAll('thead th')[0];
+    // The paperclip in the cells says it; the word above them only takes room.
+    expect(header.textContent?.trim()).toBe('Attachment');
+    expect(header.querySelector('.sr-only')?.textContent).toBe('Attachment');
+  });
+
   it('shows the triage verdict, and a dash while a case is still waiting for it', () => {
     const element = createFixture([
       {
@@ -208,7 +217,7 @@ describe('CaseList', () => {
     const fixture = createFixture([]);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('input[aria-label="Search …"]')).not.toBeNull();
+    expect(element.querySelector('input[aria-label="Search"]')).not.toBeNull();
     const buttonLabels = Array.from(element.querySelectorAll('p-button')).map((button) => button.textContent?.trim());
     expect(buttonLabels).toEqual(['Columns', 'Export', 'Delete']);
   });

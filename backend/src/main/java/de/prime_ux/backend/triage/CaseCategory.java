@@ -64,6 +64,19 @@ public class CaseCategory {
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
+	/** What an admin may change; the code stays, because the model answers with it. */
+	public void update(String name, String description, CaseTier tier, boolean active) {
+		this.name = name;
+		this.description = description;
+		this.tier = tier;
+		this.active = active;
+	}
+
+	/** Left out of the prompt from now on; the cases already classified as such keep their tier. */
+	public void deactivate() {
+		this.active = false;
+	}
+
 	public CaseCategory(Tenant tenant, String code, String name, String description, CaseTier tier, int sortOrder) {
 		this.tenant = tenant;
 		this.code = code;

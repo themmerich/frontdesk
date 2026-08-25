@@ -72,11 +72,35 @@ test.describe('Cases page', () => {
     await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
   });
 
+  test('scrolls the table sideways instead of pushing the page out of view', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+    // Narrow enough that all nine columns cannot possibly fit.
+    await page.setViewportSize({ width: 1000, height: 800 });
+
+    await page.goto('/');
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+
+    const measured = await page.evaluate(() => {
+      const scroller = document.querySelector('.p-datatable-table-container') as HTMLElement;
+      return {
+        pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        tableScrolls: scroller.scrollWidth > scroller.clientWidth,
+      };
+    });
+
+    // The page itself stays put …
+    expect(measured.pageOverflow).toBeLessThanOrEqual(1);
+    // … and the table brings its own horizontal scrollbar.
+    expect(measured.tableScrolls).toBe(true);
+  });
+
   test('lets the admin resize a column', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
 
     await page.goto('/');
-    const senderColumn = page.getByRole('columnheader').first();
+    // Not the attachment column: it is the narrowest one and its filter button
+    // leaves the resize handle no room to be grabbed.
+    const senderColumn = page.getByRole('columnheader', { name: 'Absender' });
     const before = (await senderColumn.boundingBox())!.width;
 
     // Drag the handle at the column's right edge to the left. Fit mode hands the

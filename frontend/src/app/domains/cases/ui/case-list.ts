@@ -96,6 +96,13 @@ export class CaseList {
     this.table().filterGlobal(query, 'contains');
   }
 
+  /**
+   * A floor for the table, so columns keep a readable width instead of being squeezed to nothing
+   * once many of them are shown. Below it the table scrolls sideways within the page rather than
+   * pushing the layout out of the viewport.
+   */
+  protected readonly minTableWidth = computed(() => `${this.visibleColumns().length * 9}rem`);
+
   /** The tag's label and colour per tier; a tier is a small closed set, so both are spelled out. */
   protected tierLabelKey(tier: CaseTier): string {
     return { automatic: 'cases.tierAutomatic', draft: 'cases.tierDraft', manual: 'cases.tierManual' }[tier];
