@@ -39,6 +39,8 @@ class SecurityConfig {
 				// the admins' realm.
 				.requestMatchers("/api/settings/**").hasRole("ADMIN")
 				.requestMatchers("/api/users/**").hasRole("ADMIN")
+				.requestMatchers("/api/case-categories/**").hasRole("ADMIN")
+				.requestMatchers("/api/triage-settings/**").hasRole("ADMIN")
 				// Everyone reads the company (the sidebar shows name and logo);
 				// only admins change it.
 				.requestMatchers(HttpMethod.PUT, "/api/company/**").hasRole("ADMIN")

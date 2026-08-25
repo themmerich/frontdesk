@@ -84,6 +84,16 @@
                 </li>
                 <li>
                   <a
+                    routerLink="/categories"
+                    routerLinkActive="bg-primary-emphasis"
+                    class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+                  >
+                    <i class="pi pi-tags text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+                    <span class="text-base leading-tight font-medium">{{ t('shell.categories') }}</span>
+                  </a>
+                </li>
+                <li>
+                  <a
                     routerLink="/company"
                     routerLinkActive="bg-primary-emphasis"
                     class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"

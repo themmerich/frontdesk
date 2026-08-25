@@ -59,6 +59,12 @@ public class TenantTriageSettings {
 		this.createdAt = Instant.now();
 	}
 
+	/** Both knobs are the tenant's to turn; nothing else about the triage lives here. */
+	public void update(String extraInstructions, BigDecimal confidenceThreshold) {
+		this.extraInstructions = extraInstructions;
+		this.confidenceThreshold = confidenceThreshold;
+	}
+
 	/** What a tenant starts with: no extra instructions, the cautious default threshold. */
 	public static TenantTriageSettings defaults(Tenant tenant) {
 		return new TenantTriageSettings(tenant, "", DEFAULT_CONFIDENCE_THRESHOLD);
