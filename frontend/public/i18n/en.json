@@ -17,7 +17,8 @@
     "primaryDefault": "Default",
     "surfaceColor": "Surface",
     "preset": "Preset",
-    "categories": "Categories"
+    "categories": "Categories",
+    "aiSettings": "AI access"
   },
   "cases": {
     "title": "Cases",
@@ -223,6 +224,26 @@
     "loading": "Loading the settings",
     "required": "Required.",
     "invalidPort": "Enter a port between 1 and 65535."
+  },
+  "aiSettings": {
+    "title": "AI access",
+    "intro": "By default the classification runs on frontdesk's own access. A tenant that stores its own Anthropic key is billed through its own account from then on.",
+    "legend": "Anthropic key",
+    "statePlatform": "This tenant uses frontdesk's access.",
+    "stateOwn": "This tenant uses its own key. Costs go through its Anthropic account.",
+    "apiKey": "Key",
+    "apiKeyHint": "Starts with sk-ant-. The key is stored encrypted and never shown again.",
+    "apiKeyInvalid": "That does not look like an Anthropic key.",
+    "test": "Test",
+    "save": "Save",
+    "remove": "Remove",
+    "saved": "Key saved.",
+    "removed": "Key removed. The tenant is back on frontdesk's access.",
+    "testSuccess": "The key works.",
+    "testFailed": "The key was rejected.",
+    "error": "That did not work.",
+    "loadError": "Could not load the AI access. Is the backend running?",
+    "loading": "Loading"
   },
   "profile": {
     "title": "Profile",

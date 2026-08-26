@@ -1,12 +1,12 @@
 package de.prime_ux.backend.triage;
 
+import de.prime_ux.backend.aisettings.TenantChatClients;
 import de.prime_ux.backend.cases.Case;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.stereotype.Service;
 
 /**
@@ -36,16 +36,18 @@ class AnthropicTriageService implements TriageService {
 			  nicht: eine Rechnungsfrage an info@ bleibt eine Rechnungsfrage.
 			""";
 
-	private final ChatClient chatClient;
+	private final TenantChatClients tenantChatClients;
 
-	AnthropicTriageService(ChatModel chatModel) {
-		this.chatClient = ChatClient.create(chatModel);
+	AnthropicTriageService(TenantChatClients tenantChatClients) {
+		this.tenantChatClients = tenantChatClients;
 	}
 
 	@Override
 	public TriageVerdict classify(Case mailCase, List<CaseCategory> categories,
 			TenantTriageSettings settings) {
 		try {
+			// Whose Anthropic account this is billed to is the tenant's own decision.
+			ChatClient chatClient = this.tenantChatClients.forTenant(mailCase.getTenant());
 			TriageAnswer answer = chatClient.prompt()
 					.system(systemPrompt(categories, settings))
 					.user(userPrompt(mailCase))

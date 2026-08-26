@@ -1,0 +1,75 @@
+<ng-container *transloco="let t">
+  <main class="mx-auto flex w-full max-w-2xl flex-col gap-6">
+    <h1 class="text-2xl font-semibold">{{ t('aiSettings.title') }}</h1>
+    <p class="text-surface-500 dark:text-surface-400">{{ t('aiSettings.intro') }}</p>
+
+    @if (aiSettingsService.settings.error()) {
+      <p-message severity="error">{{ t('aiSettings.loadError') }}</p-message>
+    } @else if (aiSettingsService.settings.isLoading()) {
+      <i class="pi pi-spinner pi-spin" role="img" [attr.aria-label]="t('aiSettings.loading')"></i>
+    } @else {
+      <p-fieldset [legend]="t('aiSettings.legend')">
+        <div class="flex flex-col gap-4 p-2">
+          <!-- Which account pays, in one line, because that is the whole decision. -->
+          <p-message [severity]="hasOwnKey() ? 'info' : 'secondary'" variant="simple">
+            {{ t(hasOwnKey() ? 'aiSettings.stateOwn' : 'aiSettings.statePlatform') }}
+          </p-message>
+
+          <form novalidate class="flex flex-col gap-4" (submit)="onSave($event)">
+            <div class="flex flex-col gap-2">
+              <p-inputgroup>
+                <p-inputgroup-addon><i class="pi pi-key" aria-hidden="true"></i></p-inputgroup-addon>
+                <p-floatlabel variant="on">
+                  <p-password
+                    inputId="apiKey"
+                    styleClass="w-full"
+                    [feedback]="false"
+                    [toggleMask]="true"
+                    autocomplete="off"
+                    [formField]="form.apiKey"
+                  />
+                  <label for="apiKey">{{ t('aiSettings.apiKey') }}</label>
+                </p-floatlabel>
+              </p-inputgroup>
+              @if (form.apiKey().invalid()) {
+                <p-message severity="error" variant="simple" size="small">{{ t('aiSettings.apiKeyInvalid') }}</p-message>
+              } @else {
+                <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('aiSettings.apiKeyHint') }}</p>
+              }
+            </div>
+
+            <div class="flex flex-wrap justify-end gap-2">
+              @if (hasOwnKey()) {
+                <p-button
+                  type="button"
+                  icon="pi pi-trash"
+                  severity="danger"
+                  [outlined]="true"
+                  [label]="t('aiSettings.remove')"
+                  [loading]="isClearing()"
+                  (onClick)="onClear()"
+                />
+              }
+              <p-button
+                type="button"
+                icon="pi pi-bolt"
+                severity="secondary"
+                [outlined]="true"
+                [label]="t('aiSettings.test')"
+                [loading]="isTesting()"
+                (onClick)="onTest()"
+              />
+              <p-button
+                type="submit"
+                icon="pi pi-check"
+                [label]="t('aiSettings.save')"
+                [loading]="isSaving()"
+                [disabled]="form().invalid() || !form().dirty()"
+              />
+            </div>
+          </form>
+        </div>
+      </p-fieldset>
+    }
+  </main>
+</ng-container>
