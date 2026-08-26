@@ -3,7 +3,7 @@ import { Component, computed, inject, linkedSignal, signal } from '@angular/core
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ChildFieldContext, form, FormField, max, min, required, submit } from '@angular/forms/signals';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
@@ -113,6 +113,7 @@ export class CategoriesPage {
   protected readonly categoriesService = inject(CaseCategoriesService);
   protected readonly settingsService = inject(TriageSettingsService);
   private readonly messageService = inject(MessageService);
+  private readonly confirmationService = inject(ConfirmationService);
   private readonly transloco = inject(TranslocoService);
 
   /** The category being edited, or null while the dialog creates a new one. */
@@ -245,7 +246,39 @@ export class CategoriesPage {
     });
   }
 
-  protected async onDelete(category: CaseCategory): Promise<void> {
+  /**
+   * A category with cases cannot go: those cases would keep a tier nobody can explain any more.
+   * The button stays usable and answers on use, because a disabled one would leave the reason
+   * unsaid.
+   */
+  protected onDelete(category: CaseCategory): void {
+    if (category.caseCount > 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.transloco.translate('categories.deleteBlocked'),
+        detail: this.transloco.translate('categories.deleteBlockedDetail', {
+          name: category.name,
+          count: category.caseCount,
+        }),
+        life: 8000,
+      });
+      return;
+    }
+    this.confirmationService.confirm({
+      header: this.transloco.translate('categories.deleteHeader'),
+      // The description is what steers the classification, so removing it changes
+      // how future mail is sorted — worth saying out loud.
+      message: this.transloco.translate('categories.deleteMessage', { name: category.name }),
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: this.transloco.translate('categories.delete'),
+      rejectLabel: this.transloco.translate('categories.cancel'),
+      acceptButtonStyleClass: 'p-button-danger',
+      rejectButtonProps: { severity: 'secondary', outlined: true },
+      accept: () => void this.remove(category),
+    });
+  }
+
+  private async remove(category: CaseCategory): Promise<void> {
     try {
       await this.categoriesService.remove(category.id);
       this.toast('success', 'categories.deleted');
@@ -265,6 +298,10 @@ export class CategoriesPage {
     }
     if (status === 400) {
       return ['warn', 'categories.lastActive'];
+    }
+    // Someone else classified a case into it between loading the page and clicking.
+    if (status === 422) {
+      return ['warn', 'categories.deleteBlocked'];
     }
     return ['error', 'categories.error'];
   }

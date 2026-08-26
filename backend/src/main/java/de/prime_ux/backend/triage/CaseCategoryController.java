@@ -1,13 +1,16 @@
 package de.prime_ux.backend.triage;
 
+import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,18 +39,25 @@ class CaseCategoryController {
 
 	private final AppUserRepository appUserRepository;
 	private final CaseCategoryRepository caseCategoryRepository;
+	private final CaseRepository caseRepository;
 
-	CaseCategoryController(AppUserRepository appUserRepository, CaseCategoryRepository caseCategoryRepository) {
+	CaseCategoryController(AppUserRepository appUserRepository, CaseCategoryRepository caseCategoryRepository,
+			CaseRepository caseRepository) {
 		this.appUserRepository = appUserRepository;
 		this.caseCategoryRepository = caseCategoryRepository;
+		this.caseRepository = caseRepository;
 	}
 
 	/** Every category of the tenant, active or not, in the order the prompt lists them. */
 	@GetMapping
 	List<CaseCategoryResponse> listCategories(Authentication authentication) {
 		UUID tenantId = currentTenant(authentication).getId();
+		Map<UUID, Long> counts = caseRepository.countPerCategory(tenantId).stream()
+				.collect(Collectors.toMap(CaseRepository.CaseCountPerCategory::getCategoryId,
+						CaseRepository.CaseCountPerCategory::getCaseCount));
 		return caseCategoryRepository.findAllByTenantIdOrderBySortOrderAsc(tenantId).stream()
-				.map(CaseCategoryResponse::from).toList();
+				.map(category -> CaseCategoryResponse.from(category, counts.getOrDefault(category.getId(), 0L)))
+				.toList();
 	}
 
 	@PostMapping
@@ -66,7 +76,7 @@ class CaseCategoryController {
 		if (!request.active()) {
 			category.deactivate();
 		}
-		return CaseCategoryResponse.from(caseCategoryRepository.save(category));
+		return CaseCategoryResponse.from(caseCategoryRepository.save(category), 0);
 	}
 
 	/**
@@ -90,12 +100,15 @@ class CaseCategoryController {
 		}
 		category.update(name, request.description().trim(), request.toTier(), request.active());
 		category.recolor(request.toColor());
-		return CaseCategoryResponse.from(caseCategoryRepository.save(category));
+		return CaseCategoryResponse.from(caseCategoryRepository.save(category),
+				caseRepository.countByCategoryId(id));
 	}
 
 	/**
-	 * Cases already classified as this category keep their tier and lose only the reference
-	 * (FK SET NULL) — the board showed that tier, so it stays what it was.
+	 * Refused while cases still point at this category. Losing the reference would leave those
+	 * cases with a tier nobody can explain any more, and the description is what steers the
+	 * classification — deleting it changes how future mail is sorted, which is not something to
+	 * discover afterwards.
 	 */
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
@@ -103,6 +116,11 @@ class CaseCategoryController {
 	void deleteCategory(@PathVariable UUID id, Authentication authentication) {
 		UUID tenantId = currentTenant(authentication).getId();
 		CaseCategory category = ownCategory(id, tenantId);
+		long caseCount = caseRepository.countByCategoryId(id);
+		if (caseCount > 0) {
+			throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
+					caseCount + " cases still refer to this category");
+		}
 		if (category.isActive()) {
 			refuseToLeaveTheTriageWithoutCategories(tenantId);
 		}

@@ -20,6 +20,7 @@ const orderStatus = {
   color: 'blue',
   sortOrder: 0,
   active: true,
+  caseCount: 3,
 };
 
 const invoice = {
@@ -31,6 +32,7 @@ const invoice = {
   color: null,
   sortOrder: 1,
   active: true,
+  caseCount: 0,
 };
 
 test.describe('Case categories', () => {
@@ -92,6 +94,51 @@ test.describe('Case categories', () => {
       active: true,
     });
     await expect(page.getByRole('row', { name: /Terminanfrage/ })).toBeVisible();
+  });
+
+  test('refuses to delete a category that cases still point at', async ({ page }) => {
+    let deleteCalls = 0;
+    await page.route('**/api/case-categories', (route) => route.fulfill({ json: [orderStatus, invoice] }));
+    await page.route('**/api/case-categories/c1', (route) => {
+      deleteCalls++;
+      return route.fulfill({ status: 204, body: '' });
+    });
+
+    await page.goto('/categories');
+    // The column says in advance why this will not work.
+    await expect(page.getByRole('row', { name: /Statusanfrage Bestellung/ })).toContainText('3');
+    await page
+      .getByRole('row', { name: /Statusanfrage Bestellung/ })
+      .getByRole('button', { name: 'Löschen' })
+      .click();
+
+    await expect(page.getByText('ist 3 Vorgängen zugeordnet')).toBeVisible();
+    // Not even a question, and certainly no request. Named, because the edit
+    // dialog's host element carries the same role even while it is closed.
+    await expect(page.getByRole('alertdialog', { name: 'Löschen bestätigen' })).toHaveCount(0);
+    expect(deleteCalls).toBe(0);
+  });
+
+  test('asks before deleting a category nothing points at', async ({ page }) => {
+    let deleted: string | undefined;
+    await page.route('**/api/case-categories', (route) => route.fulfill({ json: [orderStatus, invoice] }));
+    await page.route('**/api/case-categories/c2', (route) => {
+      deleted = 'c2';
+      return route.fulfill({ status: 204, body: '' });
+    });
+
+    await page.goto('/categories');
+    await page
+      .getByRole('row', { name: /Rechnung/ })
+      .getByRole('button', { name: 'Löschen' })
+      .click();
+
+    const dialog = page.getByRole('alertdialog', { name: 'Löschen bestätigen' });
+    await expect(dialog).toContainText('Rechnung');
+    await dialog.getByRole('button', { name: 'Löschen' }).click();
+
+    await expect(page.getByText('Kategorie gelöscht.')).toBeVisible();
+    expect(deleted).toBe('c2');
   });
 
   test('edits the description the model reads, keeping the code', async ({ page }) => {

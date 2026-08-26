@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
-import { MessageService, ToastMessageOptions } from 'primeng/api';
+import { Confirmation, ConfirmationService, MessageService, ToastMessageOptions } from 'primeng/api';
 
 import { CaseCategoriesService } from '../data/case-categories-service';
 import { TriageSettingsService } from '../data/triage-settings-service';
@@ -36,6 +36,11 @@ const translations = {
     edit: 'Edit',
     editTitle: 'Edit category',
     delete: 'Delete',
+    caseCount: 'Cases',
+    deleteHeader: 'Confirm deletion',
+    deleteMessage: 'Really delete {{name}}?',
+    deleteBlocked: 'Category still in use.',
+    deleteBlockedDetail: '{{name}} is assigned to {{count}} cases.',
     cancel: 'Cancel',
     save: 'Save',
     nameRequired: 'Please enter a name.',
@@ -65,6 +70,7 @@ const orderStatus: CaseCategory = {
   color: 'blue',
   sortOrder: 0,
   active: true,
+  caseCount: 3,
 };
 
 const invoice: CaseCategory = {
@@ -76,6 +82,7 @@ const invoice: CaseCategory = {
   color: null,
   sortOrder: 1,
   active: false,
+  caseCount: 0,
 };
 
 describe('CategoriesPage', () => {
@@ -86,6 +93,7 @@ describe('CategoriesPage', () => {
   let removed: string[];
   let failure: unknown;
   let toasts: ToastMessageOptions[];
+  let confirmations: Confirmation[];
 
   const categoriesServiceStub = {
     categories: { value: categories, error },
@@ -132,6 +140,7 @@ describe('CategoriesPage', () => {
     savedSettings = [];
     storedSettings.set({ extraInstructions: 'Bestehende Anweisung.', confidenceThreshold: 0.8 });
     toasts = [];
+    confirmations = [];
     await TestBed.configureTestingModule({
       imports: [
         CategoriesPage,
@@ -146,6 +155,11 @@ describe('CategoriesPage', () => {
         { provide: CaseCategoriesService, useValue: categoriesServiceStub },
         { provide: TriageSettingsService, useValue: settingsServiceStub },
         { provide: MessageService, useValue: { add: (toast: ToastMessageOptions) => toasts.push(toast) } },
+        // The dialog outlet lives in the shell, which is not part of this fixture.
+        {
+          provide: ConfirmationService,
+          useValue: { confirm: (confirmation: Confirmation) => confirmations.push(confirmation) },
+        },
       ],
     }).compileComponents();
   });
@@ -320,15 +334,49 @@ describe('CategoriesPage', () => {
     expect(element.textContent).toContain('Please enter a description.');
   });
 
-  it('deletes a category through its row action', async () => {
+  function clickDelete(fixture: ReturnType<typeof TestBed.createComponent<CategoriesPage>>, row: number): void {
+    (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('tbody button[aria-label="Delete"]')[row].click();
+  }
+
+  it('asks before deleting a category nothing points at', async () => {
     const fixture = TestBed.createComponent(CategoriesPage);
     fixture.detectChanges();
 
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('tbody button[aria-label="Delete"]')!.click();
+    // The second category has no cases; the first one has three.
+    clickDelete(fixture, 1);
     await fixture.whenStable();
 
-    expect(removed).toEqual(['c1']);
+    expect(removed).toEqual([]);
+    expect(confirmations[0].message).toBe('Really delete Rechnung?');
+
+    confirmations[0].accept!();
+    await fixture.whenStable();
+
+    expect(removed).toEqual(['c2']);
     expect(toasts[0].summary).toBe('Category deleted.');
+  });
+
+  it('refuses a category that cases still point at, and says why', async () => {
+    const fixture = TestBed.createComponent(CategoriesPage);
+    fixture.detectChanges();
+
+    clickDelete(fixture, 0);
+    await fixture.whenStable();
+
+    // Not even a question: those cases would keep a tier nobody can explain.
+    expect(confirmations).toEqual([]);
+    expect(removed).toEqual([]);
+    expect(toasts[0].severity).toBe('warn');
+    expect(toasts[0].detail).toBe('Statusanfrage Bestellung is assigned to 3 cases.');
+  });
+
+  it('shows how many cases point at each category', () => {
+    const fixture = TestBed.createComponent(CategoriesPage);
+    fixture.detectChanges();
+
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr');
+    expect(rows[0].textContent).toContain('3');
+    expect(rows[1].textContent).toContain('0');
   });
 
   it('reports a refused last active category distinctly', async () => {
@@ -336,7 +384,9 @@ describe('CategoriesPage', () => {
     const fixture = TestBed.createComponent(CategoriesPage);
     fixture.detectChanges();
 
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('tbody button[aria-label="Delete"]')!.click();
+    clickDelete(fixture, 1);
+    await fixture.whenStable();
+    confirmations[0].accept!();
     await fixture.whenStable();
 
     expect(toasts[0].severity).toBe('warn');
