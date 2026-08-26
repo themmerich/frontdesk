@@ -13,6 +13,8 @@ export type CaseCategory = {
   name: string;
   description: string;
   tier: CaseTier;
+  /** null when the admin picked none; the inbox then leaves those cases in its normal colour. */
+  color: CategoryColor | null;
   sortOrder: number;
   /** An inactive category is left out of the prompt; the cases classified as such keep their tier. */
   active: boolean;
@@ -24,5 +26,14 @@ export type CaseCategory = {
  */
 export type CaseTier = 'automatic' | 'draft' | 'manual' | 'info' | 'ignore';
 
+/**
+ * The colours a category can be given. A fixed palette rather than a free colour: the app renders
+ * light and dark, and a value picked in one is regularly unreadable in the other. What is stored
+ * is this name; the two values behind it live in styles.css as `--app-category-<name>`.
+ */
+export type CategoryColor = 'blue' | 'green' | 'amber' | 'red' | 'violet' | 'teal' | 'grey';
+
+export const CATEGORY_COLORS: readonly CategoryColor[] = ['blue', 'green', 'amber', 'red', 'violet', 'teal', 'grey'];
+
 /** Everything an admin may set; the code and the order are the system's to keep. */
-export type CaseCategoryUpdate = Pick<CaseCategory, 'name' | 'description' | 'tier' | 'active'>;
+export type CaseCategoryUpdate = Pick<CaseCategory, 'name' | 'description' | 'tier' | 'color' | 'active'>;

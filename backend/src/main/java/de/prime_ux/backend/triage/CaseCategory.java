@@ -52,6 +52,11 @@ public class CaseCategory {
 	@Column(nullable = false)
 	private CaseTier tier;
 
+	// Null is "none": the inbox then leaves those cases in its normal text colour.
+	@Enumerated(EnumType.STRING)
+	@Column
+	private CategoryColor color;
+
 	// Order in the list and in the prompt, so both read the same way.
 	@Column(name = "sort_order", nullable = false)
 	private int sortOrder;
@@ -70,6 +75,15 @@ public class CaseCategory {
 		this.description = description;
 		this.tier = tier;
 		this.active = active;
+	}
+
+	/**
+	 * The colour the inbox paints this category's cases in. Its own method rather than part of
+	 * {@link #update}, because it says nothing about what the category means and a new category
+	 * has to be able to carry one from the start. Null clears it.
+	 */
+	public void recolor(CategoryColor color) {
+		this.color = color;
 	}
 
 	/** Left out of the prompt from now on; the cases already classified as such keep their tier. */

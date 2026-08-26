@@ -62,6 +62,7 @@ class CaseCategoryController {
 		}
 		CaseCategory category = new CaseCategory(tenant, freeCode(tenant.getId(), name), name,
 				request.description().trim(), request.toTier(), nextSortOrder(tenant.getId()));
+		category.recolor(request.toColor());
 		if (!request.active()) {
 			category.deactivate();
 		}
@@ -88,6 +89,7 @@ class CaseCategoryController {
 			refuseToLeaveTheTriageWithoutCategories(tenantId);
 		}
 		category.update(name, request.description().trim(), request.toTier(), request.active());
+		category.recolor(request.toColor());
 		return CaseCategoryResponse.from(caseCategoryRepository.save(category));
 	}
 

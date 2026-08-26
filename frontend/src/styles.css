@@ -16,6 +16,56 @@
    `darkModeSelector` in app.config.ts. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* The category palette. A category carries only the name of its colour; the two
+   values behind it live here, because the same name has to read on a light and
+   on a dark surface. Both values are chosen to clear WCAG AA against the card
+   they sit on (light values against surface-0, dark ones against surface-900).
+   Used as the text colour of a whole row in the inbox (cases/ui/case-list). */
+:root {
+  --app-category-blue: #1d4ed8;
+  --app-category-green: #15803d;
+  --app-category-amber: #b45309;
+  --app-category-red: #b91c1c;
+  --app-category-violet: #6d28d9;
+  --app-category-teal: #0f766e;
+  --app-category-grey: #475569;
+}
+
+.dark {
+  --app-category-blue: #93c5fd;
+  --app-category-green: #86efac;
+  --app-category-amber: #fcd34d;
+  --app-category-red: #fca5a5;
+  --app-category-violet: #c4b5fd;
+  --app-category-teal: #5eead4;
+  --app-category-grey: #cbd5e1;
+}
+
+/* Applied through a data attribute rather than a class: the element carries the
+   name it got from the API and nothing has to map it to a class list, so a
+   binding can never fight with the classes PrimeNG puts on the same element. */
+[data-category-color='blue'] {
+  color: var(--app-category-blue);
+}
+[data-category-color='green'] {
+  color: var(--app-category-green);
+}
+[data-category-color='amber'] {
+  color: var(--app-category-amber);
+}
+[data-category-color='red'] {
+  color: var(--app-category-red);
+}
+[data-category-color='violet'] {
+  color: var(--app-category-violet);
+}
+[data-category-color='teal'] {
+  color: var(--app-category-teal);
+}
+[data-category-color='grey'] {
+  color: var(--app-category-grey);
+}
+
 /* CDK drag & drop styling for the column-toggle popover (cases/ui/case-list).
    The drag preview and the popover overlay are attached to <body>, so
    component-scoped styles cannot reach them. */

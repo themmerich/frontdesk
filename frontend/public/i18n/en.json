@@ -105,6 +105,17 @@
     "description": "Description",
     "descriptionHint": "Goes into the prompt verbatim. The clearer it says when the category applies, the surer the AI gets.",
     "tier": "Tier",
+    "color": "Colour",
+    "colorNone": "None",
+    "colors": {
+      "blue": "Blue",
+      "green": "Green",
+      "amber": "Amber",
+      "red": "Red",
+      "violet": "Violet",
+      "teal": "Teal",
+      "grey": "Grey"
+    },
     "tierAutomatic": "Automatic",
     "tierDraft": "Draft",
     "tierManual": "Manual",

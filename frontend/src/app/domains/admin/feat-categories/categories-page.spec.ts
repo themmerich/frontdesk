@@ -18,6 +18,9 @@ const translations = {
     description: 'Description',
     descriptionHint: 'Goes into the prompt verbatim.',
     tier: 'Tier',
+    color: 'Colour',
+    colorNone: 'None',
+    colors: { blue: 'Blue', green: 'Green', amber: 'Amber', red: 'Red', violet: 'Violet', teal: 'Teal', grey: 'Grey' },
     tierAutomatic: 'Automatic',
     tierDraft: 'Draft',
     tierManual: 'Manual',
@@ -59,6 +62,7 @@ const orderStatus: CaseCategory = {
   name: 'Statusanfrage Bestellung',
   description: 'Frage nach dem Liefertermin.',
   tier: 'automatic',
+  color: 'blue',
   sortOrder: 0,
   active: true,
 };
@@ -69,6 +73,7 @@ const invoice: CaseCategory = {
   name: 'Rechnung',
   description: 'Eingehende Rechnung.',
   tier: 'manual',
+  color: null,
   sortOrder: 1,
   active: false,
 };
@@ -254,7 +259,9 @@ describe('CategoriesPage', () => {
     element.querySelectorAll('form')[1].dispatchEvent(new Event('submit'));
     await fixture.whenStable();
 
-    expect(created).toEqual([{ name: 'Terminanfrage', description: 'Kunde möchte einen Termin.', tier: 'draft', active: true }]);
+    expect(created).toEqual([
+      { name: 'Terminanfrage', description: 'Kunde möchte einen Termin.', tier: 'draft', color: null, active: true },
+    ]);
     expect(toasts[0].summary).toBe('Category saved.');
   });
 
@@ -281,6 +288,7 @@ describe('CategoriesPage', () => {
           name: 'Statusanfrage Bestellung',
           description: 'Frage nach Liefertermin oder Versand.',
           tier: 'automatic',
+          color: 'blue',
           active: true,
         },
       },

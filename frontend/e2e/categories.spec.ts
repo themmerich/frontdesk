@@ -17,6 +17,7 @@ const orderStatus = {
   name: 'Statusanfrage Bestellung',
   description: 'Frage nach dem Liefertermin.',
   tier: 'automatic',
+  color: 'blue',
   sortOrder: 0,
   active: true,
 };
@@ -27,6 +28,7 @@ const invoice = {
   name: 'Rechnung',
   description: 'Eingehende Rechnung.',
   tier: 'manual',
+  color: null,
   sortOrder: 1,
   active: true,
 };
@@ -118,6 +120,81 @@ test.describe('Case categories', () => {
       name: 'Statusanfrage Bestellung',
       description: 'Frage nach Liefertermin oder Versand, nicht: Rückfragen zu einer Rechnung.',
     });
+  });
+
+  test('keeps the colour label clear of the field when no colour is chosen', async ({ page }) => {
+    // invoice carries no colour, which is the case where the float label used to
+    // sit on top of the "Keine" the select displays.
+    await page.route('**/api/case-categories', (route) => route.fulfill({ json: [invoice] }));
+
+    await page.goto('/categories');
+    await page
+      .getByRole('row', { name: /Rechnung/ })
+      .getByRole('button', { name: 'Bearbeiten' })
+      .click();
+
+    const field = page.locator('p-select').nth(1);
+    await expect(field).toContainText('Keine');
+    const label = page.getByRole('dialog').locator('label[for="color"]');
+    const labelBox = (await label.boundingBox())!;
+    const valueBox = (await field.locator('.p-select-label').boundingBox())!;
+
+    // Floated to the border rather than resting on the value: unfloated, the two
+    // would share a centre line, which is exactly how the label covered the text.
+    expect(labelBox.y + labelBox.height / 2).toBeLessThan(valueBox.y + valueBox.height / 2 - 5);
+  });
+
+  test('shows the whole colour list where it reaches past the dialog', async ({ page }) => {
+    await page.route('**/api/case-categories', (route) => route.fulfill({ json: [orderStatus] }));
+    await page.setViewportSize({ width: 1280, height: 720 });
+
+    await page.goto('/categories');
+    await page
+      .getByRole('row', { name: /Statusanfrage Bestellung/ })
+      .getByRole('button', { name: 'Bearbeiten' })
+      .click();
+    await page.locator('p-select').nth(1).click();
+    await expect(page.getByRole('option', { name: 'Blau' })).toBeVisible();
+
+    const measured = await page.evaluate(() => {
+      const overlay = document.querySelector('.p-select-overlay')!.getBoundingClientRect();
+      const dialog = document.querySelector('.p-dialog')!.getBoundingClientRect();
+      const middleOfTheStrip = (dialog.bottom + overlay.bottom) / 2;
+      const painted = document.elementFromPoint(overlay.left + overlay.width / 2, middleOfTheStrip);
+      return { below: overlay.bottom - dialog.bottom, isList: painted?.closest('.p-select-overlay') !== null };
+    });
+
+    // The eight colours make the list longer than the room left below the field,
+    // which is the situation this test is about — if a layout change ever makes
+    // it fit, this assertion says so rather than passing on nothing.
+    expect(measured.below).toBeGreaterThan(4);
+    // Attached to the body rather than rendered inside the dialog, so the part
+    // that reaches past the dialog's edge is painted instead of covered.
+    expect(measured.isList).toBe(true);
+  });
+
+  test('puts a colour on a category, which the inbox then draws its cases in', async ({ page }) => {
+    let saved: Record<string, unknown> | undefined;
+    await page.route('**/api/case-categories', (route) => route.fulfill({ json: [orderStatus] }));
+    await page.route('**/api/case-categories/c1', (route) => {
+      saved = route.request().postDataJSON() as Record<string, unknown>;
+      return route.fulfill({ json: { ...orderStatus, ...saved } });
+    });
+
+    await page.goto('/categories');
+    await page
+      .getByRole('row', { name: /Statusanfrage Bestellung/ })
+      .getByRole('button', { name: 'Bearbeiten' })
+      .click();
+
+    // The dialog's two dropdowns in order: the tier, then the colour.
+    await page.locator('p-select').nth(1).click();
+    await page.getByRole('option', { name: 'Grün' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click();
+
+    await expect(page.getByText('Kategorie gespeichert.')).toBeVisible();
+    // Only the palette name travels; the two values behind it live in the stylesheet.
+    expect(saved).toMatchObject({ color: 'green' });
   });
 
   test('stores the confidence threshold as the fraction behind the percentage', async ({ page }) => {

@@ -51,6 +51,7 @@ describe('CasesPage', () => {
         sizeBytes: 2048,
         summary: null,
         categoryName: null,
+        categoryColor: null,
         tier: null,
         confidence: null,
       },
