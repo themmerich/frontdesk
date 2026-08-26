@@ -13,7 +13,7 @@ import java.util.Locale;
  * applies, and an empty one would make the category unusable without saying so.
  */
 record CaseCategoryRequest(@NotBlank @Size(max = 100) String name, @NotBlank @Size(max = 1000) String description,
-		@NotBlank @Pattern(regexp = "(?i)automatic|draft|manual") String tier, boolean active) {
+		@NotBlank @Pattern(regexp = "(?i)automatic|draft|manual|info|ignore") String tier, boolean active) {
 
 	CaseTier toTier() {
 		return CaseTier.valueOf(tier.toUpperCase(Locale.ROOT));

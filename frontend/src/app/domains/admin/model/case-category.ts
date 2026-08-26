@@ -19,11 +19,10 @@ export type CaseCategory = {
 };
 
 /**
- * How a case of this category is handled: frontdesk answers it by itself, it prepares an answer a
- * person approves, or a person takes it over. The case list carries the same three words — each
- * bounded context names them for itself rather than reaching into the other.
+ * How a case is handled: two questions resolved into one ladder — does this need an answer, and
+ * who writes it. `info` needs none but should be seen, `ignore` needs neither.
  */
-export type CaseTier = 'automatic' | 'draft' | 'manual';
+export type CaseTier = 'automatic' | 'draft' | 'manual' | 'info' | 'ignore';
 
 /** Everything an admin may set; the code and the order are the system's to keep. */
 export type CaseCategoryUpdate = Pick<CaseCategory, 'name' | 'description' | 'tier' | 'active'>;

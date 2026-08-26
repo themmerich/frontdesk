@@ -2,6 +2,7 @@ package de.prime_ux.backend.cases;
 
 import de.prime_ux.backend.mailsettings.TenantMailSettings;
 import de.prime_ux.backend.tenants.Tenant;
+import jakarta.mail.Address;
 import jakarta.mail.BodyPart;
 import jakarta.mail.Flags;
 import jakarta.mail.Folder;
@@ -83,7 +84,7 @@ public class MailIngestService {
 			log.debug("Skipping already ingested mail {}", messageId);
 			return;
 		}
-		Case newCase = new Case(tenant, messageId, senderOf(message),
+		Case newCase = new Case(tenant, messageId, senderOf(message), recipientOf(message),
 				Objects.requireNonNullElse(message.getSubject(), ""), bodyTextOf(message), receivedAtOf(message),
 				hasAttachments(message), sizeOf(message));
 		caseRepository.save(newCase);
@@ -126,6 +127,31 @@ public class MailIngestService {
 			return "unknown";
 		}
 		return ((InternetAddress) message.getFrom()[0]).getAddress();
+	}
+
+	/**
+	 * The tenant address the mail was addressed to. Prefers the first To recipient: with an alias
+	 * that is the address the customer actually wrote to, which is the one a reply has to go out
+	 * from. Delivered-To and X-Original-To, set by the delivering server, cover mails that reached
+	 * the mailbox without naming it in To. Which of several recipients belongs to the tenant cannot
+	 * be decided yet, because the tenant only has one mailbox and no list of its own addresses.
+	 */
+	private String recipientOf(MimeMessage message) throws MessagingException {
+		Address[] recipients = message.getRecipients(Message.RecipientType.TO);
+		if (recipients != null && recipients.length > 0) {
+			return ((InternetAddress) recipients[0]).getAddress();
+		}
+		return firstHeader(message, "Delivered-To", "X-Original-To");
+	}
+
+	private String firstHeader(MimeMessage message, String... names) throws MessagingException {
+		for (String name : names) {
+			String[] values = message.getHeader(name);
+			if (values != null && values.length > 0 && !values[0].isBlank()) {
+				return values[0].trim();
+			}
+		}
+		return null;
 	}
 
 	private Instant receivedAtOf(MimeMessage message) throws MessagingException {

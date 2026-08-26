@@ -76,14 +76,15 @@ class TriageProvisionerTest {
 		List<CaseCategory> categories = caseCategoryRepository
 				.findAllByTenantIdAndActiveTrueOrderBySortOrderAsc(tenant.getId());
 		assertThat(categories).extracting(CaseCategory::getCode).containsExactly("ORDER_STATUS",
-				"GENERAL_INQUIRY", "INVOICE", "APPLICATION", "COMPLAINT", "MARKETING");
+				"GENERAL_INQUIRY", "ORDER_CONFIRMATION", "INVOICE", "APPLICATION", "COMPLAINT",
+				"MARKETING");
 		assertThat(categories).extracting(CaseCategory::getName).first().isEqualTo("Statusanfrage Bestellung");
 		// The description is what tells the model when a category applies, so it is never empty.
 		assertThat(categories).allSatisfy(category -> assertThat(category.getDescription()).isNotBlank());
 	}
 
 	@Test
-	void answersOnlyTheStatusInquiryAutomatically() {
+	void sortsTheDefaultsAcrossTheTiersTheyBelongOn() {
 		triageProvisioner.run(new DefaultApplicationArguments());
 
 		List<CaseCategory> categories = caseCategoryRepository
@@ -91,10 +92,13 @@ class TriageProvisionerTest {
 		assertThat(categories).extracting(CaseCategory::getCode, CaseCategory::getTier).containsExactly(
 				tuple("ORDER_STATUS", CaseTier.AUTOMATIC),
 				tuple("GENERAL_INQUIRY", CaseTier.DRAFT),
+				// Needs no answer, but somebody should have seen it.
+				tuple("ORDER_CONFIRMATION", CaseTier.INFO),
 				tuple("INVOICE", CaseTier.MANUAL),
 				tuple("APPLICATION", CaseTier.MANUAL),
 				tuple("COMPLAINT", CaseTier.MANUAL),
-				tuple("MARKETING", CaseTier.MANUAL));
+				// Out of the queue that is meant to hold what needs a person.
+				tuple("MARKETING", CaseTier.IGNORE));
 	}
 
 	@Test
@@ -113,7 +117,7 @@ class TriageProvisionerTest {
 		triageProvisioner.run(new DefaultApplicationArguments());
 
 		assertThat(caseCategoryRepository.findAllByTenantIdAndActiveTrueOrderBySortOrderAsc(tenant.getId()))
-				.hasSize(6);
+				.hasSize(7);
 		assertThat(tenantTriageSettingsRepository.findAll()).hasSize(1);
 	}
 
@@ -152,9 +156,9 @@ class TriageProvisionerTest {
 		triageProvisioner.run(new DefaultApplicationArguments());
 
 		assertThat(caseCategoryRepository.findAllByTenantIdAndActiveTrueOrderBySortOrderAsc(tenant.getId()))
-				.hasSize(6);
+				.hasSize(7);
 		assertThat(caseCategoryRepository.findAllByTenantIdAndActiveTrueOrderBySortOrderAsc(otherTenant.getId()))
-				.hasSize(6);
+				.hasSize(7);
 		assertThat(tenantTriageSettingsRepository.findAll()).hasSize(2);
 	}
 }

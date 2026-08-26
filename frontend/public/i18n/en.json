@@ -22,6 +22,7 @@
   "cases": {
     "title": "Cases",
     "sender": "From",
+    "recipient": "To",
     "subject": "Subject",
     "receivedAt": "Received",
     "attachment": "Attachment",
@@ -43,7 +44,9 @@
     "tierAll": "All",
     "notTriaged": "Not triaged yet",
     "summary": "Request",
-    "confidence": "Confidence"
+    "confidence": "Confidence",
+    "tierInfo": "Info",
+    "tierIgnore": "Ignore"
   },
   "users": {
     "title": "Users",
@@ -131,7 +134,9 @@
     "thresholdHint": "Below this the case drops one tier — rather one draft too many than a wrong automatic answer.",
     "instructions": "Extra instruction",
     "instructionsHint": "Appended to the prompt, for this company’s peculiarities. For example: \"mail from @supplier-xy.example is always an order confirmation\".",
-    "settingsSaved": "Settings saved."
+    "settingsSaved": "Settings saved.",
+    "tierInfo": "Info",
+    "tierIgnore": "Ignore"
   },
   "company": {
     "title": "Company",

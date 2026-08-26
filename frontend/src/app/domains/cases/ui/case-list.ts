@@ -20,6 +20,20 @@ import { FileSizePipe } from './file-size-pipe';
 
 type CaseColumn = Omit<CaseColumnDefinition, 'labelKey'> & { header: string };
 
+/**
+ * Green, amber, red for the three tiers that need an answer — rising with the work left to a
+ * person. Blue and grey for the two that need none.
+ */
+type TierSeverity = 'success' | 'warn' | 'danger' | 'info' | 'secondary';
+
+const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
+  automatic: 'success',
+  draft: 'warn',
+  manual: 'danger',
+  info: 'info',
+  ignore: 'secondary',
+};
+
 @Component({
   selector: 'app-case-list',
   imports: [
@@ -56,7 +70,7 @@ export class CaseList {
 
   private readonly table = viewChild.required(Table);
 
-  protected readonly globalFilterFields: CaseColumnField[] = ['sender', 'subject', 'summary', 'category'];
+  protected readonly globalFilterFields: CaseColumnField[] = ['sender', 'recipient', 'subject', 'summary', 'category'];
 
   /** Options of the tier multi-select filter, matching the raw values the rows carry. */
   protected readonly tierOptions = computed<{ label: string; value: CaseTier }[]>(() => {
@@ -65,6 +79,8 @@ export class CaseList {
       { label: this.transloco.translate('cases.tierAutomatic'), value: 'automatic' },
       { label: this.transloco.translate('cases.tierDraft'), value: 'draft' },
       { label: this.transloco.translate('cases.tierManual'), value: 'manual' },
+      { label: this.transloco.translate('cases.tierInfo'), value: 'info' },
+      { label: this.transloco.translate('cases.tierIgnore'), value: 'ignore' },
     ];
   });
 
@@ -105,13 +121,17 @@ export class CaseList {
 
   /** The tag's label and colour per tier; a tier is a small closed set, so both are spelled out. */
   protected tierLabelKey(tier: CaseTier): string {
-    return { automatic: 'cases.tierAutomatic', draft: 'cases.tierDraft', manual: 'cases.tierManual' }[tier];
+    return {
+      automatic: 'cases.tierAutomatic',
+      draft: 'cases.tierDraft',
+      manual: 'cases.tierManual',
+      info: 'cases.tierInfo',
+      ignore: 'cases.tierIgnore',
+    }[tier];
   }
 
-  protected tierSeverity(tier: CaseTier): 'success' | 'warn' | 'info' {
-    // Green: frontdesk handles it. Amber: waiting for a person to approve.
-    // Blue: a person has to take it over.
-    return { automatic: 'success', draft: 'warn', manual: 'info' }[tier] as 'success' | 'warn' | 'info';
+  protected tierSeverity(tier: CaseTier): TierSeverity {
+    return TIER_SEVERITY[tier];
   }
 
   protected onExportCsv(): void {

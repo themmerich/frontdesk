@@ -9,9 +9,9 @@ import java.util.Optional;
  * says is what kind of mail this is, what happens with it is the tenant's policy — a category's
  * tier, plus one safety net.
  *
- * <p>The safety net: below the tenant's confidence threshold a case drops one tier. Rather one
- * draft too many than a wrong automatic answer. A mail that fits no category at all goes to a
- * person unchanged.
+ * <p>The safety net: below the tenant's confidence threshold a case moves one step towards a
+ * person. Rather one draft too many than a wrong automatic answer, and rather one glance too many
+ * than a mail archived unseen. A mail that fits no category at all goes to a person unchanged.
  */
 final class TriageRule {
 
@@ -35,18 +35,11 @@ final class TriageRule {
 			return CaseTier.MANUAL;
 		}
 		CaseTier tier = category.get().getTier();
-		return isCertainEnough(verdict.confidence(), threshold) ? tier : downgrade(tier);
+		return isCertainEnough(verdict.confidence(), threshold) ? tier : tier.whenUncertain();
 	}
 
 	/** A missing confidence counts as uncertain: an answer without one says nothing about itself. */
 	private static boolean isCertainEnough(BigDecimal confidence, BigDecimal threshold) {
 		return confidence != null && confidence.compareTo(threshold) >= 0;
-	}
-
-	private static CaseTier downgrade(CaseTier tier) {
-		return switch (tier) {
-			case AUTOMATIC -> CaseTier.DRAFT;
-			case DRAFT, MANUAL -> CaseTier.MANUAL;
-		};
 	}
 }

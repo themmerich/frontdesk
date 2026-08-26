@@ -12,12 +12,12 @@ describe('parseColumnPreferences', () => {
 
   it('restores a stored order and visibility', () => {
     const stored = {
-      order: ['subject', 'sender', 'hasAttachments', 'summary', 'category', 'tier', 'confidence', 'sizeBytes', 'receivedAt'],
+      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'summary', 'category', 'tier', 'confidence', 'sizeBytes', 'receivedAt'],
       visibleFields: ['subject', 'sender'],
     };
 
     expect(parseColumnPreferences(stored)).toEqual({
-      order: ['subject', 'sender', 'hasAttachments', 'summary', 'category', 'tier', 'confidence', 'sizeBytes', 'receivedAt'],
+      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'summary', 'category', 'tier', 'confidence', 'sizeBytes', 'receivedAt'],
       visibleFields: ['subject', 'sender'],
     });
   });
@@ -41,6 +41,7 @@ describe('parseColumnPreferences', () => {
       'subject',
       'sender',
       'hasAttachments',
+      'recipient',
       'summary',
       'category',
       'tier',
@@ -51,6 +52,7 @@ describe('parseColumnPreferences', () => {
     expect(preferences.visibleFields).toEqual([
       'subject',
       'hasAttachments',
+      'recipient',
       'summary',
       'category',
       'tier',

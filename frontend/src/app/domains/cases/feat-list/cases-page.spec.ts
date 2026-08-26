@@ -10,6 +10,7 @@ const translations = {
   cases: {
     title: 'Cases',
     sender: 'From',
+    recipient: 'To',
     subject: 'Subject',
     receivedAt: 'Received',
     empty: 'No cases yet',
@@ -43,6 +44,7 @@ describe('CasesPage', () => {
       {
         id: '1',
         sender: 'anna@example.com',
+        recipient: 'info@example.com',
         subject: 'Delivery status',
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,

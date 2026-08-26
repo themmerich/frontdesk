@@ -1,13 +1,19 @@
-<div class="layout-container relative flex min-h-screen bg-surface-50 lg:static dark:bg-surface-950">
+<!-- The shell is exactly one viewport tall and never scrolls itself: sidebar and
+     navbar stay put while the content area below takes the scrolling. -->
+<div class="layout-container relative flex h-screen overflow-hidden bg-surface-50 lg:static dark:bg-surface-950">
   <p-toast />
   <app-sidebar />
   <!-- min-w-0: a flex item refuses to shrink below its content by default, so a
        wide table inside would push the whole layout past the viewport instead
        of scrolling within itself. -->
-  <div class="relative flex min-h-screen min-w-0 flex-auto flex-col">
+  <div class="relative flex min-h-0 min-w-0 flex-auto flex-col">
     <app-navbar />
-    <div class="flex flex-auto flex-col p-8">
-      <div class="min-w-0 flex-auto rounded-2xl border border-surface-200 bg-surface-0 p-6 dark:border-surface-700 dark:bg-surface-900">
+    <div class="flex min-h-0 flex-auto flex-col p-8">
+      <!-- min-h-0 so the card can be shorter than its content; the scrollbar
+           belongs to the page inside it, not to the window. -->
+      <div
+        class="min-h-0 min-w-0 flex-auto overflow-y-auto rounded-2xl border border-surface-200 bg-surface-0 p-6 dark:border-surface-700 dark:bg-surface-900"
+      >
         <router-outlet />
       </div>
     </div>

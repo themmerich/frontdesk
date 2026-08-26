@@ -44,6 +44,11 @@ public class Case {
 	@Column(nullable = false)
 	private String sender;
 
+	// The tenant address the mail was sent to (info@, rechnung@, ...); null when
+	// the mail carries no usable recipient header.
+	@Column
+	private String recipient;
+
 	@Column(nullable = false)
 	private String subject;
 
@@ -84,11 +89,12 @@ public class Case {
 	@Column
 	private String summary;
 
-	public Case(Tenant tenant, String messageId, String sender, String subject, String bodyText, Instant receivedAt,
-			boolean hasAttachments, long sizeBytes) {
+	public Case(Tenant tenant, String messageId, String sender, String recipient, String subject, String bodyText,
+			Instant receivedAt, boolean hasAttachments, long sizeBytes) {
 		this.tenant = tenant;
 		this.messageId = messageId;
 		this.sender = sender;
+		this.recipient = recipient;
 		this.subject = subject;
 		this.bodyText = bodyText;
 		this.receivedAt = receivedAt;

@@ -5,6 +5,7 @@
     [globalFilterFields]="globalFilterFields"
     [resizableColumns]="true"
     [scrollable]="true"
+    scrollHeight="flex"
     [tableStyle]="{ 'min-width': minTableWidth() }"
     dataKey="id"
     exportFilename="cases"
@@ -137,6 +138,13 @@
               @case ('hasAttachments') {
                 @if (row.hasAttachments) {
                   <i class="pi pi-paperclip" role="img" [attr.aria-label]="t('cases.hasAttachment')"></i>
+                }
+              }
+              @case ('recipient') {
+                @if (row.recipient) {
+                  {{ row.recipient }}
+                } @else {
+                  <span class="text-surface-400 dark:text-surface-500">–</span>
                 }
               }
               @case ('summary') {

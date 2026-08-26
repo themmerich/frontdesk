@@ -79,22 +79,25 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void listsOnlyTheOwnTenantsCasesNewestFirst() throws Exception {
-		caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "Delivery status", "body",
-				Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
-		caseRepository.save(new Case(tenant, "<second@test>", "ben@example.com", "Invoice copy", "body",
-				Instant.parse("2026-08-02T10:00:00Z"), true, 512_000));
+		caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "info@example.com", "Delivery status",
+				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+		// Reached the tenant through an alias, which the list has to show as it came in.
+		caseRepository.save(new Case(tenant, "<second@test>", "ben@example.com", "rechnung@musterfirma.de",
+				"Invoice copy", "body", Instant.parse("2026-08-02T10:00:00Z"), true, 512_000));
 		// Another tenant's case must never show up in this tenant's list.
-		caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "Foreign case", "body",
-				Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+		caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Foreign case",
+				"body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
 		mockMvc.perform(get("/api/cases"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(2))
 				.andExpect(jsonPath("$[0].sender").value("ben@example.com"))
+				.andExpect(jsonPath("$[0].recipient").value("rechnung@musterfirma.de"))
 				.andExpect(jsonPath("$[0].subject").value("Invoice copy"))
 				.andExpect(jsonPath("$[0].hasAttachments").value(true))
 				.andExpect(jsonPath("$[0].sizeBytes").value(512_000))
 				.andExpect(jsonPath("$[1].sender").value("anna@example.com"))
+				.andExpect(jsonPath("$[1].recipient").value("info@example.com"))
 				.andExpect(jsonPath("$[1].hasAttachments").value(false))
 				// Untriaged cases carry no verdict yet.
 				.andExpect(jsonPath("$[0].categoryName").doesNotExist())
@@ -108,7 +111,7 @@ class CaseControllerTest {
 	void namesTheCategoryAndTierOfATriagedCase() throws Exception {
 		CaseCategory category = caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS",
 				"Statusanfrage Bestellung", "Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0));
-		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "Lieferung 4711", "body",
+		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "info@example.com", "Lieferung 4711", "body",
 				Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		triaged.applyTriage(category, CaseTier.DRAFT, new BigDecimal("0.72"),
 				"Kunde fragt nach dem Liefertermin zu Bestellung 4711.");
@@ -127,8 +130,8 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void returnsAnEmptyListWhenTheTenantHasNoCases() throws Exception {
-		caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "Foreign case", "body",
-				Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+		caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Foreign case",
+				"body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
 		mockMvc.perform(get("/api/cases"))
 				.andExpect(status().isOk())

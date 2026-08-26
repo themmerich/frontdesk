@@ -22,6 +22,7 @@
   "cases": {
     "title": "Vorgänge",
     "sender": "Absender",
+    "recipient": "Empfänger",
     "subject": "Betreff",
     "receivedAt": "Eingegangen",
     "attachment": "Anhang",
@@ -43,7 +44,9 @@
     "tierAll": "Alle",
     "notTriaged": "Noch nicht bewertet",
     "summary": "Anliegen",
-    "confidence": "Sicherheit"
+    "confidence": "Sicherheit",
+    "tierInfo": "Info",
+    "tierIgnore": "Ignorieren"
   },
   "users": {
     "title": "Benutzer",
@@ -131,7 +134,9 @@
     "thresholdHint": "Ist sich die KI unsicherer als das, rutscht ein Vorgang eine Stufe tiefer — lieber ein Entwurf zu viel als eine falsche automatische Antwort.",
     "instructions": "Zusätzliche Anweisung",
     "instructionsHint": "Wird an den Prompt angehängt, für Eigenheiten dieses Betriebs. Zum Beispiel: „Mails von @lieferant-xy.de sind immer Bestellbestätigungen.\"",
-    "settingsSaved": "Einstellungen gespeichert."
+    "settingsSaved": "Einstellungen gespeichert.",
+    "tierInfo": "Info",
+    "tierIgnore": "Ignorieren"
   },
   "company": {
     "title": "Firma",

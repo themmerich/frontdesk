@@ -10,6 +10,7 @@ import { CaseList } from './case-list';
 const translations = {
   cases: {
     sender: 'From',
+    recipient: 'To',
     subject: 'Subject',
     receivedAt: 'Received',
     summary: 'Request',
@@ -19,6 +20,8 @@ const translations = {
     tierAutomatic: 'Automatic',
     tierDraft: 'Draft',
     tierManual: 'Manual',
+    tierInfo: 'Info',
+    tierIgnore: 'Ignore',
     tierAll: 'All tiers',
     notTriaged: 'Not triaged yet',
     attachment: 'Attachment',
@@ -70,6 +73,7 @@ describe('CaseList', () => {
       {
         id: '1',
         sender: 'anna@example.com',
+        recipient: 'info@example.com',
         subject: 'Delivery status',
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
@@ -82,6 +86,7 @@ describe('CaseList', () => {
       {
         id: '2',
         sender: 'ben@example.com',
+        recipient: 'info@example.com',
         subject: 'Invoice copy',
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
@@ -105,6 +110,7 @@ describe('CaseList', () => {
       {
         id: '1',
         sender: 'anna@example.com',
+        recipient: 'info@example.com',
         subject: 'No attachment',
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
@@ -117,6 +123,7 @@ describe('CaseList', () => {
       {
         id: '2',
         sender: 'ben@example.com',
+        recipient: 'info@example.com',
         subject: 'With attachment',
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
@@ -139,7 +146,7 @@ describe('CaseList', () => {
 
     expect(element.querySelector('.p-datatable-resizable')).not.toBeNull();
     // A handle per column; the inbox has no action column beside them.
-    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(9);
+    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(10);
   });
 
   it('keeps the attachment header out of sight but not out of reach', () => {
@@ -156,6 +163,7 @@ describe('CaseList', () => {
       {
         id: '1',
         sender: 'anna@example.com',
+        recipient: 'info@example.com',
         subject: 'Lieferung 4711',
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
@@ -168,6 +176,7 @@ describe('CaseList', () => {
       {
         id: '2',
         sender: 'ben@example.com',
+        recipient: 'info@example.com',
         subject: 'Noch unbewertet',
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: false,
@@ -197,14 +206,15 @@ describe('CaseList', () => {
   it('offers a multi-select for the tier column', async () => {
     const fixture = createFixture([]);
 
-    await openFilterMenu(fixture, 5);
+    await openFilterMenu(fixture, 6);
 
     const multiSelect = document.querySelector('p-multiselect') as HTMLElement;
     expect(multiSelect).not.toBeNull();
     multiSelect.click();
     await fixture.whenStable();
     const options = Array.from(document.querySelectorAll('li[role="option"]')).map((option) => option.textContent?.trim());
-    expect(options).toEqual(['Automatic', 'Draft', 'Manual']);
+    // The ladder from "frontdesk answers it" to "nobody has to read it".
+    expect(options).toEqual(['Automatic', 'Draft', 'Manual', 'Info', 'Ignore']);
   });
 
   it('shows the empty message when there are no cases', () => {
@@ -227,6 +237,7 @@ describe('CaseList', () => {
       {
         id: '1',
         sender: 'anna@example.com',
+        recipient: 'info@example.com',
         subject: 'Delivery status',
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
@@ -239,7 +250,7 @@ describe('CaseList', () => {
     ]);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelectorAll('th')).toHaveLength(9);
+    expect(element.querySelectorAll('th')).toHaveLength(10);
 
     const columnsButton = element.querySelector('p-button button') as HTMLButtonElement;
     columnsButton.click();
@@ -250,7 +261,7 @@ describe('CaseList', () => {
     subjectCheckbox.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(8);
+    expect(element.querySelectorAll('th')).toHaveLength(9);
     expect(element.textContent).not.toContain('Delivery status');
 
     const resetButton = Array.from(document.querySelectorAll('button')).find((button) =>
@@ -260,7 +271,7 @@ describe('CaseList', () => {
     resetButton.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(9);
+    expect(element.querySelectorAll('th')).toHaveLength(10);
     expect(element.textContent).toContain('Delivery status');
   });
 
@@ -277,6 +288,7 @@ describe('CaseList', () => {
     expect(fixture.componentInstance.visibleFields()).toEqual([
       'hasAttachments',
       'sender',
+      'recipient',
       'summary',
       'category',
       'tier',
@@ -291,14 +303,14 @@ describe('CaseList', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     // The attachment column filters without sorting, the size column does the opposite.
-    // Sortable: sender, subject, category, tier, confidence, received at, size.
+    // Sortable: sender, recipient, subject, category, tier, confidence, received at, size.
     // Filterable: everything but the size and the confidence.
-    expect(element.querySelectorAll('p-sorticon')).toHaveLength(7);
-    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(7);
+    expect(element.querySelectorAll('p-sorticon')).toHaveLength(8);
+    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(8);
   });
 
-  // Filter toggle order matches the column order: attachment, sender, subject,
-  // request, category, tier, received at. The confidence has no filter.
+  // Filter toggle order matches the column order: attachment, sender, recipient,
+  // subject, request, category, tier, received at. The confidence has no filter.
   async function openFilterMenu(fixture: ReturnType<typeof createFixture>, index: number): Promise<void> {
     const filterToggles = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('p-columnfilter button');
     filterToggles[index].click();
@@ -316,7 +328,7 @@ describe('CaseList', () => {
   it('offers a date filter for the received-at column', async () => {
     const fixture = createFixture([]);
 
-    await openFilterMenu(fixture, 6);
+    await openFilterMenu(fixture, 7);
 
     expect(document.querySelector('p-datepicker')).not.toBeNull();
   });
@@ -326,6 +338,7 @@ describe('CaseList', () => {
       {
         id: '1',
         sender: 'anna@example.com',
+        recipient: 'info@example.com',
         subject: 'Small with the bigger unit',
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
@@ -339,6 +352,7 @@ describe('CaseList', () => {
       {
         id: '2',
         sender: 'ben@example.com',
+        recipient: 'info@example.com',
         subject: 'Large with the smaller number',
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
@@ -354,8 +368,9 @@ describe('CaseList', () => {
     table.sort({ field: 'sizeBytes', order: 1 });
     await fixture.whenStable();
 
+    // Fourth cell: attachment, sender, recipient, subject.
     const subjects = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')).map((row) =>
-      row.querySelectorAll('td')[2].textContent?.trim(),
+      row.querySelectorAll('td')[3].textContent?.trim(),
     );
     expect(subjects).toEqual(['Small with the bigger unit', 'Large with the smaller number']);
   });
@@ -365,6 +380,7 @@ describe('CaseList', () => {
       {
         id: '1',
         sender: 'anna@example.com',
+        recipient: 'info@example.com',
         subject: 'Delivery status',
         receivedAt: new Date('2026-08-19T08:30:00Z'),
         hasAttachments: false,
@@ -377,6 +393,7 @@ describe('CaseList', () => {
       {
         id: '2',
         sender: 'ben@example.com',
+        recipient: 'info@example.com',
         subject: 'Invoice copy',
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,

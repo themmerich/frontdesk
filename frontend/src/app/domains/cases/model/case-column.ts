@@ -5,7 +5,7 @@
  */
 
 export type CaseColumnField =
-  'sender' | 'subject' | 'summary' | 'category' | 'tier' | 'confidence' | 'hasAttachments' | 'sizeBytes' | 'receivedAt';
+  'sender' | 'recipient' | 'subject' | 'summary' | 'category' | 'tier' | 'confidence' | 'hasAttachments' | 'sizeBytes' | 'receivedAt';
 
 export type CaseColumnDefinition = {
   field: CaseColumnField;
@@ -18,6 +18,10 @@ export const CASE_COLUMNS: readonly CaseColumnDefinition[] = [
   // Filtered through a tri-state checkbox: with attachment, without, or either.
   { field: 'hasAttachments', labelKey: 'cases.attachment', sortable: false, filterable: true },
   { field: 'sender', labelKey: 'cases.sender', sortable: true, filterable: true },
+  // Which of the tenant's addresses the mail came in on. One mailbox today,
+  // but aliases already deliver info@ and rechnung@ into the same inbox, and
+  // that difference decides who picks the case up.
+  { field: 'recipient', labelKey: 'cases.recipient', sortable: true, filterable: true },
   { field: 'subject', labelKey: 'cases.subject', sortable: true, filterable: true },
   // What the sender wants, in the model's words. Sorting a sentence
   // alphabetically says nothing, searching in it says a lot.
