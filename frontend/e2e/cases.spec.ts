@@ -88,13 +88,86 @@ test.describe('Cases page', () => {
     await expect(coloured).toHaveCSS('color', 'rgb(147, 197, 253)');
   });
 
+  test('deletes a single case through its row action, after asking', async ({ page }) => {
+    let deleted: Record<string, unknown> | undefined;
+    await page.route('**/api/cases', (route) => {
+      if (route.request().method() === 'DELETE') {
+        deleted = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ status: 204, body: '' });
+      }
+      return route.fulfill({ json: deleted ? [mockCases[1]] : mockCases });
+    });
+
+    await page.goto('/');
+    const row = page.getByRole('row', { name: /Delivery status/ });
+    await row.getByRole('button', { name: 'Vorgang löschen' }).click();
+
+    // Nothing goes without the question, and the question names the case.
+    const dialog = page.getByRole('alertdialog', { name: 'Löschen bestätigen' });
+    await expect(dialog).toContainText('Delivery status');
+    await dialog.getByRole('button', { name: 'Löschen' }).click();
+
+    await expect(page.getByText('Vorgang gelöscht.')).toBeVisible();
+    expect(deleted).toMatchObject({ ids: ['1'] });
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
+  });
+
+  test('leaves everything alone when the question is answered with no', async ({ page }) => {
+    let deleteCalls = 0;
+    await page.route('**/api/cases', (route) => {
+      if (route.request().method() === 'DELETE') {
+        deleteCalls++;
+        return route.fulfill({ status: 204, body: '' });
+      }
+      return route.fulfill({ json: mockCases });
+    });
+
+    await page.goto('/');
+    await page
+      .getByRole('row', { name: /Delivery status/ })
+      .getByRole('button', { name: 'Vorgang löschen' })
+      .click();
+    await page.getByRole('alertdialog', { name: 'Löschen bestätigen' }).getByRole('button', { name: 'Abbrechen' }).click();
+
+    expect(deleteCalls).toBe(0);
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+  });
+
+  test('deletes a selection through the toolbar, which stays disabled until something is ticked', async ({ page }) => {
+    let deleted: Record<string, unknown> | undefined;
+    await page.route('**/api/cases', (route) => {
+      if (route.request().method() === 'DELETE') {
+        deleted = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ status: 204, body: '' });
+      }
+      return route.fulfill({ json: deleted ? [] : mockCases });
+    });
+
+    await page.goto('/');
+    const toolbarDelete = page.getByRole('button', { name: 'Auswahl löschen' });
+    await expect(toolbarDelete).toBeDisabled();
+
+    // The header checkbox ticks every row at once.
+    await page.getByRole('columnheader').first().getByRole('checkbox').click();
+    await expect(toolbarDelete).toBeEnabled();
+    await toolbarDelete.click();
+
+    const dialog = page.getByRole('alertdialog', { name: 'Löschen bestätigen' });
+    await expect(dialog).toContainText('2');
+    await dialog.getByRole('button', { name: 'Löschen' }).click();
+
+    await expect(page.getByText('2 Vorgänge gelöscht.')).toBeVisible();
+    expect((deleted?.ids as string[]).sort()).toEqual(['1', '2']);
+  });
+
   test('filters the list down to the cases with an attachment', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
 
     await page.goto('/');
-    // The attachment column is the first one and filters through a tri-state checkbox.
+    // The attachment column filters through a tri-state checkbox. Scoped to the
+    // filter, because the rows carry selection checkboxes of their own now.
     await page.getByRole('columnheader', { name: 'Anhang' }).getByRole('button').click();
-    await page.getByRole('checkbox').click();
+    await page.locator('.p-datatable-filter-overlay').getByRole('checkbox').click();
 
     await expect(page.getByRole('row', { name: /Invoice copy/ })).toBeVisible();
     await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
@@ -102,7 +175,7 @@ test.describe('Cases page', () => {
 
   test('scrolls the table sideways instead of pushing the page out of view', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
-    // Narrow enough that all ten columns cannot possibly fit.
+    // Narrow enough that all eight columns cannot possibly fit.
     await page.setViewportSize({ width: 1000, height: 800 });
 
     await page.goto('/');
@@ -183,9 +256,8 @@ test.describe('Cases page', () => {
     const triaged = page.getByRole('row', { name: /Delivery status/ });
     await expect(triaged).toContainText('Statusanfrage Bestellung');
     await expect(triaged.locator('p-tag')).toHaveText('Automatisch');
-    // The sentence the model wrote, and how sure it was.
-    await expect(triaged).toContainText('Kunde fragt nach dem Liefertermin zu Bestellung 4711.');
-    await expect(triaged).toContainText('95');
+    // The model's sentence and its certainty are recorded but no longer shown here.
+    await expect(triaged).not.toContainText('Kunde fragt nach dem Liefertermin');
     // The case still waiting for the triage shows no tag at all.
     await expect(page.getByRole('row', { name: /Invoice copy/ }).locator('p-tag')).toHaveCount(0);
   });

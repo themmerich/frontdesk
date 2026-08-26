@@ -1,6 +1,6 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
-import { DatePipe, PercentPipe } from '@angular/common';
-import { Component, computed, inject, input, model, viewChild } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, computed, inject, input, linkedSignal, model, output, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
@@ -13,6 +13,7 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { PopoverModule } from 'primeng/popover';
 import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { TooltipModule } from 'primeng/tooltip';
 
 import { Case, CaseTier } from '../model/case';
 import { CASE_COLUMNS, CaseColumnDefinition, CaseColumnField, DEFAULT_COLUMN_ORDER } from '../model/case-column';
@@ -42,7 +43,6 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
     CdkDropList,
     DatePipe,
     FileSizePipe,
-    PercentPipe,
     FormsModule,
     TranslocoDirective,
     ButtonModule,
@@ -54,6 +54,7 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
     PopoverModule,
     TableModule,
     TagModule,
+    TooltipModule,
   ],
   templateUrl: './case-list.html',
 })
@@ -61,6 +62,22 @@ export class CaseList {
   private readonly transloco = inject(TranslocoService);
 
   readonly cases = input.required<Case[]>();
+
+  /**
+   * Deleting is the page's job, not the table's: the list says what the user picked, the page
+   * asks and calls the backend. Carries the cases rather than their ids, so the question can
+   * name what is about to go.
+   */
+  readonly deleteRequested = output<Case[]>();
+
+  /**
+   * Re-anchored on every reload, keeping what is still there. A refresh therefore does not
+   * silently drop the selection, and rows that were just deleted fall out of it by themselves.
+   */
+  protected readonly selection = linkedSignal<Case[], Case[]>({
+    source: this.cases,
+    computation: (cases, previous) => (previous?.value ?? []).filter((selected) => cases.some((current) => current.id === selected.id)),
+  });
 
   // Column order (drag & drop) and visibility (checkboxes) as in the PrimeNG
   // column-toggle demo. Two-way bound, so the page can hand them to the store
@@ -70,7 +87,7 @@ export class CaseList {
 
   private readonly table = viewChild.required(Table);
 
-  protected readonly globalFilterFields: CaseColumnField[] = ['sender', 'recipient', 'subject', 'summary', 'category'];
+  protected readonly globalFilterFields: CaseColumnField[] = ['sender', 'recipient', 'subject', 'category'];
 
   /** Options of the tier multi-select filter, matching the raw values the rows carry. */
   protected readonly tierOptions = computed<{ label: string; value: CaseTier }[]>(() => {
@@ -115,9 +132,10 @@ export class CaseList {
   /**
    * A floor for the table, so columns keep a readable width instead of being squeezed to nothing
    * once many of them are shown. Below it the table scrolls sideways within the page rather than
-   * pushing the layout out of the viewport.
+   * pushing the layout out of the viewport. The checkbox and the row action are narrow and come
+   * on top of the toggleable ones.
    */
-  protected readonly minTableWidth = computed(() => `${this.visibleColumns().length * 9}rem`);
+  protected readonly minTableWidth = computed(() => `${this.visibleColumns().length * 9 + 8}rem`);
 
   /** The tag's label and colour per tier; a tier is a small closed set, so both are spelled out. */
   protected tierLabelKey(tier: CaseTier): string {
@@ -136,5 +154,15 @@ export class CaseList {
 
   protected onExportCsv(): void {
     this.table().exportCSV();
+  }
+
+  protected onDeleteSelected(): void {
+    this.deleteRequested.emit(this.selection());
+  }
+
+  protected onDeleteRow(row: Case): void {
+    // Deliberately not the selection: the row action means this row, whatever is
+    // ticked elsewhere.
+    this.deleteRequested.emit([row]);
   }
 }

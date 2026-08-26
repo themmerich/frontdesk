@@ -2,7 +2,7 @@ import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { CompanyService } from '../../../shared/data/company-service';
 import { AuthStore } from '../../data/auth-store';
@@ -37,6 +37,7 @@ describe('Shell', () => {
         provideZonelessChangeDetection(),
         provideRouter([]),
         MessageService,
+        ConfirmationService,
         { provide: AuthStore, useValue: authStoreStub },
         { provide: CompanyService, useValue: companyServiceStub },
       ],

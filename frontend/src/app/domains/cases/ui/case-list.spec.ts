@@ -13,9 +13,7 @@ const translations = {
     recipient: 'To',
     subject: 'Subject',
     receivedAt: 'Received',
-    summary: 'Request',
     category: 'Category',
-    confidence: 'Confidence',
     tier: 'Tier',
     tierAutomatic: 'Automatic',
     tierDraft: 'Draft',
@@ -33,6 +31,11 @@ const translations = {
     search: 'Search',
     export: 'Export',
     delete: 'Delete',
+    actions: 'Actions',
+    selectAll: 'Select all',
+    selectRow: 'Select case',
+    deleteRow: 'Delete case',
+    deleteSelected: 'Delete selection',
     empty: 'No cases yet',
   },
 };
@@ -131,13 +134,14 @@ describe('CaseList', () => {
 
     expect(element.querySelector('.p-datatable-resizable')).not.toBeNull();
     // A handle per column; the inbox has no action column beside them.
-    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(10);
+    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(8);
   });
 
   it('keeps the attachment header out of sight but not out of reach', () => {
     const element = createFixture([]).nativeElement as HTMLElement;
 
-    const header = element.querySelectorAll('thead th')[0];
+    // The first header is the selection checkbox; the attachment column follows.
+    const header = element.querySelectorAll('thead th')[1];
     // The paperclip in the cells says it; the word above them only takes room.
     expect(header.textContent?.trim()).toBe('Attachment');
     expect(header.querySelector('.sr-only')?.textContent).toBe('Attachment');
@@ -163,9 +167,6 @@ describe('CaseList', () => {
 
     expect(triaged.textContent).toContain('Statusanfrage Bestellung');
     expect(triaged.querySelector('p-tag')?.textContent?.trim()).toBe('Automatic');
-    // What the sender wants, in one sentence, plus how sure the model was.
-    expect(triaged.textContent).toContain('Kunde fragt nach dem Liefertermin zu Bestellung 4711.');
-    expect(triaged.textContent).toContain('95%');
     // Nothing to show yet, and the dash says so to a screen reader too.
     expect(waiting.querySelector('p-tag')).toBeNull();
     expect(waiting.querySelector('[aria-label="Not triaged yet"]')).not.toBeNull();
@@ -197,7 +198,7 @@ describe('CaseList', () => {
   it('offers a multi-select for the tier column', async () => {
     const fixture = createFixture([]);
 
-    await openFilterMenu(fixture, 6);
+    await openFilterMenu(fixture, 5);
 
     const multiSelect = document.querySelector('p-multiselect') as HTMLElement;
     expect(multiSelect).not.toBeNull();
@@ -206,6 +207,61 @@ describe('CaseList', () => {
     const options = Array.from(document.querySelectorAll('li[role="option"]')).map((option) => option.textContent?.trim());
     // The ladder from "frontdesk answers it" to "nobody has to read it".
     expect(options).toEqual(['Automatic', 'Draft', 'Manual', 'Info', 'Ignore']);
+  });
+
+  it('asks the page to delete the row the button belongs to, not the selection', async () => {
+    const fixture = createFixture([aCase({ subject: 'Weg damit' }), aCase({ id: '2', subject: 'Bleibt' })]);
+    const requested: Case[][] = [];
+    fixture.componentInstance.deleteRequested.subscribe((cases) => requested.push(cases));
+    const element = fixture.nativeElement as HTMLElement;
+
+    const rowWithSubject = Array.from(element.querySelectorAll('tbody tr')).find((row) => row.textContent?.includes('Weg damit'))!;
+    (rowWithSubject.querySelector('td:last-child button') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(requested).toHaveLength(1);
+    expect(requested[0].map((selected) => selected.subject)).toEqual(['Weg damit']);
+  });
+
+  it('keeps the toolbar delete out of reach until something is ticked', async () => {
+    const fixture = createFixture([aCase({ subject: 'Erste' }), aCase({ id: '2', subject: 'Zweite' })]);
+    const requested: Case[][] = [];
+    fixture.componentInstance.deleteRequested.subscribe((cases) => requested.push(cases));
+    const element = fixture.nativeElement as HTMLElement;
+    const toolbarDelete = Array.from(element.querySelectorAll('button')).find((button) => button.textContent?.includes('Delete'))!;
+
+    expect(toolbarDelete.disabled).toBe(true);
+
+    // The header checkbox ticks every row at once.
+    (element.querySelector('p-table-header-checkbox input') as HTMLInputElement).click();
+    await fixture.whenStable();
+
+    expect(toolbarDelete.disabled).toBe(false);
+    toolbarDelete.click();
+    await fixture.whenStable();
+
+    expect(requested).toHaveLength(1);
+    expect(requested[0].map((selected) => selected.subject).sort()).toEqual(['Erste', 'Zweite']);
+  });
+
+  it('drops deleted rows out of the selection when the list reloads', async () => {
+    const fixture = createFixture([aCase({ subject: 'Erste' }), aCase({ id: '2', subject: 'Zweite' })]);
+    const element = fixture.nativeElement as HTMLElement;
+    (element.querySelector('p-table-header-checkbox input') as HTMLInputElement).click();
+    await fixture.whenStable();
+
+    // What the reload after a deletion looks like from here.
+    fixture.componentRef.setInput('cases', [aCase({ id: '2', subject: 'Zweite' })]);
+    await fixture.whenStable();
+
+    const toolbarDelete = Array.from(element.querySelectorAll('button')).find((button) => button.textContent?.includes('Delete'))!;
+    // Still one ticked, and it is the one that survived — not a stale row.
+    expect(toolbarDelete.disabled).toBe(false);
+    const requested: Case[][] = [];
+    fixture.componentInstance.deleteRequested.subscribe((cases) => requested.push(cases));
+    toolbarDelete.click();
+    await fixture.whenStable();
+    expect(requested[0].map((selected) => selected.subject)).toEqual(['Zweite']);
   });
 
   it('shows the empty message when there are no cases', () => {
@@ -266,10 +322,8 @@ describe('CaseList', () => {
       'hasAttachments',
       'sender',
       'recipient',
-      'summary',
       'category',
       'tier',
-      'confidence',
       'receivedAt',
       'sizeBytes',
     ]);
@@ -280,14 +334,14 @@ describe('CaseList', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     // The attachment column filters without sorting, the size column does the opposite.
-    // Sortable: sender, recipient, subject, category, tier, confidence, received at, size.
-    // Filterable: everything but the size and the confidence.
-    expect(element.querySelectorAll('p-sorticon')).toHaveLength(8);
-    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(8);
+    // Sortable: sender, recipient, subject, category, tier, received at, size.
+    // Filterable: everything but the size.
+    expect(element.querySelectorAll('p-sorticon')).toHaveLength(7);
+    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(7);
   });
 
   // Filter toggle order matches the column order: attachment, sender, recipient,
-  // subject, request, category, tier, received at. The confidence has no filter.
+  // subject, category, tier, received at. The size has no filter.
   async function openFilterMenu(fixture: ReturnType<typeof createFixture>, index: number): Promise<void> {
     const filterToggles = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('p-columnfilter button');
     filterToggles[index].click();
@@ -305,7 +359,7 @@ describe('CaseList', () => {
   it('offers a date filter for the received-at column', async () => {
     const fixture = createFixture([]);
 
-    await openFilterMenu(fixture, 7);
+    await openFilterMenu(fixture, 6);
 
     expect(document.querySelector('p-datepicker')).not.toBeNull();
   });
@@ -328,9 +382,9 @@ describe('CaseList', () => {
     table.sort({ field: 'sizeBytes', order: 1 });
     await fixture.whenStable();
 
-    // Fourth cell: attachment, sender, recipient, subject.
+    // Fifth cell: checkbox, attachment, sender, recipient, subject.
     const subjects = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')).map((row) =>
-      row.querySelectorAll('td')[3].textContent?.trim(),
+      row.querySelectorAll('td')[4].textContent?.trim(),
     );
     expect(subjects).toEqual(['Small with the bigger unit', 'Large with the smaller number']);
   });
