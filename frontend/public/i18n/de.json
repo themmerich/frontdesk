@@ -17,7 +17,8 @@
     "primaryDefault": "Standard",
     "surfaceColor": "Oberfläche",
     "preset": "Preset",
-    "categories": "Kategorien"
+    "categories": "Kategorien",
+    "aiSettings": "KI-Zugang"
   },
   "cases": {
     "title": "Vorgänge",
@@ -223,6 +224,26 @@
     "loading": "Einstellungen werden geladen",
     "required": "Pflichtfeld.",
     "invalidPort": "Port zwischen 1 und 65535 angeben."
+  },
+  "aiSettings": {
+    "title": "KI-Zugang",
+    "intro": "Standardmäßig läuft die Einordnung über den Zugang von frontdesk. Wer einen eigenen Anthropic-Schlüssel hinterlegt, rechnet ab dann über sein eigenes Konto ab.",
+    "legend": "Anthropic-Schlüssel",
+    "statePlatform": "Dieser Mandant nutzt den Zugang von frontdesk.",
+    "stateOwn": "Dieser Mandant nutzt einen eigenen Schlüssel. Die Kosten laufen über sein Anthropic-Konto.",
+    "apiKey": "Schlüssel",
+    "apiKeyHint": "Beginnt mit sk-ant-. Der Schlüssel wird verschlüsselt gespeichert und nie wieder angezeigt.",
+    "apiKeyInvalid": "Das sieht nicht nach einem Anthropic-Schlüssel aus.",
+    "test": "Testen",
+    "save": "Speichern",
+    "remove": "Entfernen",
+    "saved": "Schlüssel gespeichert.",
+    "removed": "Schlüssel entfernt. Der Mandant nutzt wieder den Zugang von frontdesk.",
+    "testSuccess": "Der Schlüssel funktioniert.",
+    "testFailed": "Der Schlüssel wurde abgelehnt.",
+    "error": "Das hat nicht geklappt.",
+    "loadError": "Der KI-Zugang konnte nicht geladen werden. Läuft das Backend?",
+    "loading": "Wird geladen"
   },
   "profile": {
     "title": "Profil",
