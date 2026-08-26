@@ -46,6 +46,20 @@ function toSettingsFormModel(settings: TriageSettings | null): SettingsFormModel
   };
 }
 
+/**
+ * Green, amber, red for the three tiers that need an answer — rising with the work left to a
+ * person. Blue and grey for the two that need none.
+ */
+type TierSeverity = 'success' | 'warn' | 'danger' | 'info' | 'secondary';
+
+const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
+  automatic: 'success',
+  draft: 'warn',
+  manual: 'danger',
+  info: 'info',
+  ignore: 'secondary',
+};
+
 /** A fresh category: prepared for approval rather than answered automatically. */
 function emptyFormModel(): CategoryFormModel {
   return { name: '', description: '', tier: 'draft', active: true };
@@ -127,16 +141,24 @@ export class CategoriesPage {
       { label: this.transloco.translate('categories.tierAutomatic'), value: 'automatic' },
       { label: this.transloco.translate('categories.tierDraft'), value: 'draft' },
       { label: this.transloco.translate('categories.tierManual'), value: 'manual' },
+      { label: this.transloco.translate('categories.tierInfo'), value: 'info' },
+      { label: this.transloco.translate('categories.tierIgnore'), value: 'ignore' },
     ];
   });
 
   /** The tag's label and colour per tier; a tier is a small closed set, so both are spelled out. */
   protected tierLabelKey(tier: CaseTier): string {
-    return { automatic: 'categories.tierAutomatic', draft: 'categories.tierDraft', manual: 'categories.tierManual' }[tier];
+    return {
+      automatic: 'categories.tierAutomatic',
+      draft: 'categories.tierDraft',
+      manual: 'categories.tierManual',
+      info: 'categories.tierInfo',
+      ignore: 'categories.tierIgnore',
+    }[tier];
   }
 
-  protected tierSeverity(tier: CaseTier): 'success' | 'warn' | 'info' {
-    return { automatic: 'success', draft: 'warn', manual: 'info' }[tier] as 'success' | 'warn' | 'info';
+  protected tierSeverity(tier: CaseTier): TierSeverity {
+    return TIER_SEVERITY[tier];
   }
 
   protected onAdd(): void {

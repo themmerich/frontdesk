@@ -21,6 +21,8 @@ const translations = {
     tierAutomatic: 'Automatic',
     tierDraft: 'Draft',
     tierManual: 'Manual',
+    tierInfo: 'Info',
+    tierIgnore: 'Ignore',
     state: 'State',
     active: 'Active',
     inactive: 'Inactive',
@@ -160,6 +162,18 @@ describe('CategoriesPage', () => {
     fixture.detectChanges();
     return element;
   }
+
+  it('offers every tier, from answering by itself to not looking at all', async () => {
+    const fixture = TestBed.createComponent(CategoriesPage);
+    fixture.detectChanges();
+    await openDialog(fixture, 'Add');
+
+    (document.querySelector('p-select') as HTMLElement).click();
+    await fixture.whenStable();
+
+    const options = Array.from(document.querySelectorAll('li[role="option"]')).map((option) => option.textContent?.trim());
+    expect(options).toEqual(['Automatic', 'Draft', 'Manual', 'Info', 'Ignore']);
+  });
 
   it('shows the stored threshold as a percentage', () => {
     const element = (() => {

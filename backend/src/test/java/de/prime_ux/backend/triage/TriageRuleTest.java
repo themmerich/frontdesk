@@ -24,7 +24,12 @@ class TriageRuleTest {
 			"Allgemeine Frage.", CaseTier.DRAFT, 1);
 	private final CaseCategory invoice = new CaseCategory(tenant, "INVOICE", "Rechnung", "Eingehende Rechnung.",
 			CaseTier.MANUAL, 2);
-	private final List<CaseCategory> categories = List.of(orderStatus, inquiry, invoice);
+	private final CaseCategory confirmation = new CaseCategory(tenant, "ORDER_CONFIRMATION", "Bestätigung",
+			"Reine Mitteilung ohne Frage.", CaseTier.INFO, 3);
+	private final CaseCategory marketing = new CaseCategory(tenant, "MARKETING", "Werbung",
+			"Unaufgeforderte Werbung.", CaseTier.IGNORE, 4);
+	private final List<CaseCategory> categories = List.of(orderStatus, inquiry, invoice, confirmation,
+			marketing);
 
 	private CaseTier tierFor(String code, String confidence) {
 		TriageVerdict verdict = new TriageVerdict(code, confidence == null ? null : new BigDecimal(confidence),
@@ -37,6 +42,8 @@ class TriageRuleTest {
 		assertThat(tierFor("ORDER_STATUS", "0.95")).isEqualTo(CaseTier.AUTOMATIC);
 		assertThat(tierFor("GENERAL_INQUIRY", "0.95")).isEqualTo(CaseTier.DRAFT);
 		assertThat(tierFor("INVOICE", "0.95")).isEqualTo(CaseTier.MANUAL);
+		assertThat(tierFor("ORDER_CONFIRMATION", "0.95")).isEqualTo(CaseTier.INFO);
+		assertThat(tierFor("MARKETING", "0.95")).isEqualTo(CaseTier.IGNORE);
 	}
 
 	@Test
@@ -45,12 +52,28 @@ class TriageRuleTest {
 	}
 
 	@Test
-	void dropsOneTierBelowTheThreshold() {
+	void movesOneStepTowardsAPersonBelowTheThreshold() {
 		// Rather one draft too many than a wrong automatic answer.
 		assertThat(tierFor("ORDER_STATUS", "0.79")).isEqualTo(CaseTier.DRAFT);
 		assertThat(tierFor("GENERAL_INQUIRY", "0.4")).isEqualTo(CaseTier.MANUAL);
-		// Manual is already the bottom.
+		// A mail nobody was going to answer now wants a pair of eyes on it.
+		assertThat(tierFor("ORDER_CONFIRMATION", "0.4")).isEqualTo(CaseTier.MANUAL);
+		// Not straight to manual: a glance first, rather than work in the queue.
+		assertThat(tierFor("MARKETING", "0.4")).isEqualTo(CaseTier.INFO);
+		// Manual is where everything converges.
 		assertThat(tierFor("INVOICE", "0.1")).isEqualTo(CaseTier.MANUAL);
+	}
+
+	@Test
+	void letsNoUncertainCaseDisappearUnseen() {
+		// Whatever the tier, an uncertain verdict ends up where a person looks.
+		for (CaseTier tier : CaseTier.values()) {
+			assertThat(tier.whenUncertain()).isIn(CaseTier.DRAFT, CaseTier.MANUAL, CaseTier.INFO);
+		}
+		// … and never further from a person than it started.
+		assertThat(CaseTier.IGNORE.whenUncertain()).isEqualTo(CaseTier.INFO);
+		assertThat(CaseTier.INFO.whenUncertain()).isEqualTo(CaseTier.MANUAL);
+		assertThat(CaseTier.MANUAL.whenUncertain()).isEqualTo(CaseTier.MANUAL);
 	}
 
 	@Test
