@@ -1,11 +1,14 @@
 <ng-container *transloco="let t">
-  <main class="flex flex-col gap-4">
+  <!-- h-full and min-h-0 hand the card's height down to the table, so it scrolls
+       inside its own frame with the toolbar and the column headers standing still. -->
+  <main class="flex h-full min-h-0 flex-col gap-4">
     <h1 class="text-2xl font-semibold">{{ t('cases.title') }}</h1>
     <!-- value() throws while the resource is in the error state, so the list only renders in the else branch. -->
     @if (casesService.cases.error()) {
       <p class="text-red-600 dark:text-red-400">{{ t('cases.loadError') }}</p>
     } @else {
       <app-case-list
+        class="flex min-h-0 flex-auto flex-col"
         [cases]="casesService.cases.value()"
         [(columnOrder)]="columnsService.order"
         [(visibleFields)]="columnsService.visibleFields"

@@ -54,6 +54,24 @@ test.describe('Profile', () => {
     await expect(page.getByLabel('Benutzername')).toBeDisabled();
   });
 
+  test('keeps a long page reachable inside the content area', async ({ page }) => {
+    await page.route('**/api/auth/me', (route) => route.fulfill({ json: user }));
+    await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
+    await page.route('**/api/branches', (route) => route.fulfill({ json: branches }));
+    await page.route('**/api/profile', (route) => route.fulfill({ json: profile }));
+    // Short enough that the profile form cannot fit.
+    await page.setViewportSize({ width: 1280, height: 600 });
+
+    await page.goto('/profile');
+
+    // The shell itself never scrolls; the card inside it does, and the password
+    // section at the very bottom has to stay reachable.
+    const pageOverflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
+    expect(pageOverflow).toBeLessThanOrEqual(1);
+    await page.getByRole('button', { name: 'Passwort ändern' }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole('button', { name: 'Passwort ändern' })).toBeVisible();
+  });
+
   test('saves the edited profile, which the sidebar picks up', async ({ page }) => {
     let currentName = 'Anna Admin';
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: { ...user, displayName: currentName } }));
