@@ -1,0 +1,128 @@
+<ng-container *transloco="let t">
+  <main class="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col gap-4">
+    @if (detailService.detail.error()) {
+      <p-message severity="error">{{ t('caseDetail.loadError') }}</p-message>
+      <a routerLink="/" class="text-primary hover:underline">{{ t('caseDetail.backToInbox') }}</a>
+    } @else if (detailService.detail.isLoading() || !detailService.detail.hasValue()) {
+      <div class="flex flex-auto items-center justify-center py-16" role="status" [attr.aria-label]="t('caseDetail.loading')">
+        <i class="pi pi-spinner pi-spin text-3xl text-surface-400 dark:text-surface-500" aria-hidden="true"></i>
+      </div>
+    } @else {
+      @let aCase = detailService.detail.value()!;
+
+      <!-- Back and paging stay together at the top: both are about leaving this case. -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <a routerLink="/" class="flex items-center gap-2 text-primary hover:underline">
+          <i class="pi pi-arrow-left" aria-hidden="true"></i>
+          {{ t('caseDetail.backToInbox') }}
+        </a>
+        @if (neighbours(); as around) {
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-surface-500 dark:text-surface-400">
+              {{ t('caseDetail.position', { position: around.position, total: around.total }) }}
+            </span>
+            <p-button
+              icon="pi pi-chevron-left"
+              severity="secondary"
+              [text]="true"
+              [ariaLabel]="t('caseDetail.previous')"
+              [pTooltip]="t('caseDetail.previous')"
+              [disabled]="around.previous === null"
+              (onClick)="onGoTo(around.previous)"
+            />
+            <p-button
+              icon="pi pi-chevron-right"
+              severity="secondary"
+              [text]="true"
+              [ariaLabel]="t('caseDetail.next')"
+              [pTooltip]="t('caseDetail.next')"
+              [disabled]="around.next === null"
+              (onClick)="onGoTo(around.next)"
+            />
+          </div>
+        }
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="text-2xl font-semibold" [attr.data-category-color]="aCase.categoryColor">{{ aCase.subject }}</h1>
+          @if (aCase.tier) {
+            <p-tag [value]="t(tierLabelKey(aCase.tier))" [severity]="tierSeverity(aCase.tier)" />
+          }
+        </div>
+        <p class="flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400">
+          <span>{{ aCase.sender }}</span>
+          <i class="pi pi-arrow-right text-xs" aria-hidden="true"></i>
+          <span>{{ aCase.recipient ?? t('caseDetail.unknownRecipient') }}</span>
+          <span aria-hidden="true">·</span>
+          <span>{{ aCase.receivedAt | date: 'medium' }}</span>
+          <span aria-hidden="true">·</span>
+          <span>{{ aCase.sizeBytes | fileSize }}</span>
+        </p>
+      </div>
+
+      <!-- The mail keeps a readable measure; the verdict sits beside it on wide screens
+           and moves above it on narrow ones, where the answer matters before the evidence. -->
+      <div class="flex min-h-0 flex-auto flex-col gap-4 lg:flex-row-reverse">
+        <aside class="flex flex-col gap-3 lg:w-72 lg:shrink-0">
+          <h2 class="text-sm font-medium">{{ t('caseDetail.verdict') }}</h2>
+          <dl class="flex flex-col gap-2 text-sm">
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-surface-500 dark:text-surface-400">{{ t('caseDetail.category') }}</dt>
+              <dd [attr.data-category-color]="aCase.categoryColor">{{ aCase.categoryName ?? '–' }}</dd>
+            </div>
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-surface-500 dark:text-surface-400">{{ t('caseDetail.confidence') }}</dt>
+              <dd>{{ aCase.confidence !== null ? (aCase.confidence | percent) : '–' }}</dd>
+            </div>
+          </dl>
+          @if (aCase.summary) {
+            <p class="text-sm">{{ aCase.summary }}</p>
+          }
+          <div class="flex flex-col gap-2">
+            <label for="tier" class="text-sm text-surface-500 dark:text-surface-400">{{ t('caseDetail.tier') }}</label>
+            <!-- Overruling the triage is the point of the human in the loop, so it happens
+                 where the verdict is read, not in a separate dialog. -->
+            <p-select
+              inputId="tier"
+              appendTo="body"
+              class="w-full"
+              [options]="tierOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="aCase.tier"
+              [disabled]="isChangingTier()"
+              (onChange)="onChangeTier($event.value)"
+            />
+          </div>
+        </aside>
+
+        <section class="flex min-h-0 flex-auto flex-col gap-2">
+          <h2 class="text-sm font-medium">{{ t('caseDetail.original') }}</h2>
+          <div
+            class="min-h-0 flex-auto overflow-y-auto rounded-lg bg-surface-50 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:bg-surface-800"
+          >
+            {{ aCase.bodyText }}
+          </div>
+          @if (aCase.hasAttachments) {
+            <p class="text-sm text-surface-500 dark:text-surface-400">
+              <i class="pi pi-paperclip" aria-hidden="true"></i>
+              {{ t('caseDetail.attachmentsNotStored') }}
+            </p>
+          }
+        </section>
+      </div>
+
+      <div class="flex justify-end border-t border-surface-200 pt-3 dark:border-surface-700">
+        <p-button
+          icon="pi pi-trash"
+          severity="danger"
+          [outlined]="true"
+          [label]="t('caseDetail.delete')"
+          [loading]="isDeleting()"
+          (onClick)="onDelete(aCase)"
+        />
+      </div>
+    }
+  </main>
+</ng-container>

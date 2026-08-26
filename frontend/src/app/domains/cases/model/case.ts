@@ -24,6 +24,14 @@ export type Case = {
 };
 
 /**
+ * One case with everything the detail view shows. The body is deliberately not part of {@link
+ * Case}: the list would pay for the full text of every mail on every reload and never shows one.
+ */
+export type CaseDetail = Case & {
+  bodyText: string;
+};
+
+/**
  * The palette a category's colour can come from. Spelled out here rather than imported from the
  * admin domain: bounded contexts keep their own model, and the inbox only ever reads the name to
  * resolve `--app-category-<name>` from styles.css.

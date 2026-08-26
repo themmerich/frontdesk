@@ -152,7 +152,7 @@
            palette name and styles.css resolves it, so the row never hard-codes a value and
            the same name reads light and dark. Cells with a colour of their own (the tier
            tag, the dashes) keep it. -->
-      <tr [attr.data-category-color]="row.categoryColor">
+      <tr [attr.data-category-color]="row.categoryColor" (dblclick)="onRowDoubleClick($event, row)">
         <td>
           <p-table-checkbox [value]="row" [ariaLabel]="t('cases.selectRow')" />
         </td>
@@ -197,7 +197,18 @@
             }
           </td>
         }
-        <td>
+        <td class="whitespace-nowrap">
+          <!-- The keyboard way in, and the discoverable one: a double click on the row
+               does the same but nobody finds it without being told. -->
+          <p-button
+            icon="pi pi-pencil"
+            variant="text"
+            severity="secondary"
+            [ariaLabel]="t('cases.edit')"
+            [pTooltip]="t('cases.edit')"
+            tooltipPosition="left"
+            (onClick)="onOpen(row)"
+          />
           <p-button
             icon="pi pi-trash"
             variant="text"

@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { Table } from 'primeng/table';
@@ -35,6 +36,7 @@ const translations = {
     selectAll: 'Select all',
     selectRow: 'Select case',
     deleteRow: 'Delete case',
+    edit: 'Edit',
     deleteSelected: 'Delete selection',
     empty: 'No cases yet',
   },
@@ -79,7 +81,7 @@ describe('CaseList', () => {
           preloadLangs: true,
         }),
       ],
-      providers: [provideZonelessChangeDetection()],
+      providers: [provideZonelessChangeDetection(), provideRouter([])],
     }).compileComponents();
   });
 
@@ -216,11 +218,45 @@ describe('CaseList', () => {
     const element = fixture.nativeElement as HTMLElement;
 
     const rowWithSubject = Array.from(element.querySelectorAll('tbody tr')).find((row) => row.textContent?.includes('Weg damit'))!;
-    (rowWithSubject.querySelector('td:last-child button') as HTMLButtonElement).click();
+    (rowWithSubject.querySelector('button[aria-label="Delete case"]') as HTMLButtonElement).click();
     await fixture.whenStable();
 
     expect(requested).toHaveLength(1);
     expect(requested[0].map((selected) => selected.subject)).toEqual(['Weg damit']);
+  });
+
+  it('opens a case through the row action and through a double click', async () => {
+    const fixture = createFixture([aCase({ subject: 'Rechnung 2026-081' })]);
+    const opened: Case[] = [];
+    const orders: string[][] = [];
+    fixture.componentInstance.caseOpened.subscribe((one) => opened.push(one));
+    fixture.componentInstance.orderChanged.subscribe((ids) => orders.push(ids));
+    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr')!;
+
+    (row.querySelector('button[aria-label="Edit"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(opened.map((one) => one.subject)).toEqual(['Rechnung 2026-081']);
+    // The detail view pages through what the table shows, so the order travels along.
+    expect(orders).toEqual([['1']]);
+
+    row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await fixture.whenStable();
+
+    expect(opened).toHaveLength(2);
+  });
+
+  it('does not open a case when the double click was meant for a control', async () => {
+    const fixture = createFixture([aCase()]);
+    const opened: Case[] = [];
+    fixture.componentInstance.caseOpened.subscribe((one) => opened.push(one));
+
+    // Ticking a row twice must select it, not open it.
+    const checkbox = (fixture.nativeElement as HTMLElement).querySelector('p-table-checkbox input')!;
+    checkbox.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await fixture.whenStable();
+
+    expect(opened).toEqual([]);
   });
 
   it('keeps the toolbar delete out of reach until something is ticked', async () => {

@@ -104,6 +104,15 @@ public class Case {
 	}
 
 	/**
+	 * A person overruling the triage. Only the tier moves: the category, the summary and the
+	 * confidence stay what the model said, because they still describe the classification it made
+	 * — what changed is what happens with the case, and that is the tenant's call.
+	 */
+	public void changeTier(CaseTier tier) {
+		this.tier = tier;
+	}
+
+	/**
 	 * Records what the triage made of this case. The category may be null when the model found
 	 * nothing that fits; the tier never is, because every case has to land somewhere.
 	 */

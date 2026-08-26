@@ -70,6 +70,15 @@ export class CaseList {
    */
   readonly deleteRequested = output<Case[]>();
 
+  /** A row was opened; routing is the page's job, not the table's. */
+  readonly caseOpened = output<Case>();
+
+  /**
+   * The order the table currently shows, after filtering and sorting. The detail view pages
+   * through exactly this, because "the next one" means the next one on screen.
+   */
+  readonly orderChanged = output<string[]>();
+
   /**
    * Re-anchored on every reload, keeping what is still there. A refresh therefore does not
    * silently drop the selection, and rows that were just deleted fall out of it by themselves.
@@ -158,6 +167,33 @@ export class CaseList {
 
   protected onDeleteSelected(): void {
     this.deleteRequested.emit(this.selection());
+  }
+
+  /**
+   * The order as the table renders it: filtered when a filter is on, and sorted in place by
+   * PrimeNG otherwise. Published at the moment a case is opened, which is the only moment it is
+   * needed and the only one where it is certainly settled.
+   */
+  protected publishOrder(): void {
+    const table = this.table();
+    this.orderChanged.emit(((table.filteredValue ?? table.value) as Case[]).map((row) => row.id));
+  }
+
+  /** The row action, and the way in that a keyboard can reach. */
+  protected onOpen(row: Case): void {
+    this.publishOrder();
+    this.caseOpened.emit(row);
+  }
+
+  /**
+   * A double click anywhere on the row opens it, except on the controls that mean something
+   * else — ticking a row twice must not open it.
+   */
+  protected onRowDoubleClick(event: Event, row: Case): void {
+    if ((event.target as HTMLElement).closest('button, input, .p-checkbox')) {
+      return;
+    }
+    this.onOpen(row);
   }
 
   protected onDeleteRow(row: Case): void {
