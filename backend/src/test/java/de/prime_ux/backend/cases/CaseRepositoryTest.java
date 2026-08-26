@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import de.prime_ux.backend.TestcontainersConfiguration;
+import de.prime_ux.backend.crypto.EncryptedStringConverter;
+import de.prime_ux.backend.crypto.SecretEncryptor;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.tenants.TenantRepository;
 import java.time.Instant;
@@ -16,7 +18,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 
 @DataJpaTest
-@Import(TestcontainersConfiguration.class)
+// The slice loads entities and repositories but no components, and the mailbox
+// password's converter is one — without it Hibernate cannot build the mapping.
+@Import({ TestcontainersConfiguration.class, SecretEncryptor.class, EncryptedStringConverter.class })
 class CaseRepositoryTest {
 
 	@Autowired

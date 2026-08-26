@@ -1,7 +1,9 @@
 package de.prime_ux.backend.mailsettings;
 
+import de.prime_ux.backend.crypto.EncryptedStringConverter;
 import de.prime_ux.backend.tenants.Tenant;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -60,7 +62,9 @@ public class TenantMailSettings {
 	@Column(nullable = false)
 	private String username;
 
-	// @ToDo: encrypt mailbox credentials at rest before the first real customer.
+	// Encrypted at rest: this is the tenant's own mailbox login, and a database
+	// dump must not hand it over. The converter takes care of both directions.
+	@Convert(converter = EncryptedStringConverter.class)
 	@Column(nullable = false)
 	private String password;
 

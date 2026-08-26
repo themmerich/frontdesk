@@ -9,6 +9,7 @@ import com.icegreen.greenmail.util.ServerSetupTest;
 import de.prime_ux.backend.TestcontainersConfiguration;
 import de.prime_ux.backend.mailsettings.MailSettingsMode;
 import de.prime_ux.backend.mailsettings.TenantMailSettings;
+import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.tenants.TenantLogoRepository;
 import de.prime_ux.backend.tenants.TenantRepository;
@@ -51,6 +52,9 @@ class MailIngestServiceTest {
 	@Autowired
 	private TenantLogoRepository tenantLogoRepository;
 
+	@Autowired
+	private TenantMailSettingsRepository tenantMailSettingsRepository;
+
 	private Tenant tenant;
 
 	@AfterAll
@@ -61,6 +65,9 @@ class MailIngestServiceTest {
 	@BeforeEach
 	void cleanSlate() throws Exception {
 		caseRepository.deleteAll();
+		// Settings reference tenants and may linger from another test class sharing
+		// this context's database.
+		tenantMailSettingsRepository.deleteAll();
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		greenMail.purgeEmailFromAllMailboxes();

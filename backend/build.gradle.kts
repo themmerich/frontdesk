@@ -58,6 +58,10 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	// Stored secrets are encrypted, so a test context needs key material like any
+	// deployment. Values only have to be well-formed; nothing here outlives the run.
+	systemProperty("frontdesk.crypto.secret", "test-only-not-a-real-secret")
+	systemProperty("frontdesk.crypto.salt", "0123456789abcdef")
 }
 
 // bootRun is the dev run mode; the dev profile unlocks dev-only behavior such
