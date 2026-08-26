@@ -32,6 +32,8 @@ class AnthropicTriageService implements TriageService {
 			- confidence ist deine eigene Einschätzung zwischen 0 und 1, wie sicher die Zuordnung ist.
 			- summary ist ein einziger deutscher Satz: was will der Absender?
 			- Beurteile nur, worum es in der Mail geht. Was mit ihr geschieht, entscheidet der Betrieb.
+			- Die Empfängeradresse sagt etwas über die Zuständigkeit, entscheidet die Kategorie aber
+			  nicht: eine Rechnungsfrage an info@ bleibt eine Rechnungsfrage.
 			""";
 
 	private final ChatClient chatClient;
@@ -82,17 +84,26 @@ class AnthropicTriageService implements TriageService {
 		return prompt.toString();
 	}
 
-	private String userPrompt(Case mailCase) {
-		return """
-				Absender: %s
-				Betreff: %s
-				Anhang: %s
-
-				%s""".formatted(mailCase.getSender(), mailCase.getSubject(),
-				mailCase.isHasAttachments() ? "ja" : "nein", truncate(mailCase.getBodyText()));
+	/**
+	 * Static and package-private so a test can read the prompt the model is actually handed;
+	 * nothing here depends on the service's state.
+	 */
+	static String userPrompt(Case mailCase) {
+		StringBuilder prompt = new StringBuilder("Absender: ").append(mailCase.getSender()).append('\n');
+		// Which of the tenant's addresses the mail arrived on — with an alias that is
+		// what the sender wrote to, and "an rechnung@" often says more than half the
+		// body. Left out rather than filled with a placeholder when nothing was
+		// recorded: "unbekannt" would read like a fact about the mail.
+		if (mailCase.getRecipient() != null && !mailCase.getRecipient().isBlank()) {
+			prompt.append("Empfänger: ").append(mailCase.getRecipient()).append('\n');
+		}
+		return prompt.append("Betreff: ").append(mailCase.getSubject()).append('\n')
+				.append("Anhang: ").append(mailCase.isHasAttachments() ? "ja" : "nein").append("\n\n")
+				.append(truncate(mailCase.getBodyText()))
+				.toString();
 	}
 
-	private String truncate(String bodyText) {
+	private static String truncate(String bodyText) {
 		if (bodyText.length() <= MAX_BODY_CHARS) {
 			return bodyText;
 		}
