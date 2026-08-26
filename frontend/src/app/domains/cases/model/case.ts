@@ -13,13 +13,22 @@ export type Case = {
   receivedAt: Date;
   hasAttachments: boolean;
   sizeBytes: number;
-  /** What the triage made of the case; all four null until it looked at it. */
+  /** What the triage made of the case; all of it null until it looked at the case. */
   summary: string | null;
   categoryName: string | null;
+  /** The colour the category carries, if any; the row is drawn in it. */
+  categoryColor: CaseCategoryColor | null;
   tier: CaseTier | null;
   /** The model's own certainty between 0 and 1 — a self-assessment, not a measured probability. */
   confidence: number | null;
 };
+
+/**
+ * The palette a category's colour can come from. Spelled out here rather than imported from the
+ * admin domain: bounded contexts keep their own model, and the inbox only ever reads the name to
+ * resolve `--app-category-<name>` from styles.css.
+ */
+export type CaseCategoryColor = 'blue' | 'green' | 'amber' | 'red' | 'violet' | 'teal' | 'grey';
 
 /**
  * How a case is handled: two questions resolved into one ladder — does this need an answer, and

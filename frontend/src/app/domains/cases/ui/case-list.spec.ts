@@ -37,6 +37,25 @@ const translations = {
   },
 };
 
+/** One ingested mail, with only the fields a test actually cares about spelled out. */
+function aCase(overrides: Partial<Case> = {}): Case {
+  return {
+    id: '1',
+    sender: 'anna@example.com',
+    recipient: 'info@example.com',
+    subject: 'Delivery status',
+    receivedAt: new Date('2026-08-19T08:30:00Z'),
+    hasAttachments: false,
+    sizeBytes: 2048,
+    summary: null,
+    categoryName: null,
+    categoryColor: null,
+    tier: null,
+    confidence: null,
+    ...overrides,
+  };
+}
+
 describe('CaseList', () => {
   beforeEach(async () => {
     // PrimeNG's overlay queries matchMedia via the document's view; JSDOM does not implement it.
@@ -70,32 +89,15 @@ describe('CaseList', () => {
 
   it('renders one row per case', () => {
     const fixture = createFixture([
-      {
-        id: '1',
-        sender: 'anna@example.com',
-        recipient: 'info@example.com',
-        subject: 'Delivery status',
-        receivedAt: new Date('2026-08-19T08:30:00Z'),
-        hasAttachments: false,
-        sizeBytes: 2048,
-        summary: null,
-        categoryName: null,
-        tier: null,
-        confidence: null,
-      },
-      {
+      aCase(),
+      aCase({
         id: '2',
         sender: 'ben@example.com',
-        recipient: 'info@example.com',
         subject: 'Invoice copy',
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
         sizeBytes: 1.4 * 1024 * 1024,
-        summary: null,
-        categoryName: null,
-        tier: null,
-        confidence: null,
-      },
+      }),
     ]);
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
@@ -107,32 +109,15 @@ describe('CaseList', () => {
 
   it('shows the attachment icon and the formatted size', () => {
     const fixture = createFixture([
-      {
-        id: '1',
-        sender: 'anna@example.com',
-        recipient: 'info@example.com',
-        subject: 'No attachment',
-        receivedAt: new Date('2026-08-19T08:30:00Z'),
-        hasAttachments: false,
-        sizeBytes: 2048,
-        summary: null,
-        categoryName: null,
-        tier: null,
-        confidence: null,
-      },
-      {
+      aCase({ subject: 'No attachment' }),
+      aCase({
         id: '2',
         sender: 'ben@example.com',
-        recipient: 'info@example.com',
         subject: 'With attachment',
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
         sizeBytes: 1.4 * 1024 * 1024,
-        summary: null,
-        categoryName: null,
-        tier: null,
-        confidence: null,
-      },
+      }),
     ]);
 
     const element = fixture.nativeElement as HTMLElement;
@@ -160,32 +145,15 @@ describe('CaseList', () => {
 
   it('shows the triage verdict, and a dash while a case is still waiting for it', () => {
     const element = createFixture([
-      {
-        id: '1',
-        sender: 'anna@example.com',
-        recipient: 'info@example.com',
+      aCase({
         subject: 'Lieferung 4711',
-        receivedAt: new Date('2026-08-19T08:30:00Z'),
-        hasAttachments: false,
-        sizeBytes: 2048,
         summary: 'Kunde fragt nach dem Liefertermin zu Bestellung 4711.',
         categoryName: 'Statusanfrage Bestellung',
+        categoryColor: 'blue',
         tier: 'automatic',
         confidence: 0.95,
-      },
-      {
-        id: '2',
-        sender: 'ben@example.com',
-        recipient: 'info@example.com',
-        subject: 'Noch unbewertet',
-        receivedAt: new Date('2026-08-19T09:15:00Z'),
-        hasAttachments: false,
-        sizeBytes: 2048,
-        summary: null,
-        categoryName: null,
-        tier: null,
-        confidence: null,
-      },
+      }),
+      aCase({ id: '2', sender: 'ben@example.com', subject: 'Noch unbewertet', receivedAt: new Date('2026-08-19T09:15:00Z') }),
     ]).nativeElement as HTMLElement;
 
     // The table sorts newest first, so the rows are found by their subject.
@@ -201,6 +169,29 @@ describe('CaseList', () => {
     // Nothing to show yet, and the dash says so to a screen reader too.
     expect(waiting.querySelector('p-tag')).toBeNull();
     expect(waiting.querySelector('[aria-label="Not triaged yet"]')).not.toBeNull();
+  });
+
+  it('paints a row in the colour of its category, and leaves an uncoloured one alone', () => {
+    const element = createFixture([
+      aCase({ subject: 'Rechnung 2026-081', categoryName: 'Rechnung', categoryColor: 'amber' }),
+      aCase({
+        id: '2',
+        sender: 'ben@example.com',
+        subject: 'Ohne Farbe',
+        receivedAt: new Date('2026-08-19T09:15:00Z'),
+        categoryName: 'Sonstiges',
+      }),
+    ]).nativeElement as HTMLElement;
+
+    // The table sorts newest first, so the rows are found by their subject.
+    const rows = Array.from(element.querySelectorAll('tbody tr'));
+    const coloured = rows.find((row) => row.textContent?.includes('Rechnung 2026-081'))!;
+    const plain = rows.find((row) => row.textContent?.includes('Ohne Farbe'))!;
+
+    // The row carries the palette name; styles.css turns it into a light and a
+    // dark value, so no colour is ever hard-coded here.
+    expect(coloured.getAttribute('data-category-color')).toBe('amber');
+    expect(plain.hasAttribute('data-category-color')).toBe(false);
   });
 
   it('offers a multi-select for the tier column', async () => {
@@ -233,21 +224,7 @@ describe('CaseList', () => {
   });
 
   it('hides an unchecked column and restores it on reset', async () => {
-    const fixture = createFixture([
-      {
-        id: '1',
-        sender: 'anna@example.com',
-        recipient: 'info@example.com',
-        subject: 'Delivery status',
-        receivedAt: new Date('2026-08-19T08:30:00Z'),
-        hasAttachments: false,
-        sizeBytes: 2048,
-        summary: null,
-        categoryName: null,
-        tier: null,
-        confidence: null,
-      },
-    ]);
+    const fixture = createFixture([aCase()]);
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelectorAll('th')).toHaveLength(10);
@@ -335,33 +312,16 @@ describe('CaseList', () => {
 
   it('sorts the size column by its byte value, not by the rendered unit', async () => {
     const fixture = createFixture([
-      {
-        id: '1',
-        sender: 'anna@example.com',
-        recipient: 'info@example.com',
-        subject: 'Small with the bigger unit',
-        receivedAt: new Date('2026-08-19T08:30:00Z'),
-        hasAttachments: false,
-        // 900 KB reads "bigger" than "1.4 MB" only if the text is compared.
-        sizeBytes: 900 * 1024,
-        summary: null,
-        categoryName: null,
-        tier: null,
-        confidence: null,
-      },
-      {
+      // 900 KB reads "bigger" than "1.4 MB" only if the text is compared.
+      aCase({ subject: 'Small with the bigger unit', sizeBytes: 900 * 1024 }),
+      aCase({
         id: '2',
         sender: 'ben@example.com',
-        recipient: 'info@example.com',
         subject: 'Large with the smaller number',
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
         sizeBytes: 1.4 * 1024 * 1024,
-        summary: null,
-        categoryName: null,
-        tier: null,
-        confidence: null,
-      },
+      }),
     ]);
     const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
 
@@ -377,32 +337,15 @@ describe('CaseList', () => {
 
   it('filters the rows down to the cases with an attachment', async () => {
     const fixture = createFixture([
-      {
-        id: '1',
-        sender: 'anna@example.com',
-        recipient: 'info@example.com',
-        subject: 'Delivery status',
-        receivedAt: new Date('2026-08-19T08:30:00Z'),
-        hasAttachments: false,
-        sizeBytes: 2048,
-        summary: null,
-        categoryName: null,
-        tier: null,
-        confidence: null,
-      },
-      {
+      aCase(),
+      aCase({
         id: '2',
         sender: 'ben@example.com',
-        recipient: 'info@example.com',
         subject: 'Invoice copy',
         receivedAt: new Date('2026-08-19T09:15:00Z'),
         hasAttachments: true,
         sizeBytes: 4096,
-        summary: null,
-        categoryName: null,
-        tier: null,
-        confidence: null,
-      },
+      }),
     ]);
     const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
 

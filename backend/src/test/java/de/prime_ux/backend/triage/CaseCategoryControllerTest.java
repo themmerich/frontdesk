@@ -172,6 +172,45 @@ class CaseCategoryControllerTest {
 
 	@Test
 	@WithMockUser(username = "anna", roles = "ADMIN")
+	void putsAColourOnACategoryAndTakesItOffAgain() throws Exception {
+		String body = """
+				{"name": "Statusanfrage Bestellung", "description": "Frage nach dem Liefertermin.",
+				 "tier": "automatic", "color": %s, "active": true}""";
+
+		mockMvc.perform(put("/api/case-categories/" + orderStatus.getId()).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content(body.formatted("\"blue\"")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.color").value("blue"));
+
+		// An empty string is what the form sends for "no colour"; it has to clear the
+		// column rather than be refused as an unknown palette entry.
+		mockMvc.perform(put("/api/case-categories/" + orderStatus.getId()).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content(body.formatted("\"\"")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.color").doesNotExist());
+	}
+
+	@Test
+	@WithMockUser(username = "anna", roles = "ADMIN")
+	void createsACategoryWithAColourAndRefusesOneOutsideThePalette() throws Exception {
+		String body = """
+				{"name": "Werbung", "description": "Newsletter und Kaltakquise.",
+				 "tier": "ignore", "color": "%s", "active": true}""";
+
+		mockMvc.perform(post("/api/case-categories").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content(body.formatted("grey")))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.color").value("grey"));
+
+		// The frontend resolves a name to a light and a dark value and cannot do that
+		// for one it has never heard of.
+		mockMvc.perform(post("/api/case-categories").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content(body.formatted("hotpink")))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	@WithMockUser(username = "anna", roles = "ADMIN")
 	void refusesToDeactivateTheLastActiveCategory() throws Exception {
 		String deactivate = """
 				{"name": "%s", "description": "Egal.", "tier": "manual", "active": false}""";

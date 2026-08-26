@@ -20,13 +20,21 @@ import { TooltipModule } from 'primeng/tooltip';
 
 import { CaseCategoriesService } from '../data/case-categories-service';
 import { TriageSettingsService } from '../data/triage-settings-service';
-import { CaseCategory, CaseTier } from '../model/case-category';
+import { CATEGORY_COLORS, CaseCategory, CaseCategoryUpdate, CaseTier, CategoryColor } from '../model/case-category';
 import { TriageSettings } from '../model/triage-settings';
+
+/**
+ * "No colour" is a value in the form and null on the wire. A float label reads an empty field as
+ * unfilled and stays put, which would leave the label sitting on top of the "none" entry the
+ * select displays.
+ */
+type ColorChoice = CategoryColor | 'none';
 
 type CategoryFormModel = {
   name: string;
   description: string;
   tier: CaseTier;
+  color: ColorChoice;
   active: boolean;
 };
 
@@ -60,9 +68,9 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
   ignore: 'secondary',
 };
 
-/** A fresh category: prepared for approval rather than answered automatically. */
+/** A fresh category: prepared for approval rather than answered automatically, and uncoloured. */
 function emptyFormModel(): CategoryFormModel {
-  return { name: '', description: '', tier: 'draft', active: true };
+  return { name: '', description: '', tier: 'draft', color: 'none', active: true };
 }
 
 function toFormModel(category: CaseCategory): CategoryFormModel {
@@ -70,6 +78,7 @@ function toFormModel(category: CaseCategory): CategoryFormModel {
     name: category.name,
     description: category.description,
     tier: category.tier,
+    color: category.color ?? 'none',
     active: category.active,
   };
 }
@@ -146,6 +155,15 @@ export class CategoriesPage {
     ];
   });
 
+  /** "No colour" comes first and is the default, so the list opens on the choice most take. */
+  protected readonly colorOptions = computed<{ label: string; value: ColorChoice }[]>(() => {
+    this.translation();
+    return [
+      { label: this.transloco.translate('categories.colorNone'), value: 'none' },
+      ...CATEGORY_COLORS.map((color) => ({ label: this.transloco.translate(`categories.colors.${color}`), value: color })),
+    ];
+  });
+
   /** The tag's label and colour per tier; a tier is a small closed set, so both are spelled out. */
   protected tierLabelKey(tier: CaseTier): string {
     return {
@@ -185,7 +203,12 @@ export class CategoriesPage {
       const editing = this.editingCategory();
       try {
         const model = this.model();
-        const update = { ...model, name: model.name.trim(), description: model.description.trim() };
+        const update: CaseCategoryUpdate = {
+          ...model,
+          name: model.name.trim(),
+          description: model.description.trim(),
+          color: model.color === 'none' ? null : model.color,
+        };
         if (editing === null) {
           await this.categoriesService.create(update);
         } else {

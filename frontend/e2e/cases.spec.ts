@@ -14,6 +14,7 @@ const mockCases = [
     sizeBytes: 2048,
     summary: 'Kunde fragt nach dem Liefertermin zu Bestellung 4711.',
     categoryName: 'Statusanfrage Bestellung',
+    categoryColor: 'blue',
     tier: 'automatic',
     confidence: 0.95,
   },
@@ -28,6 +29,7 @@ const mockCases = [
     // Not triaged yet: the row shows a dash in every triage column.
     summary: null,
     categoryName: null,
+    categoryColor: null,
     tier: null,
     confidence: null,
   },
@@ -63,6 +65,27 @@ test.describe('Cases page', () => {
     // Which address the mail came in on — info@ for the one, the rechnung@ alias for the other.
     await expect(page.getByRole('row', { name: /Delivery status/ })).toContainText('info@example.com');
     await expect(page.getByRole('row', { name: /Invoice copy/ })).toContainText('rechnung@musterfirma.de');
+  });
+
+  test('draws a case in the colour of its category, in both themes', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+    await page.emulateMedia({ colorScheme: 'light' });
+
+    await page.goto('/');
+
+    const coloured = page.getByRole('row', { name: /Delivery status/ });
+    await expect(coloured).toHaveAttribute('data-category-color', 'blue');
+    await expect(coloured).toHaveCSS('color', 'rgb(29, 78, 216)');
+    // Not triaged yet, so there is no category and no colour to take.
+    await expect(page.getByRole('row', { name: /Invoice copy/ })).not.toHaveAttribute('data-category-color');
+
+    // The same palette name, the value that reads on a dark surface. The stored
+    // theme is cleared first, because it would otherwise win over the system one.
+    await page.evaluate(() => localStorage.clear());
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.reload();
+
+    await expect(coloured).toHaveCSS('color', 'rgb(147, 197, 253)');
   });
 
   test('filters the list down to the cases with an attachment', async ({ page }) => {

@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import de.prime_ux.backend.triage.CaseCategory;
 import de.prime_ux.backend.triage.CaseCategoryRepository;
 import de.prime_ux.backend.triage.CaseTier;
+import de.prime_ux.backend.triage.CategoryColor;
 import java.math.BigDecimal;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -101,6 +102,7 @@ class CaseControllerTest {
 				.andExpect(jsonPath("$[1].hasAttachments").value(false))
 				// Untriaged cases carry no verdict yet.
 				.andExpect(jsonPath("$[0].categoryName").doesNotExist())
+				.andExpect(jsonPath("$[0].categoryColor").doesNotExist())
 				.andExpect(jsonPath("$[0].tier").doesNotExist())
 				.andExpect(jsonPath("$[0].summary").doesNotExist())
 				.andExpect(jsonPath("$[0].confidence").doesNotExist());
@@ -109,8 +111,10 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void namesTheCategoryAndTierOfATriagedCase() throws Exception {
-		CaseCategory category = caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS",
-				"Statusanfrage Bestellung", "Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0));
+		CaseCategory category = new CaseCategory(tenant, "ORDER_STATUS", "Statusanfrage Bestellung",
+				"Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0);
+		category.recolor(CategoryColor.BLUE);
+		caseCategoryRepository.save(category);
 		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "info@example.com", "Lieferung 4711", "body",
 				Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		triaged.applyTriage(category, CaseTier.DRAFT, new BigDecimal("0.72"),
@@ -120,6 +124,9 @@ class CaseControllerTest {
 		mockMvc.perform(get("/api/cases"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].categoryName").value("Statusanfrage Bestellung"))
+				// The inbox paints the row in it, so it travels with the case, not only
+				// with the category the admin page loads.
+				.andExpect(jsonPath("$[0].categoryColor").value("blue"))
 				// The stored tier, not the category's — the confidence had lowered it.
 				.andExpect(jsonPath("$[0].tier").value("draft"))
 				.andExpect(jsonPath("$[0].confidence").value(0.72))

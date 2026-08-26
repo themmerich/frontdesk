@@ -105,6 +105,17 @@
     "description": "Beschreibung",
     "descriptionHint": "Geht wörtlich in den Prompt. Je genauer sie sagt, wann die Kategorie zutrifft, desto sicherer trifft die KI.",
     "tier": "Stufe",
+    "color": "Farbe",
+    "colorNone": "Keine",
+    "colors": {
+      "blue": "Blau",
+      "green": "Grün",
+      "amber": "Bernstein",
+      "red": "Rot",
+      "violet": "Violett",
+      "teal": "Petrol",
+      "grey": "Grau"
+    },
     "tierAutomatic": "Automatisch",
     "tierDraft": "Entwurf",
     "tierManual": "Manuell",

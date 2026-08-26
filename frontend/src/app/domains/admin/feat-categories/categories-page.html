@@ -65,7 +65,7 @@
         </ng-template>
         <ng-template #body let-category>
           <tr>
-            <td>{{ category.name }}</td>
+            <td [attr.data-category-color]="category.color">{{ category.name }}</td>
             <td class="text-surface-500 dark:text-surface-400">{{ category.description }}</td>
             <td>
               <p-tag [value]="t(tierLabelKey(category.tier))" [severity]="tierSeverity(category.tier)" />
@@ -139,12 +139,51 @@
             <p-select
               inputId="tier"
               class="w-full"
+              appendTo="body"
               [options]="tierOptions()"
               optionLabel="label"
               optionValue="value"
               [formField]="categoryForm.tier"
             />
             <label for="tier">{{ t('categories.tier') }}</label>
+          </p-floatlabel>
+          <!-- A select rather than a row of swatches: it keeps the keyboard and screen-reader
+               behaviour of the tier field above, and the dot carries the colour that the name
+               alone cannot. -->
+          <p-floatlabel variant="on">
+            <p-select
+              inputId="color"
+              class="w-full"
+              appendTo="body"
+              [options]="colorOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [formField]="categoryForm.color"
+            >
+              <!-- The dot takes its fill from the text colour the attribute sets, so the
+                   palette is defined in one place. "No colour" gets an empty ring. -->
+              <ng-template #selectedItem let-selected>
+                <span class="flex items-center gap-2">
+                  <span
+                    class="size-3 rounded-full border border-surface-300 dark:border-surface-600"
+                    [class.bg-current]="selected.value !== 'none'"
+                    [attr.data-category-color]="selected.value === 'none' ? null : selected.value"
+                  ></span>
+                  {{ selected.label }}
+                </span>
+              </ng-template>
+              <ng-template #item let-option>
+                <span class="flex items-center gap-2">
+                  <span
+                    class="size-3 rounded-full border border-surface-300 dark:border-surface-600"
+                    [class.bg-current]="option.value !== 'none'"
+                    [attr.data-category-color]="option.value === 'none' ? null : option.value"
+                  ></span>
+                  {{ option.label }}
+                </span>
+              </ng-template>
+            </p-select>
+            <label for="color">{{ t('categories.color') }}</label>
           </p-floatlabel>
           <div class="flex items-center gap-2">
             <p-checkbox inputId="active" [binary]="true" [formField]="categoryForm.active" />

@@ -131,7 +131,12 @@
       </tr>
     </ng-template>
     <ng-template #body let-row let-columns="columns">
-      <tr>
+      <!-- The category's colour, as the text colour of the whole row: what kind of mail
+           this is should be readable before any single cell is. The attribute carries the
+           palette name and styles.css resolves it, so the row never hard-codes a value and
+           the same name reads light and dark. Cells with a colour of their own (the tier
+           tag, the dashes) keep it. -->
+      <tr [attr.data-category-color]="row.categoryColor">
         @for (col of columns; track col.field) {
           <td>
             @switch (col.field) {
