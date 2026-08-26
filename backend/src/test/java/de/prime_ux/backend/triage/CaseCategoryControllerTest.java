@@ -192,7 +192,7 @@ class CaseCategoryControllerTest {
 	@Test
 	@WithMockUser(username = "anna", roles = "ADMIN")
 	void deletesACategoryAndLeavesItsCasesTheirTier() throws Exception {
-		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "Lieferung 4711", "body",
+		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Lieferung 4711", "body",
 				Instant.now(), false, 2048);
 		classified.applyTriage(orderStatus, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
 		caseRepository.save(classified);

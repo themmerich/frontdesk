@@ -85,6 +85,7 @@ class MailIngestServiceTest {
 		assertThat(caseRepository.findAll()).singleElement().satisfies(ingested -> {
 			assertThat(ingested.getTenant().getId()).isEqualTo(tenant.getId());
 			assertThat(ingested.getSender()).isEqualTo("kunde@example.com");
+			assertThat(ingested.getRecipient()).isEqualTo("inbox@frontdesk.local");
 			assertThat(ingested.getSubject()).isEqualTo("Wo bleibt meine Bestellung?");
 			assertThat(ingested.getBodyText()).contains("Bestellung 4711");
 			assertThat(ingested.getMessageId()).isNotNull();
@@ -97,6 +98,42 @@ class MailIngestServiceTest {
 		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
 
 		assertThat(caseRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void keepsTheAddressTheCustomerWroteToWhenAnAliasDeliversIntoTheInbox() {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		// rechnung@ is an alias: the mail lands in the one inbox but names the alias
+		// in To, and that is the address the reply has to go out from.
+		MimeMessage mail = GreenMailUtil.createTextEmail("rechnung@musterfirma.de", "kunde@example.com",
+				"Rechnung 2026-081", "Bitte um eine Kopie.", greenMail.getImap().getServerSetup());
+		inbox.deliver(mail);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		assertThat(caseRepository.findAll()).singleElement()
+				.extracting(Case::getRecipient)
+				.isEqualTo("rechnung@musterfirma.de");
+	}
+
+	@Test
+	void fallsBackToTheDeliveredToHeaderWhenTheMailNamesNoRecipient() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Session session = GreenMailUtil.getSession(greenMail.getImap().getServerSetup());
+		MimeMessage mail = new MimeMessage(session);
+		mail.setFrom("kunde@example.com");
+		// A blind copy carries no To; only the delivering server knows the real target.
+		mail.setHeader("Delivered-To", "buchhaltung@musterfirma.de");
+		mail.setSubject("Kopie zur Kenntnis");
+		mail.setText("Zur Kenntnis.");
+		mail.saveChanges();
+		inbox.deliver(mail);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		assertThat(caseRepository.findAll()).singleElement()
+				.extracting(Case::getRecipient)
+				.isEqualTo("buchhaltung@musterfirma.de");
 	}
 
 	@Test

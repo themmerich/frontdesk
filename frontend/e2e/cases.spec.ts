@@ -7,6 +7,7 @@ const mockCases = [
   {
     id: '1',
     sender: 'anna@example.com',
+    recipient: 'info@example.com',
     subject: 'Delivery status',
     receivedAt: '2026-08-19T08:30:00Z',
     hasAttachments: false,
@@ -19,6 +20,7 @@ const mockCases = [
   {
     id: '2',
     sender: 'ben@example.com',
+    recipient: 'rechnung@musterfirma.de',
     subject: 'Invoice copy',
     receivedAt: '2026-08-19T09:15:00Z',
     hasAttachments: true,
@@ -58,6 +60,9 @@ test.describe('Cases page', () => {
     await expect(page.getByRole('row', { name: /Invoice copy/ }).getByRole('img', { name: 'Hat Anhang' })).toBeVisible();
     await expect(page.getByRole('row', { name: /Invoice copy/ })).toContainText('1,4 MB');
     await expect(page.getByRole('row', { name: /anna@example\.com/ })).toContainText('2 KB');
+    // Which address the mail came in on — info@ for the one, the rechnung@ alias for the other.
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toContainText('info@example.com');
+    await expect(page.getByRole('row', { name: /Invoice copy/ })).toContainText('rechnung@musterfirma.de');
   });
 
   test('filters the list down to the cases with an attachment', async ({ page }) => {
@@ -74,7 +79,7 @@ test.describe('Cases page', () => {
 
   test('scrolls the table sideways instead of pushing the page out of view', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
-    // Narrow enough that all nine columns cannot possibly fit.
+    // Narrow enough that all ten columns cannot possibly fit.
     await page.setViewportSize({ width: 1000, height: 800 });
 
     await page.goto('/');
@@ -92,6 +97,38 @@ test.describe('Cases page', () => {
     expect(measured.pageOverflow).toBeLessThanOrEqual(1);
     // … and the table brings its own horizontal scrollbar.
     expect(measured.tableScrolls).toBe(true);
+  });
+
+  test('scrolls the rows inside the table, not the page', async ({ page }) => {
+    // More rows than fit, so the list has to scroll somewhere.
+    const many = Array.from({ length: 40 }, (_, index) => ({
+      ...mockCases[0],
+      id: String(index),
+      subject: `Vorgang ${index}`,
+    }));
+    await page.route('**/api/cases', (route) => route.fulfill({ json: many }));
+    await page.setViewportSize({ width: 1400, height: 800 });
+
+    await page.goto('/');
+    await expect(page.getByRole('row', { name: /Vorgang 0/ })).toBeVisible();
+
+    const measured = await page.evaluate(() => {
+      const scroller = document.querySelector('.p-datatable-table-container') as HTMLElement;
+      const headerTop = () => Math.round(document.querySelector('thead')!.getBoundingClientRect().top);
+      const before = headerTop();
+      scroller.scrollTop = 400;
+      return {
+        pageOverflow: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+        scrolled: scroller.scrollTop,
+        headerMoved: headerTop() !== before,
+      };
+    });
+
+    // The window stays put, the table takes the scrolling …
+    expect(measured.pageOverflow).toBeLessThanOrEqual(1);
+    expect(measured.scrolled).toBe(400);
+    // … and the column headers stand still while the rows move under them.
+    expect(measured.headerMoved).toBe(false);
   });
 
   test('lets the admin resize a column', async ({ page }) => {

@@ -7,6 +7,8 @@
 export type Case = {
   id: string;
   sender: string;
+  /** The tenant address the mail was sent to; null for mails ingested before it was recorded. */
+  recipient: string | null;
   subject: string;
   receivedAt: Date;
   hasAttachments: boolean;
@@ -20,7 +22,7 @@ export type Case = {
 };
 
 /**
- * How a case is meant to be handled: frontdesk answers it by itself, it prepares an answer a
- * person approves, or a person takes it over entirely.
+ * How a case is handled: two questions resolved into one ladder — does this need an answer, and
+ * who writes it. `info` needs none but should be seen, `ignore` needs neither.
  */
-export type CaseTier = 'automatic' | 'draft' | 'manual';
+export type CaseTier = 'automatic' | 'draft' | 'manual' | 'info' | 'ignore';
