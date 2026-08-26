@@ -23,9 +23,6 @@ export const CASE_COLUMNS: readonly CaseColumnDefinition[] = [
   // that difference decides who picks the case up.
   { field: 'recipient', labelKey: 'cases.recipient', sortable: true, filterable: true },
   { field: 'subject', labelKey: 'cases.subject', sortable: true, filterable: true },
-  // What the sender wants, in the model's words. Sorting a sentence
-  // alphabetically says nothing, searching in it says a lot.
-  { field: 'summary', labelKey: 'cases.summary', sortable: false, filterable: true },
   // The triage's verdict, beside the subject it is about. Categories are the
   // tenant's own wording, so they filter as free text.
   { field: 'category', labelKey: 'cases.category', sortable: true, filterable: true },
@@ -33,11 +30,6 @@ export const CASE_COLUMNS: readonly CaseColumnDefinition[] = [
   // rows keep the raw values, so free text would have to match the untranslated
   // one — confusing.
   { field: 'tier', labelKey: 'cases.tier', sortable: true, filterable: true },
-  // Sortable, so the shakiest classifications can be pulled to the top — which
-  // is how the tenant's threshold gets tuned. No filter: the cell shows a
-  // percentage while the value is a fraction, and typing 0.8 to match "80 %"
-  // is the kind of control nobody uses twice.
-  { field: 'confidence', labelKey: 'cases.confidence', sortable: true, filterable: false },
   // Filtered through PrimeNG's date filter; the list component picks the
   // control per field, this flag only says that a filter exists.
   { field: 'receivedAt', labelKey: 'cases.receivedAt', sortable: true, filterable: true },

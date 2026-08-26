@@ -56,7 +56,7 @@ describe('CaseColumnsService', () => {
     expect(store.order()[0]).toBe('subject');
     // The stored value predates the recipient and the triage columns; those are
     // appended and start visible.
-    expect(store.visibleFields()).toEqual(['subject', 'recipient', 'summary', 'category', 'tier', 'confidence']);
+    expect(store.visibleFields()).toEqual(['subject', 'recipient', 'category', 'tier']);
   });
 
   it('falls back to the defaults for unparseable stored values', () => {

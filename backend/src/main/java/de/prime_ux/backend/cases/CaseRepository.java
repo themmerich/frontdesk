@@ -1,5 +1,6 @@
 package de.prime_ux.backend.cases;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Limit;
@@ -17,4 +18,10 @@ public interface CaseRepository extends JpaRepository<Case, UUID> {
 	List<Case> findByTenantIdAndTierIsNullOrderByReceivedAtAsc(UUID tenantId, Limit limit);
 
 	boolean existsByTenantIdAndMessageId(UUID tenantId, String messageId);
+
+	/**
+	 * Deletes only what belongs to this tenant. Ids of another tenant's cases simply do not match,
+	 * so a guessed id deletes nothing instead of leaking that it exists.
+	 */
+	long deleteByTenantIdAndIdIn(UUID tenantId, Collection<UUID> ids);
 }

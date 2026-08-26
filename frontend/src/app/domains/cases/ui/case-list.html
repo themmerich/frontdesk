@@ -8,6 +8,7 @@
     scrollHeight="flex"
     [tableStyle]="{ 'min-width': minTableWidth() }"
     dataKey="id"
+    [(selection)]="selection"
     exportFilename="cases"
     sortField="receivedAt"
     [sortOrder]="-1"
@@ -67,12 +68,24 @@
 
         <div class="flex items-center gap-2">
           <p-button icon="pi pi-download" severity="secondary" [outlined]="true" [label]="t('cases.export')" (onClick)="onExportCsv()" />
-          <p-button icon="pi pi-trash" severity="danger" [outlined]="true" [label]="t('cases.delete')" />
+          <!-- Nothing ticked, nothing to delete; how many it is says the question. -->
+          <p-button
+            icon="pi pi-trash"
+            severity="danger"
+            [outlined]="true"
+            [label]="t('cases.delete')"
+            [ariaLabel]="t('cases.deleteSelected')"
+            [disabled]="selection().length === 0"
+            (onClick)="onDeleteSelected()"
+          />
         </div>
       </div>
     </ng-template>
     <ng-template #header let-columns>
       <tr>
+        <th scope="col" class="w-12">
+          <p-table-header-checkbox [ariaLabel]="t('cases.selectAll')" />
+        </th>
         @for (col of columns; track col.field) {
           <!-- One header for both kinds of column: the attachment column carries a
                filter but no sorting, so the sortable behaviour is switched off
@@ -128,6 +141,9 @@
             </div>
           </th>
         }
+        <th scope="col" class="w-16">
+          <span class="sr-only">{{ t('cases.actions') }}</span>
+        </th>
       </tr>
     </ng-template>
     <ng-template #body let-row let-columns="columns">
@@ -137,6 +153,9 @@
            the same name reads light and dark. Cells with a colour of their own (the tier
            tag, the dashes) keep it. -->
       <tr [attr.data-category-color]="row.categoryColor">
+        <td>
+          <p-table-checkbox [value]="row" [ariaLabel]="t('cases.selectRow')" />
+        </td>
         @for (col of columns; track col.field) {
           <td>
             @switch (col.field) {
@@ -148,21 +167,6 @@
               @case ('recipient') {
                 @if (row.recipient) {
                   {{ row.recipient }}
-                } @else {
-                  <span class="text-surface-400 dark:text-surface-500">–</span>
-                }
-              }
-              @case ('summary') {
-                @if (row.summary) {
-                  <!-- One sentence, kept on one line; the full text is in the tooltip. -->
-                  <span class="block max-w-md truncate" [title]="row.summary">{{ row.summary }}</span>
-                } @else {
-                  <span class="text-surface-400 dark:text-surface-500">–</span>
-                }
-              }
-              @case ('confidence') {
-                @if (row.confidence !== null) {
-                  {{ row.confidence | percent }}
                 } @else {
                   <span class="text-surface-400 dark:text-surface-500">–</span>
                 }
@@ -193,11 +197,22 @@
             }
           </td>
         }
+        <td>
+          <p-button
+            icon="pi pi-trash"
+            variant="text"
+            severity="danger"
+            [ariaLabel]="t('cases.deleteRow')"
+            [pTooltip]="t('cases.deleteRow')"
+            tooltipPosition="left"
+            (onClick)="onDeleteRow(row)"
+          />
+        </td>
       </tr>
     </ng-template>
     <ng-template #emptymessage>
       <tr>
-        <td [attr.colspan]="visibleColumns().length">{{ t('cases.empty') }}</td>
+        <td [attr.colspan]="visibleColumns().length + 2">{{ t('cases.empty') }}</td>
       </tr>
     </ng-template>
   </p-table>

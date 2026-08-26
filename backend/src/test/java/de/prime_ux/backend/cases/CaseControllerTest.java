@@ -1,24 +1,26 @@
 package de.prime_ux.backend.cases;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-
-import de.prime_ux.backend.triage.CaseCategory;
-import de.prime_ux.backend.triage.CaseCategoryRepository;
-import de.prime_ux.backend.triage.CaseTier;
-import de.prime_ux.backend.triage.CategoryColor;
-import java.math.BigDecimal;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import de.prime_ux.backend.TestcontainersConfiguration;
 import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
-import de.prime_ux.backend.users.AppUser;
-import de.prime_ux.backend.users.AppUserRepository;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.tenants.TenantLogoRepository;
 import de.prime_ux.backend.tenants.TenantRepository;
+import de.prime_ux.backend.triage.CaseCategory;
+import de.prime_ux.backend.triage.CaseCategoryRepository;
+import de.prime_ux.backend.triage.CaseTier;
+import de.prime_ux.backend.triage.CategoryColor;
+import de.prime_ux.backend.users.AppUser;
+import de.prime_ux.backend.users.AppUserRepository;
 import de.prime_ux.backend.users.UserRole;
+import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -132,6 +135,47 @@ class CaseControllerTest {
 				.andExpect(jsonPath("$[0].confidence").value(0.72))
 				.andExpect(jsonPath("$[0].summary")
 						.value("Kunde fragt nach dem Liefertermin zu Bestellung 4711."));
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void deletesTheSelectedCasesAndLeavesTheRestAlone() throws Exception {
+		Case first = caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "info@example.com",
+				"Weg damit", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+		Case second = caseRepository.save(new Case(tenant, "<second@test>", "ben@example.com", "info@example.com",
+				"Auch weg", "body", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
+		Case kept = caseRepository.save(new Case(tenant, "<third@test>", "cara@example.com", "info@example.com",
+				"Bleibt", "body", Instant.parse("2026-08-03T10:00:00Z"), false, 2048));
+
+		mockMvc.perform(delete("/api/cases").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"ids\": [\"%s\", \"%s\"]}".formatted(first.getId(), second.getId())))
+				.andExpect(status().isNoContent());
+
+		assertThat(caseRepository.findAll()).extracting(Case::getId).containsExactly(kept.getId());
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void refusesToDeleteAnotherTenantsCase() throws Exception {
+		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com",
+				"info@example.com", "Fremd", "body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+
+		// A guessed id answers the same way whether it exists or not, and deletes nothing.
+		mockMvc.perform(delete("/api/cases").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"ids\": [\"%s\"]}".formatted(foreign.getId())))
+				.andExpect(status().isNoContent());
+
+		assertThat(caseRepository.existsById(foreign.getId())).isTrue();
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void refusesADeleteWithoutAnySelection() throws Exception {
+		mockMvc.perform(delete("/api/cases").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"ids\": []}"))
+				.andExpect(status().isBadRequest());
 	}
 
 	@Test

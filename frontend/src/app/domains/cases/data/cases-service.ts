@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
-import { httpResource } from '@angular/common/http';
+import { HttpClient, httpResource } from '@angular/common/http';
 import { DestroyRef, inject, Service } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 
 import { Case } from '../model/case';
 
@@ -16,6 +17,7 @@ const RELOAD_INTERVAL_MS = 10_000;
 @Service()
 export class CasesService {
   private readonly document = inject(DOCUMENT);
+  private readonly http = inject(HttpClient);
 
   readonly cases = httpResource<Case[]>(() => '/api/cases', {
     defaultValue: [],
@@ -34,6 +36,16 @@ export class CasesService {
       clearInterval(interval);
       this.document.removeEventListener('visibilitychange', reload);
     });
+  }
+
+  /**
+   * Deletes a selection for good and reloads, so the list shows what is left rather than what the
+   * client believes is left. One request for the whole selection: a row action is a selection of
+   * one, and half a deletion is worse than none.
+   */
+  async remove(ids: string[]): Promise<void> {
+    await firstValueFrom(this.http.delete<void>('/api/cases', { body: { ids } }));
+    this.cases.reload();
   }
 
   private reloadWhenVisible(): void {
