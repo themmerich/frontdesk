@@ -36,6 +36,7 @@
     "export": "Exportieren",
     "delete": "Löschen",
     "actions": "Aktionen",
+    "edit": "Bearbeiten",
     "selectAll": "Alle auswählen",
     "selectRow": "Vorgang auswählen",
     "deleteRow": "Vorgang löschen",
@@ -59,6 +60,24 @@
     "notTriaged": "Noch nicht bewertet",
     "tierInfo": "Info",
     "tierIgnore": "Ignorieren"
+  },
+  "caseDetail": {
+    "backToInbox": "Posteingang",
+    "position": "Vorgang {{position}} von {{total}}",
+    "previous": "Vorheriger Vorgang",
+    "next": "Nächster Vorgang",
+    "verdict": "Einordnung",
+    "category": "Kategorie",
+    "confidence": "Sicherheit der KI",
+    "tier": "Stufe",
+    "original": "Originalnachricht",
+    "unknownRecipient": "Empfänger unbekannt",
+    "attachmentsNotStored": "Diese Mail hat Anhänge. Sie werden noch nicht gespeichert und lassen sich hier nicht öffnen.",
+    "delete": "Löschen",
+    "tierChanged": "Stufe geändert.",
+    "tierError": "Die Stufe konnte nicht geändert werden.",
+    "loadError": "Der Vorgang konnte nicht geladen werden.",
+    "loading": "Wird geladen"
   },
   "users": {
     "title": "Benutzer",

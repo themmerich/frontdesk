@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -135,6 +136,66 @@ class CaseControllerTest {
 				.andExpect(jsonPath("$[0].confidence").value(0.72))
 				.andExpect(jsonPath("$[0].summary")
 						.value("Kunde fragt nach dem Liefertermin zu Bestellung 4711."));
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void carriesTheMailBodyOnTheDetailButNotInTheList() throws Exception {
+		// Triaged on purpose: the category is a lazy reference, and reading it while
+		// building the answer is exactly where the detail view broke once.
+		CaseCategory category = caseCategoryRepository.save(new CaseCategory(tenant, "INVOICE", "Rechnung",
+				"Eingehende Rechnung.", CaseTier.MANUAL, 0));
+		Case aCase = new Case(tenant, "<detail@test>", "anna@example.com", "info@example.com",
+				"Rechnung 2026-081", "Bitte um eine Kopie.", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		aCase.applyTriage(category, CaseTier.DRAFT, new BigDecimal("0.72"), "Kunde bittet um eine Kopie.");
+		caseRepository.save(aCase);
+
+		mockMvc.perform(get("/api/cases/" + aCase.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.subject").value("Rechnung 2026-081"))
+				.andExpect(jsonPath("$.bodyText").value("Bitte um eine Kopie."))
+				.andExpect(jsonPath("$.categoryName").value("Rechnung"));
+
+		// The list would pay for every body on every reload and never shows one.
+		mockMvc.perform(get("/api/cases")).andExpect(jsonPath("$[0].bodyText").doesNotExist());
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void doesNotFindAnotherTenantsCase() throws Exception {
+		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com",
+				"info@example.com", "Fremd", "body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+
+		// Not forbidden but not found: the answer must not say that it exists.
+		mockMvc.perform(get("/api/cases/" + foreign.getId())).andExpect(status().isNotFound());
+		mockMvc.perform(put("/api/cases/" + foreign.getId() + "/tier").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"tier\": \"manual\"}"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void letsAPersonOverruleTheTierWithoutLosingWhatTheModelSaid() throws Exception {
+		CaseCategory category = caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS",
+				"Statusanfrage Bestellung", "Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0));
+		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "info@example.com", "Lieferung 4711",
+				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		triaged.applyTriage(category, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
+		caseRepository.save(triaged);
+
+		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/tier").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"tier\": \"manual\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.tier").value("manual"))
+				// Category, summary and confidence still describe the classification the
+				// model made; only what happens with the case changed.
+				.andExpect(jsonPath("$.categoryName").value("Statusanfrage Bestellung"))
+				.andExpect(jsonPath("$.confidence").value(0.95))
+				.andExpect(jsonPath("$.summary").value("Frage zur Lieferung."));
+
+		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/tier").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"tier\": \"nonsense\"}"))
+				.andExpect(status().isBadRequest());
 	}
 
 	@Test

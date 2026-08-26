@@ -6,7 +6,9 @@
     @if (aiSettingsService.settings.error()) {
       <p-message severity="error">{{ t('aiSettings.loadError') }}</p-message>
     } @else if (aiSettingsService.settings.isLoading()) {
-      <i class="pi pi-spinner pi-spin" role="img" [attr.aria-label]="t('aiSettings.loading')"></i>
+      <div class="flex flex-auto items-center justify-center py-16" role="status" [attr.aria-label]="t('aiSettings.loading')">
+        <i class="pi pi-spinner pi-spin text-3xl text-surface-400 dark:text-surface-500" aria-hidden="true"></i>
+      </div>
     } @else {
       <p-fieldset [legend]="t('aiSettings.legend')">
         <div class="flex flex-col gap-4 p-2">

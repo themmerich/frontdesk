@@ -1,7 +1,7 @@
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { ApplicationConfig, LOCALE_ID, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideTransloco } from '@jsverse/transloco';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -21,7 +21,8 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     { provide: LOCALE_ID, useValue: 'de-DE' },
-    provideRouter(routes),
+    // Route parameters arrive as component inputs; the case detail reads its id that way.
+    provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(withInterceptors([unauthorizedInterceptor])),
     // Feed the app-wide <p-toast /> and <p-confirmdialog /> in the shell; pages
     // inject them to raise toasts and to ask before something irreversible.

@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { Confirmation, ConfirmationService, MessageService, ToastMessageOptions } from 'primeng/api';
 
@@ -61,6 +62,8 @@ describe('CasesPage', () => {
       ],
       providers: [
         provideZonelessChangeDetection(),
+        // The subject cell links to the case detail.
+        provideRouter([]),
         { provide: CasesService, useValue: casesServiceStub },
         // Both outlets live in the shell, which is not part of this fixture; the
         // stubs record what the page would have asked and said.

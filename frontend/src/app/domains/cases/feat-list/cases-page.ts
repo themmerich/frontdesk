@@ -1,8 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
+import { Router } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { CaseColumnsService } from '../data/case-columns-service';
+import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
 import { Case } from '../model/case';
 import { CaseList } from '../ui/case-list';
@@ -18,6 +20,17 @@ export class CasesPage {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
+  private readonly orderStore = inject(CaseOrderStore);
+  private readonly router = inject(Router);
+
+  /** What the detail view pages through: the order as it stands after filter and sorting. */
+  protected onOrderChanged(ids: string[]): void {
+    this.orderStore.set(ids);
+  }
+
+  protected onCaseOpened(aCase: Case): void {
+    void this.router.navigate(['/cases', aCase.id]);
+  }
 
   /**
    * Deleting is the page's job: the list only says what the user picked. Nothing goes without the

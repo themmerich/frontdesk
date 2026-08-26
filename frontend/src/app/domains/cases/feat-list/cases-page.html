@@ -16,6 +16,8 @@
         [(columnOrder)]="columnsService.order"
         [(visibleFields)]="columnsService.visibleFields"
         (deleteRequested)="onDeleteRequested($event)"
+        (caseOpened)="onCaseOpened($event)"
+        (orderChanged)="onOrderChanged($event)"
       />
     }
   </main>
