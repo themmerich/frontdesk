@@ -33,6 +33,7 @@
     "columns": "Spalten",
     "reset": "Zurücksetzen",
     "search": "Suchen",
+    "pageReport": "{first} – {last} von {totalRecords} Vorgängen",
     "resetView": "Ansicht zurücksetzen",
     "resetViewHint": "Sortierung, Filter und Spalten zurücksetzen",
     "export": "Exportieren",

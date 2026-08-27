@@ -282,6 +282,41 @@ test.describe('Cases page', () => {
     expect(stored.widths.sender).toBeCloseTo(resized, 0);
   });
 
+  test('pages through the cases and says how many there are', async ({ page }) => {
+    const many = Array.from({ length: 30 }, (_, index) => ({
+      ...mockCases[0],
+      id: String(index),
+      subject: `Vorgang ${index}`,
+      receivedAt: new Date(Date.UTC(2026, 7, 19, 8, index)).toISOString(),
+    }));
+    await page.route('**/api/cases', (route) => route.fulfill({ json: many }));
+
+    await page.goto('/');
+
+    // Twenty-five to a page, and the count of all of them beside it.
+    await expect(page.getByText('1 – 25 von 30 Vorgängen')).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(25);
+
+    await page.getByRole('button', { name: 'Nächste Seite' }).click();
+
+    await expect(page.getByText('26 – 30 von 30 Vorgängen')).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(5);
+  });
+
+  test('fills a page where the stored state predates the paginator', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+    // What the storage holds for everyone who used the inbox before it had a paginator: a state
+    // with no page and no rows in it.
+    await page.addInitScript(() =>
+      localStorage.setItem('frontdesk-case-table', JSON.stringify({ sortField: 'receivedAt', sortOrder: -1 })),
+    );
+
+    await page.goto('/');
+
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+    await expect(page.getByText('1 – 2 von 2 Vorgängen')).toBeVisible();
+  });
+
   test('resets sorting, filters and columns, and forgets both stored entries', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
 

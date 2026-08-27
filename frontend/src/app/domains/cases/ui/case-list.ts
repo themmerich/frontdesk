@@ -50,6 +50,9 @@ const STATE_KEY = 'frontdesk-case-table';
 const DEFAULT_SORT_FIELD = 'receivedAt';
 const DEFAULT_SORT_ORDER = -1;
 
+/** How many rows a page holds until someone chooses otherwise. */
+const DEFAULT_ROWS = 25;
+
 /**
  * Green, amber, red for the three tiers that need an answer — rising with the work left to a
  * person. Blue and grey for the two that need none.
@@ -141,6 +144,8 @@ export class CaseList {
   readonly columnWidths = model<CaseColumnWidths>({});
 
   private readonly table = viewChild.required(Table);
+
+  protected readonly defaultRows = DEFAULT_ROWS;
 
   /** The names the two fixed columns are remembered under; the others go by their field. */
   protected readonly selectionColumn = SELECTION_COLUMN;
@@ -264,9 +269,11 @@ export class CaseList {
   protected onStateSave(state: TableState): void {
     // JSON.stringify leaves the undefined entries out, so what lands in the storage has no
     // selection at all — not an empty one that would still be restored over the current tick.
-    // The widths the table measured go the same way: they are kept by column here, and put back
-    // in the shape it reads them, for the arrangement that is actually on screen.
-    const stored = { ...state, columnWidths: this.renderedWidths(), tableWidth: undefined, selection: undefined };
+    // The page one happened to stand on goes the same way: mail arrives at the top, so the
+    // inbox opens there rather than in the middle of a list that has moved since. How many
+    // rows a page holds is a preference and stays. The widths the table measured are kept by
+    // column here, and put back in the shape it reads them, for the arrangement on screen.
+    const stored = { ...state, columnWidths: this.renderedWidths(), tableWidth: undefined, selection: undefined, first: undefined };
     this.storage?.setItem(STATE_KEY, JSON.stringify(stored));
   }
 
@@ -278,6 +285,18 @@ export class CaseList {
     // The global filter is a single entry; only a column filter can be a list of them.
     const global = state.filters?.['global'];
     this.globalSearch.set(global !== undefined && !Array.isArray(global) ? String(global.value ?? '') : '');
+
+    // A state that carries no page — one written before the table had a paginator, and every
+    // one written since, because the page is deliberately not remembered — is handed to the
+    // table as undefined all the same: it then counts to NaN and shows no row at all. Both
+    // values go back to what the table opens with.
+    const table = this.table();
+    if (table.rows() === undefined) {
+      table.rows.set(DEFAULT_ROWS);
+    }
+    if (table.first() === undefined) {
+      table.first.set(0);
+    }
   }
 
   /**
