@@ -65,6 +65,7 @@ class CaseCategoryControllerTest {
 	private Tenant tenant;
 	private Tenant otherTenant;
 	private CaseCategory orderStatus;
+	private CaseCategory invoice;
 
 	@BeforeEach
 	void cleanDatabaseAndCreateCategories() {
@@ -81,8 +82,8 @@ class CaseCategoryControllerTest {
 		appUserRepository.save(new AppUser(tenant, "ben", "Ben", "Benutzer", "{noop}irrelevant", UserRole.USER));
 		orderStatus = caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS",
 				"Statusanfrage Bestellung", "Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0));
-		caseCategoryRepository.save(new CaseCategory(tenant, "INVOICE", "Rechnung", "Eingehende Rechnung.",
-				CaseTier.MANUAL, 1));
+		invoice = caseCategoryRepository.save(new CaseCategory(tenant, "INVOICE", "Rechnung",
+				"Eingehende Rechnung.", CaseTier.MANUAL, 1));
 	}
 
 	@Test
@@ -218,9 +219,9 @@ class CaseCategoryControllerTest {
 				.contentType(MediaType.APPLICATION_JSON).content(deactivate.formatted("Statusanfrage Bestellung")))
 				.andExpect(status().isOk());
 
-		CaseCategory invoice = caseCategoryRepository
+		CaseCategory other = caseCategoryRepository
 				.findAllByTenantIdAndActiveTrueOrderBySortOrderAsc(tenant.getId()).getFirst();
-		mockMvc.perform(put("/api/case-categories/" + invoice.getId()).with(csrf())
+		mockMvc.perform(put("/api/case-categories/" + other.getId()).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON).content(deactivate.formatted("Rechnung")))
 				.andExpect(status().isBadRequest());
 
@@ -230,19 +231,49 @@ class CaseCategoryControllerTest {
 
 	@Test
 	@WithMockUser(username = "anna", roles = "ADMIN")
-	void deletesACategoryAndLeavesItsCasesTheirTier() throws Exception {
-		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Lieferung 4711", "body",
-				Instant.now(), false, 2048);
+	void countsTheCasesThatPointAtEachCategory() throws Exception {
+		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Lieferung 4711",
+				"body", Instant.now(), false, 2048);
 		classified.applyTriage(orderStatus, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
 		caseRepository.save(classified);
+
+		mockMvc.perform(get("/api/case-categories"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].code").value("ORDER_STATUS"))
+				.andExpect(jsonPath("$[0].caseCount").value(1))
+				// A category nothing points at reports zero rather than nothing at all.
+				.andExpect(jsonPath("$[1].caseCount").value(0));
+	}
+
+	@Test
+	@WithMockUser(username = "anna", roles = "ADMIN")
+	void refusesToDeleteACategoryThatCasesStillPointAt() throws Exception {
+		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Lieferung 4711",
+				"body", Instant.now(), false, 2048);
+		classified.applyTriage(orderStatus, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
+		caseRepository.save(classified);
+
+		// Losing the reference would leave those cases with a tier nobody can explain.
+		mockMvc.perform(delete("/api/case-categories/" + orderStatus.getId()).with(csrf()))
+				.andExpect(status().isUnprocessableContent());
+
+		assertThat(caseCategoryRepository.existsById(orderStatus.getId())).isTrue();
+	}
+
+	@Test
+	@WithMockUser(username = "anna", roles = "ADMIN")
+	void deletesACategoryNothingPointsAt() throws Exception {
+		// Cases of another category are none of its business.
+		Case elsewhere = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Rechnung", "body",
+				Instant.now(), false, 2048);
+		elsewhere.applyTriage(invoice, CaseTier.MANUAL, new BigDecimal("0.60"), "Frage zur Rechnung.");
+		caseRepository.save(elsewhere);
 
 		mockMvc.perform(delete("/api/case-categories/" + orderStatus.getId()).with(csrf()))
 				.andExpect(status().isNoContent());
 
-		Case afterwards = caseRepository.findById(classified.getId()).orElseThrow();
-		assertThat(afterwards.getCategory()).isNull();
-		// The board showed that tier, so it stays what it was.
-		assertThat(afterwards.getTier()).isEqualTo(CaseTier.AUTOMATIC);
+		assertThat(caseCategoryRepository.existsById(orderStatus.getId())).isFalse();
+		assertThat(caseRepository.findById(elsewhere.getId()).orElseThrow().getCategory()).isNotNull();
 	}
 
 	@Test

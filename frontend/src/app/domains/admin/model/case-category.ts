@@ -18,6 +18,11 @@ export type CaseCategory = {
   sortOrder: number;
   /** An inactive category is left out of the prompt; the cases classified as such keep their tier. */
   active: boolean;
+  /**
+   * How many cases point at this category. A category with cases cannot be deleted, and the page
+   * says so before anyone clicks rather than after.
+   */
+  caseCount: number;
 };
 
 /**
