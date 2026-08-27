@@ -282,6 +282,23 @@ test.describe('Cases page', () => {
     expect(stored.widths.sender).toBeCloseTo(resized, 0);
   });
 
+  test('filters the list by the categories it actually holds', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    await page.getByRole('columnheader', { name: 'Kategorie' }).getByRole('button').click();
+    await page.locator('.p-datatable-filter-overlay p-multiselect').click();
+
+    // Only the one category the two mails carry; the untriaged case adds nothing to choose from.
+    const options = page.locator('.p-multiselect-overlay').getByRole('option');
+    await expect(options).toHaveText(['Statusanfrage Bestellung']);
+
+    await options.first().click();
+
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Invoice copy/ })).toHaveCount(0);
+  });
+
   test('pages through the cases and says how many there are', async ({ page }) => {
     const many = Array.from({ length: 30 }, (_, index) => ({
       ...mockCases[0],

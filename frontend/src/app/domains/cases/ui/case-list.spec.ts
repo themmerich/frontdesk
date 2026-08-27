@@ -201,6 +201,44 @@ describe('CaseList', () => {
     expect(plain.hasAttribute('data-category-color')).toBe(false);
   });
 
+  it('offers the categories the inbox holds, and nothing else, as the category filter', async () => {
+    const fixture = createFixture([
+      aCase({ categoryName: 'Statusanfrage Bestellung' }),
+      aCase({ id: '2', subject: 'Invoice copy', categoryName: 'Rechnungseingang' }),
+      // A second case of the same category, and one the triage has not seen yet.
+      aCase({ id: '3', subject: 'Noch eine Anfrage', categoryName: 'Statusanfrage Bestellung' }),
+      aCase({ id: '4', subject: 'Unbewertet' }),
+    ]);
+
+    await openFilterMenu(fixture, 4);
+
+    const multiSelect = document.querySelector('p-multiselect') as HTMLElement;
+    multiSelect.click();
+    await fixture.whenStable();
+    const options = Array.from(document.querySelectorAll('li[role="option"]')).map((option) => option.textContent?.trim());
+    // Each of them once, in alphabetical order; a case without one adds nothing to choose from.
+    expect(options).toEqual(['Rechnungseingang', 'Statusanfrage Bestellung']);
+  });
+
+  it('filters the rows down to the chosen categories', async () => {
+    const fixture = createFixture([
+      aCase({ categoryName: 'Statusanfrage Bestellung' }),
+      aCase({ id: '2', subject: 'Invoice copy', categoryName: 'Rechnungseingang' }),
+      aCase({ id: '3', subject: 'Unbewertet' }),
+    ]);
+    const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
+
+    table.filter(['Rechnungseingang'], 'categoryName', 'in');
+    // The table applies filters after its debounce delay (300 ms by default).
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await fixture.whenStable();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent;
+    expect(text).toContain('Invoice copy');
+    expect(text).not.toContain('Delivery status');
+    expect(text).not.toContain('Unbewertet');
+  });
+
   it('offers a multi-select for the tier column', async () => {
     const fixture = createFixture([]);
 
@@ -362,7 +400,7 @@ describe('CaseList', () => {
       'hasAttachments',
       'sender',
       'recipient',
-      'category',
+      'categoryName',
       'tier',
       'receivedAt',
       'sizeBytes',

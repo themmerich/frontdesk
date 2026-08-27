@@ -5,7 +5,7 @@
  */
 
 export type CaseColumnField =
-  'sender' | 'recipient' | 'subject' | 'summary' | 'category' | 'tier' | 'confidence' | 'hasAttachments' | 'sizeBytes' | 'receivedAt';
+  'sender' | 'recipient' | 'subject' | 'summary' | 'categoryName' | 'tier' | 'confidence' | 'hasAttachments' | 'sizeBytes' | 'receivedAt';
 
 export type CaseColumnDefinition = {
   field: CaseColumnField;
@@ -23,9 +23,9 @@ export const CASE_COLUMNS: readonly CaseColumnDefinition[] = [
   // that difference decides who picks the case up.
   { field: 'recipient', labelKey: 'cases.recipient', sortable: true, filterable: true },
   { field: 'subject', labelKey: 'cases.subject', sortable: true, filterable: true },
-  // The triage's verdict, beside the subject it is about. Categories are the
-  // tenant's own wording, so they filter as free text.
-  { field: 'category', labelKey: 'cases.category', sortable: true, filterable: true },
+  // The triage's verdict, beside the subject it is about. Named after the field the rows carry:
+  // sorting, filtering and the CSV export all read the column by that name.
+  { field: 'categoryName', labelKey: 'cases.category', sortable: true, filterable: true },
   // Filtered through a multi-select: the cells show translated labels while the
   // rows keep the raw values, so free text would have to match the untranslated
   // one — confusing.
@@ -65,12 +65,24 @@ export function defaultColumnPreferences(): CaseColumnPreferences {
   return { order: [...DEFAULT_COLUMN_ORDER], visibleFields: [...DEFAULT_COLUMN_ORDER], widths: {} };
 }
 
+/**
+ * Columns that were stored under a name they no longer go by. The category was named after its
+ * label until it was named after the field the rows carry; without this, everyone who had chosen
+ * their columns before would find that one at the end of the row again.
+ */
+const RENAMED_FIELDS: Record<string, CaseColumnField> = { category: 'categoryName' };
+
+function renamed(field: string): string {
+  return RENAMED_FIELDS[field] ?? field;
+}
+
 function knownFields(value: unknown): CaseColumnField[] {
   if (!Array.isArray(value)) {
     return [];
   }
   const known = new Set<string>(DEFAULT_COLUMN_ORDER);
-  return [...new Set(value.filter((field): field is CaseColumnField => typeof field === 'string' && known.has(field)))];
+  const fields = value.map((field): unknown => (typeof field === 'string' ? renamed(field) : field));
+  return [...new Set(fields.filter((field): field is CaseColumnField => typeof field === 'string' && known.has(field)))];
 }
 
 /**
@@ -88,9 +100,9 @@ function knownWidths(value: unknown): CaseColumnWidths {
     return {};
   }
   const known = new Set<string>([SELECTION_COLUMN, ACTIONS_COLUMN, ...DEFAULT_COLUMN_ORDER]);
-  const widths = Object.entries(value).filter(
-    ([key, width]) => known.has(key) && typeof width === 'number' && Number.isFinite(width) && width > 0,
-  );
+  const widths = Object.entries(value)
+    .map(([key, width]): [string, unknown] => [renamed(key), width])
+    .filter(([key, width]) => known.has(key) && typeof width === 'number' && Number.isFinite(width) && width > 0);
   return Object.fromEntries(widths) as CaseColumnWidths;
 }
 

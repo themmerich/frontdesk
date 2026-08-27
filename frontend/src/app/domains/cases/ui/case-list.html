@@ -161,6 +161,28 @@
                       </ng-template>
                     </p-columnfilter>
                   }
+                  @case ('categoryName') {
+                    <!-- The tenant's own wording, and only what the inbox actually holds: typing
+                         a category by hand only ever produces a list of nothing. -->
+                    <p-columnfilter
+                      field="categoryName"
+                      matchMode="in"
+                      display="menu"
+                      [showMatchModes]="false"
+                      [showOperator]="false"
+                      [showAddButton]="false"
+                    >
+                      <ng-template #filter let-value let-filter="filterCallback">
+                        <p-multiselect
+                          [ngModel]="value"
+                          [options]="categoryOptions()"
+                          [placeholder]="t('cases.categoryAll')"
+                          [showToggleAll]="false"
+                          (onChange)="filter($event.value)"
+                        />
+                      </ng-template>
+                    </p-columnfilter>
+                  }
                   @case ('hasAttachments') {
                     <p-columnfilter type="boolean" display="menu" field="hasAttachments" [showOperator]="false" [showAddButton]="false" />
                   }
@@ -205,7 +227,7 @@
                   <span class="text-surface-400 dark:text-surface-500">–</span>
                 }
               }
-              @case ('category') {
+              @case ('categoryName') {
                 @if (row.categoryName) {
                   {{ row.categoryName }}
                 } @else {
