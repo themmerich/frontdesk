@@ -63,6 +63,9 @@ function aCase(overrides: Partial<Case> = {}): Case {
 
 describe('CaseList', () => {
   beforeEach(async () => {
+    // The table persists what it shows, so every test starts on an empty storage rather than on
+    // whatever the one before it filtered. The storage itself comes from src/test-setup.ts.
+    localStorage.clear();
     // PrimeNG's overlay queries matchMedia via the document's view; JSDOM does not implement it.
     const view = document.defaultView as unknown as { matchMedia?: (query: string) => Partial<MediaQueryList> };
     view.matchMedia ??= (query: string) => ({
@@ -423,6 +426,66 @@ describe('CaseList', () => {
       row.querySelectorAll('td')[4].textContent?.trim(),
     );
     expect(subjects).toEqual(['Small with the bigger unit', 'Large with the smaller number']);
+  });
+
+  it('exports the visible columns, which a stateful table does not know by itself', async () => {
+    const fixture = createFixture([aCase({ subject: 'Rechnung 2026-081' })]);
+    const exported: Blob[] = [];
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob | MediaSource) => {
+      exported.push(blob as Blob);
+      return 'blob:export';
+    });
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    Array.from(element.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes('Export'))!
+      .click();
+    await fixture.whenStable();
+
+    const csv = await exported[0].text();
+    expect(csv).toContain('"Subject"');
+    expect(csv).toContain('"Rechnung 2026-081"');
+    createObjectURL.mockRestore();
+  });
+
+  it('still renders where a storage is missing, only without remembering anything', () => {
+    const view = document.defaultView!;
+    const { localStorage: storage } = view;
+    Object.defineProperty(view, 'localStorage', { value: undefined, configurable: true });
+
+    expect((createFixture([aCase()]).nativeElement as HTMLElement).textContent).toContain('Delivery status');
+
+    Object.defineProperty(view, 'localStorage', { value: storage, configurable: true });
+  });
+
+  it('hands the search over to the next table on the same key, but not the ticked rows', async () => {
+    const cases = [aCase(), aCase({ id: '2', sender: 'ben@example.com', subject: 'Invoice copy' })];
+    const fixture = createFixture(cases);
+    const element = fixture.nativeElement as HTMLElement;
+    const search = element.querySelector('input[aria-label="Search"]') as HTMLInputElement;
+
+    search.value = 'invoice';
+    search.dispatchEvent(new Event('input'));
+    (element.querySelector('p-table-header-checkbox input') as HTMLInputElement).click();
+    // The table applies filters after its debounce delay (300 ms by default).
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await fixture.whenStable();
+    fixture.destroy();
+
+    // What a reload — or the walk to the detail view and back — looks like from here.
+    const second = createFixture(cases);
+    await second.whenStable();
+
+    const restored = second.nativeElement as HTMLElement;
+    // The rows come back filtered, and the box says what they are filtered by.
+    expect(restored.textContent).toContain('Invoice copy');
+    expect(restored.textContent).not.toContain('Delivery status');
+    expect((restored.querySelector('input[aria-label="Search"]') as HTMLInputElement).value).toBe('invoice');
+    // A tick is meant for the next click, not for tomorrow: it stays out of the stored state,
+    // where it would put mails back that have been deleted in the meantime.
+    expect(localStorage.getItem('frontdesk-case-table')).not.toContain('selection');
+    expect(Array.from(restored.querySelectorAll('button')).find((button) => button.textContent?.includes('Delete'))!.disabled).toBe(true);
   });
 
   it('filters the rows down to the cases with an attachment', async () => {
