@@ -143,6 +143,34 @@ describe('CaseList remembered state', () => {
     expect(localStorage.getItem('frontdesk-case-table')).toBeNull();
   });
 
+  it('fills a page where the stored state knows nothing of a paginator', async () => {
+    // What the storage holds for everyone who used the inbox before it had one. PrimeNG hands
+    // the missing entries on as undefined, and the table then shows nothing at all.
+    localStorage.setItem('frontdesk-case-table', JSON.stringify({ sortField: 'receivedAt', sortOrder: -1 }));
+
+    const fixture = createFixture([aCase(), aCase({ id: '2', subject: 'Invoice copy' })]);
+    await fixture.whenStable();
+
+    const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
+    expect(table.rows()).toBe(25);
+    expect(table.first()).toBe(0);
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')).toHaveLength(2);
+  });
+
+  it('remembers how many rows a page holds, but not the page one stood on', () => {
+    const fixture = createFixture();
+    const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
+
+    // Read back without awaiting: paging writes the state on the spot, and a debounced filter
+    // left over from another test would otherwise get its write in first.
+    table.onPageChange({ first: 50, rows: 50 });
+
+    const stored = JSON.parse(localStorage.getItem('frontdesk-case-table') ?? '{}') as Record<string, unknown>;
+    expect(stored['rows']).toBe(50);
+    // Mail arrives at the top, so the inbox opens there rather than where it was left.
+    expect(stored['first']).toBeUndefined();
+  });
+
   it('drops the widths when the columns are reset', async () => {
     const fixture = createFixture();
     fixture.componentRef.setInput('columnWidths', { sender: 200, subject: 300 });

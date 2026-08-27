@@ -33,6 +33,7 @@
     "columns": "Columns",
     "reset": "Reset",
     "search": "Search",
+    "pageReport": "{first} – {last} of {totalRecords} cases",
     "resetView": "Reset view",
     "resetViewHint": "Reset sorting, filters and columns",
     "export": "Export",

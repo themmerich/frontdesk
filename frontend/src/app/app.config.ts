@@ -73,6 +73,14 @@ export const appConfig: ApplicationConfig = {
         aria: {
           showFilterMenu: 'Filtermenü anzeigen',
           hideFilterMenu: 'Filtermenü verbergen',
+          // The paginator's buttons carry an icon and nothing else.
+          firstPageLabel: 'Erste Seite',
+          prevPageLabel: 'Vorherige Seite',
+          nextPageLabel: 'Nächste Seite',
+          lastPageLabel: 'Letzte Seite',
+          pageLabel: 'Seite {page}',
+          rowsPerPageLabel: 'Zeilen pro Seite',
+          jumpToPageDropdownLabel: 'Zu Seite springen',
         },
       },
       theme: {
