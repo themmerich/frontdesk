@@ -66,7 +66,12 @@ export class CaseList {
   private readonly transloco = inject(TranslocoService);
   private readonly storage = inject(DOCUMENT).defaultView?.localStorage ?? null;
 
-  protected readonly stateKey = STATE_KEY;
+  /**
+   * No storage, no state: where localStorage is missing or blocked, the table simply forgets
+   * again instead of failing — PrimeNG reads the storage on every save and restore, and an
+   * absent `stateKey` is what switches all of that off.
+   */
+  protected readonly stateKey = this.storage === null ? undefined : STATE_KEY;
 
   readonly cases = input.required<Case[]>();
 

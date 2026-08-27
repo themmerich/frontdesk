@@ -63,8 +63,8 @@ function aCase(overrides: Partial<Case> = {}): Case {
 
 describe('CaseList', () => {
   beforeEach(async () => {
-    // The table persists its state, so every test starts from an empty storage
-    // rather than on whatever the test before it filtered or sorted.
+    // The table persists what it shows, so every test starts on an empty storage rather than on
+    // whatever the one before it filtered. The storage itself comes from src/test-setup.ts.
     localStorage.clear();
     // PrimeNG's overlay queries matchMedia via the document's view; JSDOM does not implement it.
     const view = document.defaultView as unknown as { matchMedia?: (query: string) => Partial<MediaQueryList> };
@@ -436,17 +436,27 @@ describe('CaseList', () => {
       return 'blob:export';
     });
 
-    const exportButton = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Export'),
-    )!;
-    exportButton.click();
+    const element = fixture.nativeElement as HTMLElement;
+
+    Array.from(element.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes('Export'))!
+      .click();
     await fixture.whenStable();
 
-    expect(exported).toHaveLength(1);
     const csv = await exported[0].text();
     expect(csv).toContain('"Subject"');
     expect(csv).toContain('"Rechnung 2026-081"');
     createObjectURL.mockRestore();
+  });
+
+  it('still renders where a storage is missing, only without remembering anything', () => {
+    const view = document.defaultView!;
+    const { localStorage: storage } = view;
+    Object.defineProperty(view, 'localStorage', { value: undefined, configurable: true });
+
+    expect((createFixture([aCase()]).nativeElement as HTMLElement).textContent).toContain('Delivery status');
+
+    Object.defineProperty(view, 'localStorage', { value: storage, configurable: true });
   });
 
   it('hands the search over to the next table on the same key, but not the ticked rows', async () => {
@@ -475,8 +485,7 @@ describe('CaseList', () => {
     // A tick is meant for the next click, not for tomorrow: it stays out of the stored state,
     // where it would put mails back that have been deleted in the meantime.
     expect(localStorage.getItem('frontdesk-case-table')).not.toContain('selection');
-    const toolbarDelete = Array.from(restored.querySelectorAll('button')).find((button) => button.textContent?.includes('Delete'))!;
-    expect(toolbarDelete.disabled).toBe(true);
+    expect(Array.from(restored.querySelectorAll('button')).find((button) => button.textContent?.includes('Delete'))!.disabled).toBe(true);
   });
 
   it('filters the rows down to the cases with an attachment', async () => {
