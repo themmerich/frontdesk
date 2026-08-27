@@ -1,6 +1,18 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePipe, DOCUMENT } from '@angular/common';
-import { Component, computed, inject, input, linkedSignal, model, output, signal, viewChild } from '@angular/core';
+import {
+  afterRenderEffect,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  linkedSignal,
+  model,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
@@ -17,7 +29,16 @@ import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 
 import { Case, CaseTier } from '../model/case';
-import { CASE_COLUMNS, CaseColumnDefinition, CaseColumnField, DEFAULT_COLUMN_ORDER } from '../model/case-column';
+import {
+  ACTIONS_COLUMN,
+  CASE_COLUMNS,
+  CaseColumnDefinition,
+  CaseColumnField,
+  CaseColumnWidthKey,
+  CaseColumnWidths,
+  DEFAULT_COLUMN_ORDER,
+  SELECTION_COLUMN,
+} from '../model/case-column';
 import { FileSizePipe } from './file-size-pipe';
 
 type CaseColumn = Omit<CaseColumnDefinition, 'labelKey'> & { header: string };
@@ -65,6 +86,7 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
 export class CaseList {
   private readonly transloco = inject(TranslocoService);
   private readonly storage = inject(DOCUMENT).defaultView?.localStorage ?? null;
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /**
    * No storage, no state: where localStorage is missing or blocked, the table simply forgets
@@ -106,7 +128,34 @@ export class CaseList {
   readonly columnOrder = model<CaseColumnField[]>([...DEFAULT_COLUMN_ORDER]);
   readonly visibleFields = model<CaseColumnField[]>([...DEFAULT_COLUMN_ORDER]);
 
+  /**
+   * What each column was dragged to, by column rather than by position. The table's own state
+   * keeps widths by position, where hiding one column moves every width behind it onto its
+   * neighbour. Two-way bound like the order and the visibility, so the page persists all three
+   * together; unbound, the columns simply size themselves.
+   */
+  readonly columnWidths = model<CaseColumnWidths>({});
+
   private readonly table = viewChild.required(Table);
+
+  /** The names the two fixed columns are remembered under; the others go by their field. */
+  protected readonly selectionColumn = SELECTION_COLUMN;
+  protected readonly actionsColumn = ACTIONS_COLUMN;
+
+  constructor() {
+    // The widths as PrimeNG wants them: one per rendered column, in the order they stand. It
+    // applies them itself on load, and from here on they are handed over again for whatever
+    // arrangement is on screen — after a column was hidden, shown, or moved.
+    afterRenderEffect(() => {
+      const widths = this.renderedWidths();
+      const table = this.table();
+      table.destroyStyleElement();
+      table.columnWidthsState = widths;
+      if (widths !== undefined) {
+        table.restoreColumnWidths();
+      }
+    });
+  }
 
   protected readonly globalFilterFields: CaseColumnField[] = ['sender', 'recipient', 'subject', 'category'];
 
@@ -138,6 +187,34 @@ export class CaseList {
   // What the header and the body render, and what the CSV export is handed.
   protected readonly visibleColumns = computed(() => this.columns().filter((column) => this.visibleFields().includes(column.field)));
 
+  /**
+   * The widths of the columns now on screen, in their order and with the two fixed ones around
+   * them — or nothing at all while a single one of them is unknown, because the table reads the
+   * list by position and a gap would shift every column behind it. Unknown means a column that
+   * was not on screen when a width was last dragged; the next drag fills it in.
+   */
+  private readonly renderedWidths = computed<string | undefined>(() => {
+    const widths = this.columnWidths();
+    const rendered: CaseColumnWidthKey[] = [SELECTION_COLUMN, ...this.visibleColumns().map((column) => column.field), ACTIONS_COLUMN];
+    const values = rendered.map((column) => widths[column]);
+    return values.every((width) => width !== undefined) ? values.join(',') : undefined;
+  });
+
+  /**
+   * A drag on a resize handle changes the column and its neighbour, and in fit mode every width
+   * is a share of the same table — so all of them are read back, not only the one that was
+   * dragged. The header cells say which column they are, and that is what turns a position into
+   * a column that keeps its width when the arrangement changes.
+   */
+  protected onColumnResized(): void {
+    const headers = this.host.nativeElement.querySelectorAll<HTMLElement>('thead th[data-column]');
+    const measured: CaseColumnWidths = {};
+    for (const header of headers) {
+      measured[header.dataset['column'] as keyof CaseColumnWidths] = Math.round(header.getBoundingClientRect().width);
+    }
+    this.columnWidths.update((widths) => ({ ...widths, ...measured }));
+  }
+
   protected onColumnDrop(event: CdkDragDrop<CaseColumn[]>): void {
     const order = [...this.columnOrder()];
     moveItemInArray(order, event.previousIndex, event.currentIndex);
@@ -147,6 +224,8 @@ export class CaseList {
   protected onResetColumns(): void {
     this.columnOrder.set([...DEFAULT_COLUMN_ORDER]);
     this.visibleFields.set([...DEFAULT_COLUMN_ORDER]);
+    // Reset means the table as it comes, so the dragged widths go with the order and the choice.
+    this.columnWidths.set({});
   }
 
   protected onGlobalSearch(query: string): void {
@@ -161,9 +240,12 @@ export class CaseList {
    * and the toolbar's delete would count them. Written again without them, right after PrimeNG.
    */
   protected onStateSave(state: TableState): void {
-    // JSON.stringify leaves the undefined entry out, so what lands in the storage has no
+    // JSON.stringify leaves the undefined entries out, so what lands in the storage has no
     // selection at all — not an empty one that would still be restored over the current tick.
-    this.storage?.setItem(STATE_KEY, JSON.stringify({ ...state, selection: undefined }));
+    // The widths the table measured go the same way: they are kept by column here, and put back
+    // in the shape it reads them, for the arrangement that is actually on screen.
+    const stored = { ...state, columnWidths: this.renderedWidths(), tableWidth: undefined, selection: undefined };
+    this.storage?.setItem(STATE_KEY, JSON.stringify(stored));
   }
 
   /**

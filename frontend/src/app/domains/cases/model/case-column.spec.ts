@@ -6,20 +6,33 @@ describe('parseColumnPreferences', () => {
       expect(parseColumnPreferences(stored)).toEqual({
         order: [...DEFAULT_COLUMN_ORDER],
         visibleFields: [...DEFAULT_COLUMN_ORDER],
+        widths: {},
       });
     }
   });
 
-  it('restores a stored order and visibility', () => {
+  it('restores a stored order, visibility and widths', () => {
     const stored = {
       order: ['subject', 'sender', 'recipient', 'hasAttachments', 'category', 'tier', 'sizeBytes', 'receivedAt'],
       visibleFields: ['subject', 'sender'],
+      widths: { __selection: 48, subject: 320, sender: 180, __actions: 100 },
     };
 
     expect(parseColumnPreferences(stored)).toEqual({
       order: ['subject', 'sender', 'recipient', 'hasAttachments', 'category', 'tier', 'sizeBytes', 'receivedAt'],
       visibleFields: ['subject', 'sender'],
+      widths: { __selection: 48, subject: 320, sender: 180, __actions: 100 },
     });
+  });
+
+  it('keeps only widths that name a column and measure something', () => {
+    const stored = {
+      order: [...DEFAULT_COLUMN_ORDER],
+      // A column that no longer exists, and three values that are no width at all.
+      widths: { subject: 320, gone: 120, sender: 0, recipient: -40, tier: 'wide' },
+    };
+
+    expect(parseColumnPreferences(stored).widths).toEqual({ subject: 320 });
   });
 
   it('drops unknown fields and duplicates', () => {

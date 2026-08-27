@@ -254,6 +254,34 @@ test.describe('Cases page', () => {
     expect((await senderColumn.boundingBox())!.width).toBeCloseTo(resized, 0);
   });
 
+  test('keeps a dragged width on its column when another column is hidden', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    const sender = page.getByRole('columnheader', { name: 'Absender' });
+    const handle = (await sender.locator('.p-datatable-column-resizer').boundingBox())!;
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handle.x - 80, handle.y + handle.height / 2, { steps: 10 });
+    await page.mouse.up();
+    const resized = (await sender.boundingBox())!.width;
+
+    // The column in front of it goes: by position, its width would land on the sender.
+    await page.getByRole('button', { name: 'Spalten' }).click();
+    await page.locator('input#hasAttachments').click();
+    await page.keyboard.press('Escape');
+
+    expect((await sender.boundingBox())!.width).toBeCloseTo(resized, 0);
+
+    await page.reload();
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+
+    // Still the width the sender was dragged to, and the widths are kept by column, not by place.
+    expect((await sender.boundingBox())!.width).toBeCloseTo(resized, 0);
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('frontdesk-case-columns') ?? '{}'));
+    expect(stored.widths.sender).toBeCloseTo(resized, 0);
+  });
+
   test('keeps the search across a reload, but not the ticked rows', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
 
