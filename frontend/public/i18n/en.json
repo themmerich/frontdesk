@@ -33,6 +33,8 @@
     "columns": "Columns",
     "reset": "Reset",
     "search": "Search",
+    "resetView": "Reset view",
+    "resetViewHint": "Reset sorting, filters and columns",
     "export": "Export",
     "delete": "Delete",
     "actions": "Actions",

@@ -46,6 +46,10 @@ type CaseColumn = Omit<CaseColumnDefinition, 'labelKey'> & { header: string };
 /** Where PrimeNG keeps what the table remembers: filters, sorting, and the resized widths. */
 const STATE_KEY = 'frontdesk-case-table';
 
+/** Newest first, which is what the inbox opens with and what a reset puts back. */
+const DEFAULT_SORT_FIELD = 'receivedAt';
+const DEFAULT_SORT_ORDER = -1;
+
 /**
  * Green, amber, red for the three tiers that need an answer — rising with the work left to a
  * person. Blue and grey for the two that need none.
@@ -226,6 +230,24 @@ export class CaseList {
     this.visibleFields.set([...DEFAULT_COLUMN_ORDER]);
     // Reset means the table as it comes, so the dragged widths go with the order and the choice.
     this.columnWidths.set({});
+  }
+
+  /**
+   * The table as it comes: sorting, filters and search go, and so do the columns, their order
+   * and their widths. What was remembered of all that goes with it — the table's own entry
+   * through clearState(), the columns through the defaults the page then stores nothing for.
+   */
+  protected onResetView(): void {
+    const table = this.table();
+    table.clear();
+    this.globalSearch.set('');
+    // clear() leaves the table with no sorting at all; these two are what it opens with, and
+    // they are set the same way the table sets them when it restores its own state.
+    table.sortField = DEFAULT_SORT_FIELD;
+    table.sortOrder = DEFAULT_SORT_ORDER;
+    table.sortSingle();
+    this.onResetColumns();
+    table.clearState();
   }
 
   protected onGlobalSearch(query: string): void {
