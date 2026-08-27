@@ -13,16 +13,31 @@ describe('parseColumnPreferences', () => {
 
   it('restores a stored order, visibility and widths', () => {
     const stored = {
-      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'category', 'tier', 'sizeBytes', 'receivedAt'],
+      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'categoryName', 'tier', 'sizeBytes', 'receivedAt'],
       visibleFields: ['subject', 'sender'],
       widths: { __selection: 48, subject: 320, sender: 180, __actions: 100 },
     };
 
     expect(parseColumnPreferences(stored)).toEqual({
-      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'category', 'tier', 'sizeBytes', 'receivedAt'],
+      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'categoryName', 'tier', 'sizeBytes', 'receivedAt'],
       visibleFields: ['subject', 'sender'],
       widths: { __selection: 48, subject: 320, sender: 180, __actions: 100 },
     });
+  });
+
+  it('keeps the category where it was, now that the column goes by its field', () => {
+    // What the storage holds for everyone who chose their columns before the rename.
+    const stored = {
+      order: ['category', 'subject', 'sender', 'recipient', 'hasAttachments', 'tier', 'sizeBytes', 'receivedAt'],
+      visibleFields: ['category', 'subject'],
+      widths: { category: 200 },
+    };
+
+    const preferences = parseColumnPreferences(stored);
+
+    expect(preferences.order[0]).toBe('categoryName');
+    expect(preferences.visibleFields).toEqual(['categoryName', 'subject']);
+    expect(preferences.widths).toEqual({ categoryName: 200 });
   });
 
   it('keeps only widths that name a column and measure something', () => {
@@ -50,8 +65,25 @@ describe('parseColumnPreferences', () => {
 
     const preferences = parseColumnPreferences(stored);
 
-    expect(preferences.order).toEqual(['subject', 'sender', 'hasAttachments', 'recipient', 'category', 'tier', 'receivedAt', 'sizeBytes']);
-    expect(preferences.visibleFields).toEqual(['subject', 'hasAttachments', 'recipient', 'category', 'tier', 'receivedAt', 'sizeBytes']);
+    expect(preferences.order).toEqual([
+      'subject',
+      'sender',
+      'hasAttachments',
+      'recipient',
+      'categoryName',
+      'tier',
+      'receivedAt',
+      'sizeBytes',
+    ]);
+    expect(preferences.visibleFields).toEqual([
+      'subject',
+      'hasAttachments',
+      'recipient',
+      'categoryName',
+      'tier',
+      'receivedAt',
+      'sizeBytes',
+    ]);
   });
 
   it('keeps an empty visibility list, which hides every column', () => {

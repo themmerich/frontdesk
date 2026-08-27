@@ -166,10 +166,22 @@ export class CaseList {
     });
   }
 
-  protected readonly globalFilterFields: CaseColumnField[] = ['sender', 'recipient', 'subject', 'category'];
+  protected readonly globalFilterFields: CaseColumnField[] = ['sender', 'recipient', 'subject', 'categoryName'];
 
   /** What stands in the search box; kept here so a restored global filter can be shown in it. */
   protected readonly globalSearch = signal('');
+
+  /**
+   * Options of the category multi-select filter: the categories the inbox actually holds, in
+   * alphabetical order. They are the tenant's own wording and change with the triage settings,
+   * so they are read off the cases rather than spelled out anywhere.
+   */
+  protected readonly categoryOptions = computed<string[]>(() => {
+    const names = this.cases()
+      .map((aCase) => aCase.categoryName)
+      .filter((name) => name !== null);
+    return [...new Set(names)].sort((one, other) => one.localeCompare(other));
+  });
 
   /** Options of the tier multi-select filter, matching the raw values the rows carry. */
   protected readonly tierOptions = computed<{ label: string; value: CaseTier }[]>(() => {
