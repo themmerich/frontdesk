@@ -19,6 +19,7 @@
     [sortOrder]="-1"
     stateStorage="local"
     [stateKey]="stateKey"
+    (onColResize)="onColumnResized()"
     (onStateSave)="onStateSave($event)"
     (onStateRestore)="onStateRestore($event)"
   >
@@ -93,14 +94,22 @@
     </ng-template>
     <ng-template #header>
       <tr>
-        <th scope="col" class="w-12">
+        <!-- Every header says which column it is, so a dragged width is remembered by column
+             rather than by the place that column happens to stand in. -->
+        <th scope="col" class="w-12" [attr.data-column]="selectionColumn">
           <p-table-header-checkbox [ariaLabel]="t('cases.selectAll')" />
         </th>
         @for (col of visibleColumns(); track col.field) {
           <!-- One header for both kinds of column: the attachment column carries a
                filter but no sorting, so the sortable behaviour is switched off
                rather than the header being written twice. -->
-          <th scope="col" pResizableColumn [pSortableColumn]="col.field" [pSortableColumnDisabled]="!col.sortable">
+          <th
+            scope="col"
+            pResizableColumn
+            [attr.data-column]="col.field"
+            [pSortableColumn]="col.field"
+            [pSortableColumnDisabled]="!col.sortable"
+          >
             <div class="flex items-center gap-2">
               @if (col.field === 'hasAttachments') {
                 <!-- The paperclip in the cells says it; the word above them only
@@ -151,7 +160,7 @@
             </div>
           </th>
         }
-        <th scope="col" class="w-16">
+        <th scope="col" class="w-16" [attr.data-column]="actionsColumn">
           <span class="sr-only">{{ t('cases.actions') }}</span>
         </th>
       </tr>

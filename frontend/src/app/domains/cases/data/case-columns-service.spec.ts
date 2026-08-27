@@ -77,6 +77,18 @@ describe('CaseColumnsService', () => {
     expect(storedPreferences(storage)['visibleFields']).toEqual(['sender', 'subject']);
   });
 
+  it('restores and persists the dragged column widths', () => {
+    storage.setItem('frontdesk-case-columns', JSON.stringify({ widths: { subject: 320, sender: 180 } }));
+
+    const store = TestBed.inject(CaseColumnsService);
+    expect(store.widths()).toEqual({ subject: 320, sender: 180 });
+
+    store.widths.set({ subject: 260 });
+    TestBed.tick();
+
+    expect(storedPreferences(storage)['widths']).toEqual({ subject: 260 });
+  });
+
   it('persists a changed order', () => {
     const store = TestBed.inject(CaseColumnsService);
 

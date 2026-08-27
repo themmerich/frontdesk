@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { effect, inject, InjectionToken, Service, signal } from '@angular/core';
 
-import { CaseColumnField, defaultColumnPreferences, parseColumnPreferences } from '../model/case-column';
+import { CaseColumnField, CaseColumnWidths, defaultColumnPreferences, parseColumnPreferences } from '../model/case-column';
 
 const STORAGE_KEY = 'frontdesk-case-columns';
 
@@ -16,9 +16,9 @@ export const CASE_COLUMNS_STORAGE = new InjectionToken<Storage | null>('CASE_COL
 });
 
 /**
- * Column order and visibility of the case table, persisted across visits. Both
- * signals are written directly by the column toggle (through two-way bindings),
- * so persistence hangs off an effect rather than off setter methods.
+ * Column order, visibility and widths of the case table, persisted across visits. All three
+ * signals are written directly by the column toggle and the resize handles (through two-way
+ * bindings), so persistence hangs off an effect rather than off setter methods.
  */
 @Service()
 export class CaseColumnsService {
@@ -28,12 +28,13 @@ export class CaseColumnsService {
 
   readonly order = signal<CaseColumnField[]>(this.preferences.order);
   readonly visibleFields = signal<CaseColumnField[]>(this.preferences.visibleFields);
+  readonly widths = signal<CaseColumnWidths>(this.preferences.widths);
 
   constructor() {
     // Also runs once on startup, which rewrites the restored value in its
     // normalized form and thereby cleans up drifted entries.
     effect(() => {
-      const preferences = { order: this.order(), visibleFields: this.visibleFields() };
+      const preferences = { order: this.order(), visibleFields: this.visibleFields(), widths: this.widths() };
       this.storage?.setItem(STORAGE_KEY, JSON.stringify(preferences));
     });
   }
