@@ -1,9 +1,10 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
-import { DatePipe } from '@angular/common';
-import { Component, computed, inject, input, linkedSignal, model, output, viewChild } from '@angular/core';
+import { DatePipe, DOCUMENT } from '@angular/common';
+import { Component, computed, inject, input, linkedSignal, model, output, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
+import { TableState } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { IconFieldModule } from 'primeng/iconfield';
@@ -20,6 +21,9 @@ import { CASE_COLUMNS, CaseColumnDefinition, CaseColumnField, DEFAULT_COLUMN_ORD
 import { FileSizePipe } from './file-size-pipe';
 
 type CaseColumn = Omit<CaseColumnDefinition, 'labelKey'> & { header: string };
+
+/** Where PrimeNG keeps what the table remembers: filters, sorting, and the resized widths. */
+const STATE_KEY = 'frontdesk-case-table';
 
 /**
  * Green, amber, red for the three tiers that need an answer — rising with the work left to a
@@ -60,6 +64,9 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
 })
 export class CaseList {
   private readonly transloco = inject(TranslocoService);
+  private readonly storage = inject(DOCUMENT).defaultView?.localStorage ?? null;
+
+  protected readonly stateKey = STATE_KEY;
 
   readonly cases = input.required<Case[]>();
 
@@ -98,6 +105,9 @@ export class CaseList {
 
   protected readonly globalFilterFields: CaseColumnField[] = ['sender', 'recipient', 'subject', 'category'];
 
+  /** What stands in the search box; kept here so a restored global filter can be shown in it. */
+  protected readonly globalSearch = signal('');
+
   /** Options of the tier multi-select filter, matching the raw values the rows carry. */
   protected readonly tierOptions = computed<{ label: string; value: CaseTier }[]>(() => {
     this.translation();
@@ -120,7 +130,7 @@ export class CaseList {
       return { ...column, header: this.transloco.translate(labelKey) };
     });
   });
-  // Drives the table's `columns` input, which also feeds PrimeNG's exportCSV().
+  // What the header and the body render, and what the CSV export is handed.
   protected readonly visibleColumns = computed(() => this.columns().filter((column) => this.visibleFields().includes(column.field)));
 
   protected onColumnDrop(event: CdkDragDrop<CaseColumn[]>): void {
@@ -135,7 +145,30 @@ export class CaseList {
   }
 
   protected onGlobalSearch(query: string): void {
+    this.globalSearch.set(query);
     this.table().filterGlobal(query, 'contains');
+  }
+
+  /**
+   * Everything the table remembers is a view preference — except the ticked rows, which PrimeNG
+   * writes along with the rest. A ticked row is the working set of the next click, not something
+   * to find again tomorrow: restored, it would put the tick back on mails that are long deleted,
+   * and the toolbar's delete would count them. Written again without them, right after PrimeNG.
+   */
+  protected onStateSave(state: TableState): void {
+    // JSON.stringify leaves the undefined entry out, so what lands in the storage has no
+    // selection at all — not an empty one that would still be restored over the current tick.
+    this.storage?.setItem(STATE_KEY, JSON.stringify({ ...state, selection: undefined }));
+  }
+
+  /**
+   * The table restores its own filters, but not the box the global one was typed into: without
+   * this the rows would come back filtered under an empty search field, with no way to see why.
+   */
+  protected onStateRestore(state: TableState): void {
+    // The global filter is a single entry; only a column filter can be a list of them.
+    const global = state.filters?.['global'];
+    this.globalSearch.set(global !== undefined && !Array.isArray(global) ? String(global.value ?? '') : '');
   }
 
   /**
@@ -162,7 +195,11 @@ export class CaseList {
   }
 
   protected onExportCsv(): void {
-    this.table().exportCSV();
+    const table = this.table();
+    // exportCSV() takes its headers and its fields from the table's own `columns`, which a
+    // stateful table never fills from the input. Handed over here, where they are needed.
+    table.columns = this.visibleColumns();
+    table.exportCSV();
   }
 
   protected onDeleteSelected(): void {

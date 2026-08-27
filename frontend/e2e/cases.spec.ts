@@ -245,7 +245,37 @@ test.describe('Cases page', () => {
     await page.mouse.move(handle.x - 50, handle.y + handle.height / 2, { steps: 10 });
     await page.mouse.up();
 
-    expect((await senderColumn.boundingBox())!.width).toBeLessThan(before - 20);
+    const resized = (await senderColumn.boundingBox())!.width;
+    expect(resized).toBeLessThan(before - 20);
+
+    // The width is part of what the table remembers, so it is still there after a reload.
+    await page.reload();
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+    expect((await senderColumn.boundingBox())!.width).toBeCloseTo(resized, 0);
+  });
+
+  test('keeps the search across a reload, but not the ticked rows', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    const search = page.getByRole('textbox', { name: 'Suchen' });
+    await search.fill('invoice');
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
+    // Ticked for the next click, not for the next visit.
+    await page
+      .getByRole('row', { name: /Invoice copy/ })
+      .getByRole('checkbox')
+      .click();
+    await expect(page.getByRole('button', { name: 'Auswahl löschen' })).toBeEnabled();
+
+    await page.reload();
+
+    // The rows come back filtered, and the box says what they are filtered by.
+    await expect(page.getByRole('row', { name: /Invoice copy/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
+    await expect(search).toHaveValue('invoice');
+    // The tick is gone: it would point at a mail that may have been deleted meanwhile.
+    await expect(page.getByRole('button', { name: 'Auswahl löschen' })).toBeDisabled();
   });
 
   test('shows the triage verdict per case', async ({ page }) => {

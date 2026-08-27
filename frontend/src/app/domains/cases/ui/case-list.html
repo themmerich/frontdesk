@@ -1,7 +1,12 @@
 <ng-container *transloco="let t">
+  <!-- The table remembers itself: the search, the column filters, the sorting and the
+       resized widths outlive a reload and the walk into a case and back. The ticked rows
+       do not — see onStateSave(); which columns are shown, and in which order, is the
+       caller's to keep. The visible ones are deliberately not handed to `[columns]`:
+       PrimeNG ignores that input on a stateful table, so the header and the body below
+       read `visibleColumns()` and the CSV export is given them in onExportCsv(). -->
   <p-table
     [value]="cases()"
-    [columns]="visibleColumns()"
     [globalFilterFields]="globalFilterFields"
     [resizableColumns]="true"
     [scrollable]="true"
@@ -12,6 +17,10 @@
     exportFilename="cases"
     sortField="receivedAt"
     [sortOrder]="-1"
+    stateStorage="local"
+    [stateKey]="stateKey"
+    (onStateSave)="onStateSave($event)"
+    (onStateRestore)="onStateRestore($event)"
   >
     <ng-template #caption>
       <div class="flex flex-wrap items-center gap-3">
@@ -59,6 +68,7 @@
             #globalSearchInput
             pInputText
             type="text"
+            [value]="globalSearch()"
             [placeholder]="t('cases.search')"
             [attr.aria-label]="t('cases.search')"
             (input)="onGlobalSearch(globalSearchInput.value)"
@@ -81,12 +91,12 @@
         </div>
       </div>
     </ng-template>
-    <ng-template #header let-columns>
+    <ng-template #header>
       <tr>
         <th scope="col" class="w-12">
           <p-table-header-checkbox [ariaLabel]="t('cases.selectAll')" />
         </th>
-        @for (col of columns; track col.field) {
+        @for (col of visibleColumns(); track col.field) {
           <!-- One header for both kinds of column: the attachment column carries a
                filter but no sorting, so the sortable behaviour is switched off
                rather than the header being written twice. -->
@@ -146,7 +156,7 @@
         </th>
       </tr>
     </ng-template>
-    <ng-template #body let-row let-columns="columns">
+    <ng-template #body let-row>
       <!-- The category's colour, as the text colour of the whole row: what kind of mail
            this is should be readable before any single cell is. The attribute carries the
            palette name and styles.css resolves it, so the row never hard-codes a value and
@@ -156,7 +166,7 @@
         <td>
           <p-table-checkbox [value]="row" [ariaLabel]="t('cases.selectRow')" />
         </td>
-        @for (col of columns; track col.field) {
+        @for (col of visibleColumns(); track col.field) {
           <td>
             @switch (col.field) {
               @case ('hasAttachments') {
