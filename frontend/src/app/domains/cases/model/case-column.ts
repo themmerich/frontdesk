@@ -73,6 +73,15 @@ function knownFields(value: unknown): CaseColumnField[] {
   return [...new Set(value.filter((field): field is CaseColumnField => typeof field === 'string' && known.has(field)))];
 }
 
+/**
+ * Whether the columns stand as they come. Nothing chosen is worth nothing stored: the entry then
+ * goes, so resetting the table leaves no trace of it behind.
+ */
+export function isDefaultColumnPreferences(preferences: CaseColumnPreferences): boolean {
+  const inDefaultOrder = (fields: CaseColumnField[]) => fields.join() === DEFAULT_COLUMN_ORDER.join();
+  return inDefaultOrder(preferences.order) && inDefaultOrder(preferences.visibleFields) && Object.keys(preferences.widths).length === 0;
+}
+
 /** Widths of columns that still exist, dropping anything that is not a usable number of pixels. */
 function knownWidths(value: unknown): CaseColumnWidths {
   if (value === null || typeof value !== 'object') {

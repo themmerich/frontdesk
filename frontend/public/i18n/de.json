@@ -33,6 +33,8 @@
     "columns": "Spalten",
     "reset": "Zurücksetzen",
     "search": "Suchen",
+    "resetView": "Ansicht zurücksetzen",
+    "resetViewHint": "Sortierung, Filter und Spalten zurücksetzen",
     "export": "Exportieren",
     "delete": "Löschen",
     "actions": "Aktionen",

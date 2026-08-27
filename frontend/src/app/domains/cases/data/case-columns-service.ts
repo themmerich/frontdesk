@@ -1,7 +1,13 @@
 import { DOCUMENT } from '@angular/common';
 import { effect, inject, InjectionToken, Service, signal } from '@angular/core';
 
-import { CaseColumnField, CaseColumnWidths, defaultColumnPreferences, parseColumnPreferences } from '../model/case-column';
+import {
+  CaseColumnField,
+  CaseColumnWidths,
+  defaultColumnPreferences,
+  isDefaultColumnPreferences,
+  parseColumnPreferences,
+} from '../model/case-column';
 
 const STORAGE_KEY = 'frontdesk-case-columns';
 
@@ -35,6 +41,12 @@ export class CaseColumnsService {
     // normalized form and thereby cleans up drifted entries.
     effect(() => {
       const preferences = { order: this.order(), visibleFields: this.visibleFields(), widths: this.widths() };
+      // Back at the defaults there is nothing to remember, and the entry goes rather than
+      // being written again — which is what makes a reset of the table leave nothing behind.
+      if (isDefaultColumnPreferences(preferences)) {
+        this.storage?.removeItem(STORAGE_KEY);
+        return;
+      }
       this.storage?.setItem(STORAGE_KEY, JSON.stringify(preferences));
     });
   }

@@ -98,6 +98,20 @@ describe('CaseColumnsService', () => {
     expect(storedPreferences(storage)['order']).toEqual(['subject', 'sender', 'hasAttachments', 'sizeBytes', 'receivedAt']);
   });
 
+  it('forgets the entry once everything stands as it comes', () => {
+    const store = TestBed.inject(CaseColumnsService);
+
+    store.visibleFields.set(['sender']);
+    TestBed.tick();
+    expect(storage.getItem('frontdesk-case-columns')).not.toBeNull();
+
+    store.visibleFields.set([...DEFAULT_COLUMN_ORDER]);
+    TestBed.tick();
+
+    // Nothing chosen, nothing stored — which is what lets a reset leave nothing behind.
+    expect(storage.getItem('frontdesk-case-columns')).toBeNull();
+  });
+
   it('works without a storage, so the app still runs where localStorage is blocked', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({

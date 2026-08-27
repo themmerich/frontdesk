@@ -282,6 +282,35 @@ test.describe('Cases page', () => {
     expect(stored.widths.sender).toBeCloseTo(resized, 0);
   });
 
+  test('resets sorting, filters and columns, and forgets both stored entries', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    await page.getByRole('textbox', { name: 'Suchen' }).fill('invoice');
+    await page.getByRole('columnheader', { name: 'Absender' }).click();
+    await page.getByRole('button', { name: 'Spalten' }).click();
+    await page.locator('input#hasAttachments').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
+    const before = await page.evaluate(() => [
+      localStorage.getItem('frontdesk-case-table'),
+      localStorage.getItem('frontdesk-case-columns'),
+    ]);
+    expect(before[0]).not.toBeNull();
+    expect(before[1]).not.toBeNull();
+
+    await page.getByRole('button', { name: 'Ansicht zurücksetzen' }).click();
+
+    // Both cases back, in the order the inbox opens with: newest first.
+    const subjects = page.locator('tbody tr td:nth-child(5)');
+    await expect(subjects).toHaveText([/Invoice copy/, /Delivery status/]);
+    await expect(page.getByRole('textbox', { name: 'Suchen' })).toHaveValue('');
+    await expect(page.getByRole('columnheader', { name: 'Anhang' })).toBeVisible();
+    // And nothing of the old view is left behind for the next visit.
+    const after = await page.evaluate(() => [localStorage.getItem('frontdesk-case-table'), localStorage.getItem('frontdesk-case-columns')]);
+    expect(after).toEqual([null, null]);
+  });
+
   test('keeps the search across a reload, but not the ticked rows', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
 

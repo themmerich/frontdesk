@@ -78,6 +78,16 @@
         </p-iconfield>
 
         <div class="flex items-center gap-2">
+          <!-- The way back to the table as it comes: what was sorted, filtered, searched, and
+               chosen as columns goes, and so does what was remembered of it. -->
+          <p-button
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            [outlined]="true"
+            [label]="t('cases.resetView')"
+            [pTooltip]="t('cases.resetViewHint')"
+            (onClick)="onResetView()"
+          />
           <p-button icon="pi pi-download" severity="secondary" [outlined]="true" [label]="t('cases.export')" (onClick)="onExportCsv()" />
           <!-- Nothing ticked, nothing to delete; how many it is says the question. -->
           <p-button
