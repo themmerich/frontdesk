@@ -27,12 +27,25 @@
     "total": "Cases in total",
     "untriaged": "Not triaged yet",
     "needsAnswer": "Waiting for an answer",
-    "today": "Arrived today",
+    "today": "Today",
     "byCategory": "Cases per category",
     "byTier": "Cases per tier",
-    "arrivals": "Arrivals over the last 14 days",
+    "arrivals": "Arrivals",
     "withoutCategory": "Without a category",
-    "notTriaged": "Not triaged"
+    "notTriaged": "Not triaged",
+    "week": "Last 7 days",
+    "month": "Last 30 days",
+    "comparedTo": {
+      "today": "vs. yesterday",
+      "week": "vs. previous week",
+      "month": "vs. previous month"
+    },
+    "period": {
+      "today": "Today",
+      "week": "7 days",
+      "month": "30 days",
+      "year": "12 months"
+    }
   },
   "cases": {
     "title": "Cases",

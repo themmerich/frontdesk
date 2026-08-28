@@ -27,12 +27,25 @@
     "total": "Vorgänge gesamt",
     "untriaged": "Noch nicht bewertet",
     "needsAnswer": "Wartet auf eine Antwort",
-    "today": "Heute eingegangen",
+    "today": "Heute",
     "byCategory": "Vorgänge je Kategorie",
     "byTier": "Vorgänge je Stufe",
-    "arrivals": "Eingang der letzten 14 Tage",
+    "arrivals": "Eingang",
     "withoutCategory": "Ohne Kategorie",
-    "notTriaged": "Nicht bewertet"
+    "notTriaged": "Nicht bewertet",
+    "week": "Letzte 7 Tage",
+    "month": "Letzte 30 Tage",
+    "comparedTo": {
+      "today": "ggü. gestern",
+      "week": "ggü. Vorwoche",
+      "month": "ggü. Vormonat"
+    },
+    "period": {
+      "today": "Heute",
+      "week": "7 Tage",
+      "month": "30 Tage",
+      "year": "12 Monate"
+    }
   },
   "cases": {
     "title": "Vorgänge",
