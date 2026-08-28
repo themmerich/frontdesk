@@ -282,6 +282,71 @@ test.describe('Cases page', () => {
     expect(stored.widths.sender).toBeCloseTo(resized, 0);
   });
 
+  test('files the cases under the stretch of time they came in', async ({ page }) => {
+    const day = (daysAgo: number) => {
+      const date = new Date();
+      date.setDate(date.getDate() - daysAgo);
+      date.setHours(9, 0, 0, 0);
+      return date.toISOString();
+    };
+    await page.route('**/api/cases', (route) =>
+      route.fulfill({
+        json: [
+          { ...mockCases[0], id: '1', subject: 'Von heute', receivedAt: day(0) },
+          { ...mockCases[0], id: '2', subject: 'Von gestern', receivedAt: day(1) },
+          { ...mockCases[0], id: '3', subject: 'Aus einem alten Monat', receivedAt: day(70) },
+        ],
+      }),
+    );
+
+    await page.goto('/');
+
+    // A heading above the first case of each stretch, newest stretch first.
+    const headings = page.locator('tbody tr:not(:has(p-table-checkbox))');
+    await expect(headings).toHaveCount(3);
+    await expect(headings.nth(0)).toHaveText('Heute');
+    await expect(headings.nth(1)).toHaveText('Gestern');
+    // The third is named after its month, whichever one that is today.
+    await expect(headings.nth(2)).not.toHaveText('Dieser Monat');
+
+    // Sorted by sender, the stretches would cut that order into pieces, so they step aside.
+    await page.getByRole('columnheader', { name: 'Absender' }).getByText('Absender').click();
+
+    await expect(headings).toHaveCount(0);
+    await expect(page.getByRole('row', { name: /Von heute/ })).toBeVisible();
+  });
+
+  test('keeps the heading of a stretch in sight while its cases scroll past', async ({ page }) => {
+    // More cases from today than fit, so the heading has something to hold above.
+    const today = new Date();
+    today.setHours(9, 0, 0, 0);
+    const many = Array.from({ length: 25 }, (_, index) => ({
+      ...mockCases[0],
+      id: String(index),
+      subject: `Vorgang ${index}`,
+      receivedAt: new Date(today.getTime() + index * 60_000).toISOString(),
+    }));
+    await page.route('**/api/cases', (route) => route.fulfill({ json: many }));
+    await page.setViewportSize({ width: 1400, height: 700 });
+
+    await page.goto('/');
+    await expect(page.getByRole('row', { name: /Vorgang 24/ })).toBeVisible();
+
+    await page.locator('.p-datatable-table-container').evaluate((container) => (container.scrollTop = 300));
+
+    // Scrolled past its first rows, the heading stands still below the column headers.
+    const measured = await page.evaluate(() => {
+      const heading = document.querySelector('tbody tr:not(:has(p-table-checkbox))')!;
+      return {
+        text: heading.textContent?.trim(),
+        headingTop: Math.round(heading.getBoundingClientRect().top),
+        headerBottom: Math.round(document.querySelector('thead')!.getBoundingClientRect().bottom),
+      };
+    });
+    expect(measured.text).toBe('Heute');
+    expect(measured.headingTop).toBe(measured.headerBottom);
+  });
+
   test('filters the list by the categories it actually holds', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
 
@@ -312,12 +377,13 @@ test.describe('Cases page', () => {
 
     // Twenty-five to a page, and the count of all of them beside it.
     await expect(page.getByText('1 – 25 von 30 Vorgängen')).toBeVisible();
-    await expect(page.locator('tbody tr')).toHaveCount(25);
+    // The rows carrying a case; between them stand the headings of the stretches of time.
+    await expect(page.locator('tbody tr:has(p-table-checkbox)')).toHaveCount(25);
 
     await page.getByRole('button', { name: 'Nächste Seite' }).click();
 
     await expect(page.getByText('26 – 30 von 30 Vorgängen')).toBeVisible();
-    await expect(page.locator('tbody tr')).toHaveCount(5);
+    await expect(page.locator('tbody tr:has(p-table-checkbox)')).toHaveCount(5);
   });
 
   test('fills a page where the stored state predates the paginator', async ({ page }) => {

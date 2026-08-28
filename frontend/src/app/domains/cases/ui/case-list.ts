@@ -29,6 +29,7 @@ import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 
 import { Case, CaseTier } from '../model/case';
+import { CaseDateGroupKind, caseDateGroup } from '../model/case-date-group';
 import {
   ACTIONS_COLUMN,
   CASE_COLUMNS,
@@ -42,6 +43,21 @@ import {
 import { FileSizePipe } from './file-size-pipe';
 
 type CaseColumn = Omit<CaseColumnDefinition, 'labelKey'> & { header: string };
+
+/**
+ * A case with the stretch of time it is filed under. The table groups by a field on the row and
+ * sorts the groups by its value, so the row carries the beginning of its stretch as a number and
+ * the heading to write above it.
+ */
+type GroupedCase = Case & { receivedGroup: number; receivedGroupLabel: string };
+
+/** The heading of a stretch, except for the months, which are named after themselves. */
+const GROUP_LABELS: Record<Exclude<CaseDateGroupKind, 'earlier'>, string> = {
+  today: 'cases.groupToday',
+  yesterday: 'cases.groupYesterday',
+  week: 'cases.groupThisWeek',
+  month: 'cases.groupThisMonth',
+};
 
 /** Where PrimeNG keeps what the table remembers: filters, sorting, and the resized widths. */
 const STATE_KEY = 'frontdesk-case-table';
@@ -205,6 +221,45 @@ export class CaseList {
       return { ...column, header: this.transloco.translate(labelKey) };
     });
   });
+  /**
+   * The rows as the table sees them: every case with the stretch of time it belongs to. Read off
+   * the clock of the moment they are built, which is what makes "today" today even when the page
+   * has been open since yesterday — the list reloads every ten seconds and this is built with it.
+   */
+  protected readonly rows = computed<GroupedCase[]>(() => {
+    this.translation();
+    const now = new Date();
+    const month = new Intl.DateTimeFormat(this.transloco.getActiveLang(), { month: 'long' });
+    const monthAndYear = new Intl.DateTimeFormat(this.transloco.getActiveLang(), { month: 'long', year: 'numeric' });
+    return this.cases().map((aCase) => {
+      const group = caseDateGroup(aCase.receivedAt, now);
+      const sameYear = group.start.getFullYear() === now.getFullYear();
+      return {
+        ...aCase,
+        receivedGroup: group.start.getTime(),
+        receivedGroupLabel:
+          group.kind === 'earlier'
+            ? (sameYear ? month : monthAndYear).format(group.start)
+            : this.transloco.translate(GROUP_LABELS[group.kind]),
+      };
+    });
+  });
+
+  /**
+   * Which column the table is sorted by, as far as this component needs to know: the stretches
+   * only group a list that is in the order they are about. Sorted by anything else — by sender,
+   * say — they would cut that order into pieces, so they step aside.
+   */
+  private readonly sortedBy = signal<string | null>(DEFAULT_SORT_FIELD);
+  protected readonly groupField = computed(() => (this.sortedBy() === DEFAULT_SORT_FIELD ? 'receivedGroup' : undefined));
+  // Without a mode there is no heading at all: with only the field taken away, the table would
+  // still write one above the first row of the list.
+  protected readonly groupMode = computed<'subheader' | undefined>(() => (this.groupField() ? 'subheader' : undefined));
+
+  protected onSortChanged(): void {
+    this.sortedBy.set(this.table().sortField ?? null);
+  }
+
   // What the header and the body render, and what the CSV export is handed.
   protected readonly visibleColumns = computed(() => this.columns().filter((column) => this.visibleFields().includes(column.field)));
 
@@ -262,6 +317,7 @@ export class CaseList {
     // they are set the same way the table sets them when it restores its own state.
     table.sortField = DEFAULT_SORT_FIELD;
     table.sortOrder = DEFAULT_SORT_ORDER;
+    this.sortedBy.set(DEFAULT_SORT_FIELD);
     table.sortSingle();
     this.onResetColumns();
     table.clearState();
@@ -285,8 +341,36 @@ export class CaseList {
     // inbox opens there rather than in the middle of a list that has moved since. How many
     // rows a page holds is a preference and stays. The widths the table measured are kept by
     // column here, and put back in the shape it reads them, for the arrangement on screen.
-    const stored = { ...state, columnWidths: this.renderedWidths(), tableWidth: undefined, selection: undefined, first: undefined };
+    const stored = {
+      ...state,
+      columnWidths: this.renderedWidths(),
+      tableWidth: undefined,
+      selection: undefined,
+      first: undefined,
+      // Sorting by the group and then by the column is how the table lays the stretches of time
+      // out; sortField and sortOrder say all of that, and the group is worked out again anyway.
+      multiSortMeta: undefined,
+    };
+    // Back at the table as it comes there is nothing to remember, and the entry goes rather than
+    // being written again — the same rule the column preferences follow, and what lets the reset
+    // leave nothing behind even when something sorts once more after it.
+    if (this.isDefaultState(stored)) {
+      this.storage?.removeItem(STATE_KEY);
+      return;
+    }
     this.storage?.setItem(STATE_KEY, JSON.stringify(stored));
+  }
+
+  /** Nothing sorted differently, nothing filtered, nothing searched, nothing dragged, no page size. */
+  private isDefaultState(state: TableState): boolean {
+    const filters = Object.values(state.filters ?? {}).flat();
+    return (
+      state.sortField === DEFAULT_SORT_FIELD &&
+      state.sortOrder === DEFAULT_SORT_ORDER &&
+      (state.rows ?? DEFAULT_ROWS) === DEFAULT_ROWS &&
+      this.renderedWidths() === undefined &&
+      filters.every((filter) => filter.value === null || filter.value === undefined)
+    );
   }
 
   /**
@@ -297,6 +381,9 @@ export class CaseList {
     // The global filter is a single entry; only a column filter can be a list of them.
     const global = state.filters?.['global'];
     this.globalSearch.set(global !== undefined && !Array.isArray(global) ? String(global.value ?? '') : '');
+
+    // What was sorted last time decides whether the stretches group the list.
+    this.sortedBy.set(state.sortField ?? null);
 
     // A state that carries no page — one written before the table had a paginator, and every
     // one written since, because the page is deliberately not remembered — is handed to the
