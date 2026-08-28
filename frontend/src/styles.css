@@ -41,6 +41,35 @@
   --app-category-grey: #cbd5e1;
 }
 
+/* What the dashboard's charts are drawn in. A canvas cannot resolve a CSS
+   variable by itself, so the page reads these values and hands them to the
+   chart — which is why they are plain colours here and not `light-dark()`.
+   The tier colours match the tags in the inbox: green, amber and red for the
+   three that need an answer, blue and grey for the two that need none. */
+:root {
+  --app-tier-automatic: #15803d;
+  --app-tier-draft: #b45309;
+  --app-tier-manual: #b91c1c;
+  --app-tier-info: #1d4ed8;
+  --app-tier-ignore: #64748b;
+  --app-tier-none: #94a3b8;
+  --app-chart-line: #10b981;
+  --app-chart-text: #64748b;
+  --app-chart-grid: #e2e8f0;
+}
+
+.dark {
+  --app-tier-automatic: #86efac;
+  --app-tier-draft: #fcd34d;
+  --app-tier-manual: #fca5a5;
+  --app-tier-info: #93c5fd;
+  --app-tier-ignore: #cbd5e1;
+  --app-tier-none: #64748b;
+  --app-chart-line: #34d399;
+  --app-chart-text: #94a3b8;
+  --app-chart-grid: #334155;
+}
+
 /* Applied through a data attribute rather than a class: the element carries the
    name it got from the API and nothing has to map it to a class list, so a
    binding can never fight with the classes PrimeNG puts on the same element. */
