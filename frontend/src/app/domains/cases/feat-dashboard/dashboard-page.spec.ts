@@ -65,10 +65,14 @@ function aCase(overrides: Partial<Case> = {}): Case {
 describe('DashboardPage', () => {
   const cases = signal<Case[]>([]);
   const error = signal<unknown>(undefined);
+  const status = signal<'loading' | 'reloading' | 'resolved'>('resolved');
+  const reload = vi.fn();
 
   beforeEach(async () => {
     cases.set([]);
     error.set(undefined);
+    status.set('resolved');
+    reload.mockClear();
     await TestBed.configureTestingModule({
       imports: [
         DashboardPage,
@@ -78,7 +82,10 @@ describe('DashboardPage', () => {
           preloadLangs: true,
         }),
       ],
-      providers: [provideZonelessChangeDetection(), { provide: CasesService, useValue: { cases: { value: cases, error } } }],
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: CasesService, useValue: { cases: { value: cases, error, status, reload } } },
+      ],
     }).compileComponents();
   });
 
@@ -136,6 +143,44 @@ describe('DashboardPage', () => {
     const arrivals = chartData(fixture, 2);
     expect(arrivals.labels).toHaveLength(14);
     expect(arrivals.datasets[0].data.at(-1)).toBe(3);
+  });
+
+  it('asks for fresh cases when it opens, and keeps that one reading', async () => {
+    cases.set([aCase({ tier: 'automatic' })]);
+
+    const fixture = createFixture();
+    await fixture.whenStable();
+
+    // Not whatever the last poll left behind: this visit gets its own answer.
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*1/);
+
+    // What the ten-second poll does behind the page: it reloads and settles again on new cases.
+    // Redrawing on that is what made the charts flicker, so the page stays on what it opened with.
+    status.set('reloading');
+    await fixture.whenStable();
+    cases.set([aCase({ tier: 'automatic' }), aCase({ id: '2', tier: 'manual' })]);
+    status.set('resolved');
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*1/);
+    expect(chartData(fixture, 1).datasets[0].data).toEqual([1, 0, 0, 0, 0, 0]);
+  });
+
+  it('waits for the answer to settle before it reads anything', async () => {
+    status.set('loading');
+    cases.set([]);
+
+    const fixture = createFixture();
+    await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*0/);
+
+    // The default value of an unsettled resource is empty; the page waits it out.
+    cases.set([aCase(), aCase({ id: '2' })]);
+    status.set('resolved');
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*2/);
   });
 
   it('says so when the cases cannot be loaded, instead of drawing an empty chart', () => {
