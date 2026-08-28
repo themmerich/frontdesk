@@ -347,6 +347,35 @@ test.describe('Cases page', () => {
     expect(measured.headingTop).toBe(measured.headerBottom);
   });
 
+  test('gives every filter field the width of the menu it stands in', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    const menu = async (column: string, field: string) => {
+      await page.getByRole('columnheader', { name: column }).locator('p-columnfilter button').first().click();
+      await page.locator(`.p-datatable-filter-overlay ${field}`).waitFor();
+      // The menu that closed before this one lingers in the DOM for its animation, so the one
+      // carrying the field is the one to measure.
+      return page.evaluate((carries) => {
+        const overlay = [...document.querySelectorAll('.p-datatable-filter-overlay')].find((one) => one.querySelector(carries))!;
+        const style = getComputedStyle(overlay);
+        const inner = overlay.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        const width = (selector: string) => Math.round(overlay.querySelector(selector)?.getBoundingClientRect().width ?? 0);
+        return { inner: Math.round(inner), select: width('p-select'), text: width('.p-inputtext'), multiSelect: width('p-multiselect') };
+      }, field);
+    };
+
+    // The text filter sat visibly short under the two match-mode selects above it.
+    const subject = await menu('Betreff', '.p-inputtext');
+    expect(subject.text).toBe(subject.select);
+    // Within a pixel of the menu itself; the rest is where the browser rounds its sub-pixels.
+    expect(subject.inner - subject.text).toBeLessThanOrEqual(1);
+    await page.keyboard.press('Escape');
+
+    const category = await menu('Kategorie', 'p-multiselect');
+    expect(category.inner - category.multiSelect).toBeLessThanOrEqual(1);
+  });
+
   test('filters the list by the categories it actually holds', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
 

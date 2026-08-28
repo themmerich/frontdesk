@@ -95,6 +95,15 @@
   color: var(--app-category-grey);
 }
 
+/* The tables' filter menus (cases/ui/case-list, admin/ui/user-list) hang in an overlay on
+   <body>, where component styles cannot reach them. PrimeNG stretches the two match-mode
+   selects across the menu but leaves what sits below them at its own width, so a text field
+   ends visibly short of the selects above it, and a multi-select ends short of everything.
+   Whatever is filtered with takes the width of the menu it stands in. */
+.p-datatable-filter-overlay :is(.p-inputtext, p-multiselect, p-select, p-datepicker) {
+  width: 100%;
+}
+
 /* CDK drag & drop styling for the column-toggle popover (cases/ui/case-list).
    The drag preview and the popover overlay are attached to <body>, so
    component-scoped styles cannot reach them. */
