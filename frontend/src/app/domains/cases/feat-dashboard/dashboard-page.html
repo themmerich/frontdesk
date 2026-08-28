@@ -1,6 +1,18 @@
 <ng-container *transloco="let t">
   <main class="flex flex-col gap-4">
-    <h1 class="text-xl font-semibold">{{ t('dashboard.title') }}</h1>
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-xl font-semibold">{{ t('dashboard.title') }}</h1>
+      <!-- The page reads its numbers when it opens and then stands still; this is the way to
+           newer ones without leaving it. -->
+      <p-button
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        [label]="t('dashboard.refresh')"
+        [loading]="casesService.cases.isLoading()"
+        (onClick)="onRefresh()"
+      />
+    </div>
 
     @if (casesService.cases.error()) {
       <p class="text-red-600 dark:text-red-400">{{ t('cases.loadError') }}</p>

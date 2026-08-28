@@ -23,6 +23,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "refresh": "Aktualisieren",
     "total": "Vorgänge gesamt",
     "untriaged": "Noch nicht bewertet",
     "needsAnswer": "Wartet auf eine Antwort",
