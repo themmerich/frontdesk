@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { CardModule } from 'primeng/card';
@@ -7,7 +7,7 @@ import { ChartModule } from 'primeng/chart';
 import { ChartOptionsBase } from 'primeng/types/chart';
 
 import { CasesService } from '../data/cases-service';
-import { CaseTier } from '../model/case';
+import { Case, CaseTier } from '../model/case';
 import { countByCategory, countByDay, countByTier } from '../model/case-statistics';
 
 /** How far the arrivals chart looks back. Two weeks: enough for a rhythm, short enough to read. */
@@ -52,7 +52,13 @@ export class DashboardPage {
   // Re-evaluates the labels once the active translation file (re)loads.
   private readonly translation = toSignal(this.transloco.selectTranslation());
 
-  private readonly cases = computed(() => (this.casesService.cases.error() ? [] : this.casesService.cases.value()));
+  /**
+   * What the page was opened on. The list behind it keeps itself current for the inbox, ten
+   * seconds at a time — but a chart redrawn every ten seconds only flickers, and a day's worth of
+   * cases does not change enough in that time to be worth watching. So the dashboard asks once,
+   * when it opens, and then stands still until it is opened again.
+   */
+  private readonly cases = signal<Case[]>([]);
 
   constructor() {
     // The theme is a class on <html>, toggled elsewhere in the app; this is the one place that
@@ -60,6 +66,16 @@ export class DashboardPage {
     const observer = new MutationObserver(() => this.theme.update((value) => value + 1));
     observer.observe(this.document.documentElement, { attributeFilter: ['class'] });
     inject(DestroyRef).onDestroy(() => observer.disconnect());
+
+    // Fresh numbers for this visit rather than whatever the last poll left behind, and the first
+    // settled answer is the one the page keeps.
+    this.casesService.cases.reload();
+    const readOnce = effect(() => {
+      if (this.casesService.cases.status() === 'resolved') {
+        untracked(() => this.cases.set(this.casesService.cases.value()));
+        readOnce.destroy();
+      }
+    });
   }
 
   /** The four numbers above the charts: everything, and the three that ask something of someone. */
