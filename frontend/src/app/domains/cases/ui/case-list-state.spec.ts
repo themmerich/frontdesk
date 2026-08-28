@@ -154,7 +154,8 @@ describe('CaseList remembered state', () => {
     const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
     expect(table.rows()).toBe(25);
     expect(table.first()).toBe(0);
-    expect((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')).toHaveLength(2);
+    // The rows carrying a case; the table also writes a heading above each stretch of time.
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr:has(p-table-checkbox)')).toHaveLength(2);
   });
 
   it('remembers how many rows a page holds, but not the page one stood on', () => {

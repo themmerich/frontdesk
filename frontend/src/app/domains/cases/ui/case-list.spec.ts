@@ -273,7 +273,8 @@ describe('CaseList', () => {
     const orders: string[][] = [];
     fixture.componentInstance.caseOpened.subscribe((one) => opened.push(one));
     fixture.componentInstance.orderChanged.subscribe((ids) => orders.push(ids));
-    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr')!;
+    // The first row carrying a case: above it stands the heading of its stretch of time.
+    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr:has(p-table-checkbox)')!;
 
     (row.querySelector('button[aria-label="Edit"]') as HTMLButtonElement).click();
     await fixture.whenStable();

@@ -6,7 +6,7 @@
        PrimeNG ignores that input on a stateful table, so the header and the body below
        read `visibleColumns()` and the CSV export is given them in onExportCsv(). -->
   <p-table
-    [value]="cases()"
+    [value]="rows()"
     [globalFilterFields]="globalFilterFields"
     [resizableColumns]="true"
     [scrollable]="true"
@@ -24,6 +24,10 @@
     [sortOrder]="-1"
     stateStorage="local"
     [stateKey]="stateKey"
+    [rowGroupMode]="groupMode()"
+    [groupRowsBy]="groupField()"
+    [groupRowsByOrder]="-1"
+    (onSort)="onSortChanged()"
     (onColResize)="onColumnResized()"
     (onStateSave)="onStateSave($event)"
     (onStateRestore)="onStateRestore($event)"
@@ -200,6 +204,13 @@
         <th scope="col" class="w-16" [attr.data-column]="actionsColumn">
           <span class="sr-only">{{ t('cases.actions') }}</span>
         </th>
+      </tr>
+    </ng-template>
+    <!-- One heading per stretch of time, above the first case that falls into it. The table only
+         asks for it while the list is in the order the stretches are about. -->
+    <ng-template #groupheader let-row>
+      <tr pRowGroupHeader class="bg-surface-50 dark:bg-surface-800">
+        <td [attr.colspan]="visibleColumns().length + 2" class="text-sm font-semibold">{{ row.receivedGroupLabel }}</td>
       </tr>
     </ng-template>
     <ng-template #body let-row>
