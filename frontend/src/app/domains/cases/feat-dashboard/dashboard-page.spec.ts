@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection, signal } from '@angular/core';
+import { computed, provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslocoTestingModule } from '@jsverse/transloco';
@@ -66,6 +66,7 @@ describe('DashboardPage', () => {
   const cases = signal<Case[]>([]);
   const error = signal<unknown>(undefined);
   const status = signal<'loading' | 'reloading' | 'resolved'>('resolved');
+  const isLoading = computed(() => status() !== 'resolved');
   const reload = vi.fn();
 
   beforeEach(async () => {
@@ -84,7 +85,7 @@ describe('DashboardPage', () => {
       ],
       providers: [
         provideZonelessChangeDetection(),
-        { provide: CasesService, useValue: { cases: { value: cases, error, status, reload } } },
+        { provide: CasesService, useValue: { cases: { value: cases, error, status, isLoading, reload } } },
       ],
     }).compileComponents();
   });
@@ -181,6 +182,22 @@ describe('DashboardPage', () => {
     await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*2/);
+  });
+
+  it('reads again when the refresh button is pressed', async () => {
+    cases.set([aCase()]);
+    const fixture = createFixture();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toMatch(/Cases in total\s*1/);
+
+    // What arrived while the page stood still.
+    cases.set([aCase(), aCase({ id: '2' })]);
+    (element.querySelector('p-button button') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(reload).toHaveBeenCalledTimes(2);
+    expect(element.textContent).toMatch(/Cases in total\s*2/);
   });
 
   it('says so when the cases cannot be loaded, instead of drawing an empty chart', () => {

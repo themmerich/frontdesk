@@ -1,7 +1,8 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, Injector, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
+import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ChartModule } from 'primeng/chart';
 import { ChartOptionsBase } from 'primeng/types/chart';
@@ -35,13 +36,14 @@ const TIER_COLORS: Record<CaseTier | 'none', string> = {
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [TranslocoDirective, CardModule, ChartModule],
+  imports: [TranslocoDirective, ButtonModule, CardModule, ChartModule],
   templateUrl: './dashboard-page.html',
 })
 export class DashboardPage {
   protected readonly casesService = inject(CasesService);
   private readonly transloco = inject(TranslocoService);
   private readonly document = inject(DOCUMENT);
+  private readonly injector = inject(Injector);
 
   /**
    * Bumped whenever the theme changes. A canvas keeps the colours it was drawn with, so the
@@ -67,15 +69,31 @@ export class DashboardPage {
     observer.observe(this.document.documentElement, { attributeFilter: ['class'] });
     inject(DestroyRef).onDestroy(() => observer.disconnect());
 
-    // Fresh numbers for this visit rather than whatever the last poll left behind, and the first
-    // settled answer is the one the page keeps.
+    // Fresh numbers for this visit rather than whatever the last poll left behind.
+    this.read();
+  }
+
+  /** The way to newer numbers without leaving the page, for whoever wants them now. */
+  protected onRefresh(): void {
+    this.read();
+  }
+
+  /**
+   * One reading: the list is asked to load again and the first settled answer is kept. The effect
+   * ends itself with that answer — a poll behind the page takes the list from reloading back to
+   * resolved, and an effect left standing would read along with every one of them.
+   */
+  private read(): void {
     this.casesService.cases.reload();
-    const readOnce = effect(() => {
-      if (this.casesService.cases.status() === 'resolved') {
-        untracked(() => this.cases.set(this.casesService.cases.value()));
-        readOnce.destroy();
-      }
-    });
+    const reading = effect(
+      () => {
+        if (this.casesService.cases.status() === 'resolved') {
+          untracked(() => this.cases.set(this.casesService.cases.value()));
+          reading.destroy();
+        }
+      },
+      { injector: this.injector },
+    );
   }
 
   /** The four numbers above the charts: everything, and the three that ask something of someone. */

@@ -23,6 +23,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "refresh": "Refresh",
     "total": "Cases in total",
     "untriaged": "Not triaged yet",
     "needsAnswer": "Waiting for an answer",

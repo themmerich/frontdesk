@@ -95,6 +95,23 @@ test.describe('Dashboard', () => {
     expect(painted).toEqual([true, true, true]);
   });
 
+  test('picks up what came in while the page stood still, when asked to', async ({ page }) => {
+    // The page reads once when it opens; the second answer is only shown on request.
+    let asked = 0;
+    await page.route('**/api/cases', (route) => {
+      const cases = mockCases();
+      return route.fulfill({ json: asked++ === 0 ? cases : [...cases, { ...cases[0], id: '4', subject: 'Gerade erst' }] });
+    });
+
+    await page.goto('/dashboard');
+    const total = page.getByText('Vorgänge gesamt').locator('xpath=following-sibling::p');
+    await expect(total).toHaveText('3');
+
+    await page.getByRole('button', { name: 'Aktualisieren' }).click();
+
+    await expect(total).toHaveText('4');
+  });
+
   test('shows an error message when the API is unreachable', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.abort('connectionrefused'));
 
