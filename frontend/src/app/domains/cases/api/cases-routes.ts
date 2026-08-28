@@ -6,6 +6,10 @@ export const casesRoutes: Routes = [
     loadComponent: () => import('../feat-list/cases-page').then((m) => m.CasesPage),
   },
   {
+    path: 'dashboard',
+    loadComponent: () => import('../feat-dashboard/dashboard-page').then((m) => m.DashboardPage),
+  },
+  {
     // Spelled out rather than ':id': the domain is mounted at the app root, so a
     // bare parameter would swallow /settings, /users and every other sibling.
     path: 'cases/:id',

@@ -47,6 +47,16 @@
             <ul class="m-0 flex list-none flex-col gap-1 overflow-hidden p-0">
               <li>
                 <a
+                  routerLink="/dashboard"
+                  routerLinkActive="bg-primary-emphasis"
+                  class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+                >
+                  <i class="pi pi-chart-bar text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+                  <span class="text-base leading-tight font-medium">{{ t('shell.dashboard') }}</span>
+                </a>
+              </li>
+              <li>
+                <a
                   routerLink="/"
                   routerLinkActive="bg-primary-emphasis"
                   [routerLinkActiveOptions]="{ exact: true }"

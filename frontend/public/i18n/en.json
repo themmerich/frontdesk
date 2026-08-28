@@ -1,6 +1,7 @@
 {
   "shell": {
     "cases": "Cases",
+    "dashboard": "Dashboard",
     "inbox": "Inbox",
     "administration": "Administration",
     "users": "Users",
@@ -19,6 +20,18 @@
     "preset": "Preset",
     "categories": "Categories",
     "aiSettings": "AI access"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "total": "Cases in total",
+    "untriaged": "Not triaged yet",
+    "needsAnswer": "Waiting for an answer",
+    "today": "Arrived today",
+    "byCategory": "Cases per category",
+    "byTier": "Cases per tier",
+    "arrivals": "Arrivals over the last 14 days",
+    "withoutCategory": "Without a category",
+    "notTriaged": "Not triaged"
   },
   "cases": {
     "title": "Cases",

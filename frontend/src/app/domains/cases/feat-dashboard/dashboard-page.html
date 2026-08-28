@@ -1,0 +1,51 @@
+<ng-container *transloco="let t">
+  <main class="flex flex-col gap-4">
+    <h1 class="text-xl font-semibold">{{ t('dashboard.title') }}</h1>
+
+    @if (casesService.cases.error()) {
+      <p class="text-red-600 dark:text-red-400">{{ t('cases.loadError') }}</p>
+    } @else {
+      <!-- The four numbers first, because they are read at a glance and the charts are not. -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <p-card>
+          <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.total') }}</p>
+          <p class="text-3xl font-semibold">{{ totals().all }}</p>
+        </p-card>
+        <p-card>
+          <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.untriaged') }}</p>
+          <p class="text-3xl font-semibold">{{ totals().untriaged }}</p>
+        </p-card>
+        <p-card>
+          <!-- Draft and manual together: both end on someone's desk, one with a head start. -->
+          <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.needsAnswer') }}</p>
+          <p class="text-3xl font-semibold">{{ totals().manual }}</p>
+        </p-card>
+        <p-card>
+          <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.today') }}</p>
+          <p class="text-3xl font-semibold">{{ totals().today }}</p>
+        </p-card>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <p-card [header]="t('dashboard.byCategory')">
+          <!-- A fixed height rather than an aspect ratio: three charts of the same height read as
+               one row, and a canvas without a height of its own grows with every redraw. -->
+          <p-chart
+            type="doughnut"
+            [data]="categoryData()"
+            [options]="doughnutOptions()"
+            height="20rem"
+            [ariaLabel]="t('dashboard.byCategory')"
+          />
+        </p-card>
+        <p-card [header]="t('dashboard.byTier')">
+          <p-chart type="bar" [data]="tierData()" [options]="barOptions()" height="20rem" [ariaLabel]="t('dashboard.byTier')" />
+        </p-card>
+      </div>
+
+      <p-card [header]="t('dashboard.arrivals')">
+        <p-chart type="line" [data]="arrivalData()" [options]="lineOptions()" height="18rem" [ariaLabel]="t('dashboard.arrivals')" />
+      </p-card>
+    }
+  </main>
+</ng-container>
