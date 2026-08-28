@@ -2,17 +2,22 @@ import { DOCUMENT } from '@angular/common';
 import { Component, computed, DestroyRef, effect, inject, Injector, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
+import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ChartModule } from 'primeng/chart';
+import { SelectButtonModule } from 'primeng/selectbutton';
 import { ChartOptionsBase } from 'primeng/types/chart';
 
 import { CasesService } from '../data/cases-service';
 import { Case, CaseTier } from '../model/case';
-import { countByCategory, countByDay, countByTier } from '../model/case-statistics';
+import { countByCategory, countByDay, countByHour, countByMonth, countByTier, countInWindow } from '../model/case-statistics';
 
-/** How far the arrivals chart looks back. Two weeks: enough for a rhythm, short enough to read. */
-const DAYS_SHOWN = 14;
+/** How far back the arrivals chart looks, and in what steps it counts on the way. */
+type Period = 'today' | 'week' | 'month' | 'year';
+
+/** The three stretches the tiles compare with the stretch before them. */
+const WINDOW_DAYS = { today: 1, week: 7, month: 30 } as const;
 
 /** The tier a case sits on, and the label its bar carries — the same wording as in the inbox. */
 const TIER_LABELS: Record<CaseTier | 'none', string> = {
@@ -36,7 +41,7 @@ const TIER_COLORS: Record<CaseTier | 'none', string> = {
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [TranslocoDirective, ButtonModule, CardModule, ChartModule],
+  imports: [FormsModule, TranslocoDirective, ButtonModule, CardModule, ChartModule, SelectButtonModule],
   templateUrl: './dashboard-page.html',
 })
 export class DashboardPage {
@@ -96,17 +101,46 @@ export class DashboardPage {
     );
   }
 
-  /** The four numbers above the charts: everything, and the three that ask something of someone. */
+  /** Which stretch the arrivals chart shows, and how fine it counts within it. */
+  protected readonly period = signal<Period>('month');
+
+  protected readonly periodOptions = computed(() => {
+    this.translation();
+    return (['today', 'week', 'month', 'year'] as Period[]).map((period) => ({
+      value: period,
+      label: this.transloco.translate(`dashboard.period.${period}`),
+    }));
+  });
+
+  /** What the inbox holds, and what of it is still on someone's list. */
   protected readonly totals = computed(() => {
     const cases = this.cases();
-    const midnight = new Date();
-    midnight.setHours(0, 0, 0, 0);
     return {
       all: cases.length,
       untriaged: cases.filter((aCase) => aCase.tier === null).length,
       manual: cases.filter((aCase) => aCase.tier === 'manual' || aCase.tier === 'draft').length,
-      today: cases.filter((aCase) => aCase.receivedAt >= midnight).length,
     };
+  });
+
+  /**
+   * What came in today, over the last seven days and over the last thirty — each against the
+   * equally long stretch right before it, which is what "ggü. Vorwoche" is short for. The arrow
+   * says which way it went; it is not coloured, because more mail is neither good nor bad news,
+   * only more.
+   */
+  protected readonly windows = computed(() => {
+    const cases = this.cases();
+    const now = new Date();
+    return Object.entries(WINDOW_DAYS).map(([name, days]) => {
+      const { count, previous } = countInWindow(cases, days, now);
+      return {
+        name,
+        count,
+        difference: count - previous,
+        // Against nothing there is no percentage to give, only the number itself.
+        percentage: previous === 0 ? null : Math.round(((count - previous) / previous) * 100),
+      };
+    });
   });
 
   protected readonly categoryData = computed(() => {
@@ -141,10 +175,20 @@ export class DashboardPage {
 
   protected readonly arrivalData = computed(() => {
     this.translation();
-    const counts = countByDay(this.cases(), DAYS_SHOWN, new Date());
-    const day = new Intl.DateTimeFormat(this.transloco.getActiveLang(), { day: '2-digit', month: '2-digit' });
+    const now = new Date();
+    const cases = this.cases();
+    const language = this.transloco.getActiveLang();
+    const { counts, format } = {
+      today: () => ({ counts: countByHour(cases, now), format: new Intl.DateTimeFormat(language, { hour: '2-digit' }) }),
+      week: () => ({ counts: countByDay(cases, 7, now), format: new Intl.DateTimeFormat(language, { weekday: 'short', day: '2-digit' }) }),
+      month: () => ({
+        counts: countByDay(cases, 30, now),
+        format: new Intl.DateTimeFormat(language, { day: '2-digit', month: '2-digit' }),
+      }),
+      year: () => ({ counts: countByMonth(cases, 12, now), format: new Intl.DateTimeFormat(language, { month: 'short' }) }),
+    }[this.period()]();
     return {
-      labels: counts.map((count) => day.format(count.day)),
+      labels: counts.map((count) => format.format(count.start)),
       datasets: [
         {
           data: counts.map((count) => count.count),

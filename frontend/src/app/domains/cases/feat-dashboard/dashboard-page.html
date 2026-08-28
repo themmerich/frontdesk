@@ -17,8 +17,10 @@
     @if (casesService.cases.error()) {
       <p class="text-red-600 dark:text-red-400">{{ t('cases.loadError') }}</p>
     } @else {
-      <!-- The four numbers first, because they are read at a glance and the charts are not. -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <!-- The numbers first, because they are read at a glance and the charts are not. Three of
+           what the inbox holds, three of what came in — and those three say how that compares
+           with the stretch before them. -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <p-card>
           <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.total') }}</p>
           <p class="text-3xl font-semibold">{{ totals().all }}</p>
@@ -32,10 +34,29 @@
           <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.needsAnswer') }}</p>
           <p class="text-3xl font-semibold">{{ totals().manual }}</p>
         </p-card>
-        <p-card>
-          <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.today') }}</p>
-          <p class="text-3xl font-semibold">{{ totals().today }}</p>
-        </p-card>
+        @for (window of windows(); track window.name) {
+          <p-card>
+            <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.' + window.name) }}</p>
+            <p class="text-3xl font-semibold">{{ window.count }}</p>
+            <!-- Not coloured: more mail is neither good nor bad news, only more. The arrow says
+                 which way it went, the words say what it is measured against. -->
+            <p class="flex items-center gap-1 text-sm text-surface-500 dark:text-surface-400">
+              @if (window.difference === 0) {
+                <i class="pi pi-minus text-xs!" aria-hidden="true"></i>
+              } @else if (window.difference > 0) {
+                <i class="pi pi-arrow-up text-xs!" aria-hidden="true"></i>
+              } @else {
+                <i class="pi pi-arrow-down text-xs!" aria-hidden="true"></i>
+              }
+              @if (window.percentage === null) {
+                <span>{{ window.difference > 0 ? '+' : '' }}{{ window.difference }}</span>
+              } @else {
+                <span>{{ window.percentage > 0 ? '+' : '' }}{{ window.percentage }}&nbsp;%</span>
+              }
+              <span>{{ t('dashboard.comparedTo.' + window.name) }}</span>
+            </p>
+          </p-card>
+        }
       </div>
 
       <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -55,7 +76,21 @@
         </p-card>
       </div>
 
-      <p-card [header]="t('dashboard.arrivals')">
+      <p-card>
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 id="dashboard-arrivals" class="text-lg font-medium">{{ t('dashboard.arrivals') }}</h2>
+          <!-- The same stretches the tiles count, plus the year: what the chart shows follows
+               what was just read above it. -->
+          <p-selectbutton
+            [options]="periodOptions()"
+            [(ngModel)]="period"
+            optionLabel="label"
+            optionValue="value"
+            [allowEmpty]="false"
+            size="small"
+            ariaLabelledBy="dashboard-arrivals"
+          />
+        </div>
         <p-chart type="line" [data]="arrivalData()" [options]="lineOptions()" height="18rem" [ariaLabel]="t('dashboard.arrivals')" />
       </p-card>
     }

@@ -9,10 +9,10 @@ const mockUser = {
   tenantName: 'Musterfirma GmbH',
 };
 
-/** Two from today, one from yesterday; one of them still waiting for the triage. */
+/** Two from earlier today, one from yesterday around the same time; one still untriaged. */
 function mockCases() {
   const today = new Date();
-  today.setHours(9, 0, 0, 0);
+  today.setMinutes(today.getMinutes() - 5);
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   const base = { recipient: 'info@example.com', hasAttachments: false, sizeBytes: 2048, summary: null };
@@ -76,7 +76,8 @@ test.describe('Dashboard', () => {
     await expect(page.getByText('Vorgänge gesamt').locator('xpath=following-sibling::p')).toHaveText('3');
     await expect(page.getByText('Noch nicht bewertet').locator('xpath=following-sibling::p')).toHaveText('1');
     await expect(page.getByText('Wartet auf eine Antwort').locator('xpath=following-sibling::p')).toHaveText('1');
-    await expect(page.getByText('Heute eingegangen').locator('xpath=following-sibling::p')).toHaveText('2');
+    // The tile, told apart from the chart's period button by the card it sits in.
+    await expect(page.locator('p-card').filter({ hasText: 'ggü. gestern' })).toContainText('2');
   });
 
   test('draws the three charts', async ({ page }) => {
@@ -86,13 +87,48 @@ test.describe('Dashboard', () => {
 
     await expect(page.getByText('Vorgänge je Kategorie')).toBeVisible();
     await expect(page.getByText('Vorgänge je Stufe')).toBeVisible();
-    await expect(page.getByText('Eingang der letzten 14 Tage')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Eingang' })).toBeVisible();
     // A canvas each, and something actually painted on them.
     await expect(page.locator('canvas')).toHaveCount(3);
     const painted = await page.evaluate(() =>
       Array.from(document.querySelectorAll('canvas')).map((canvas) => canvas.toDataURL().length > 1000),
     );
     expect(painted).toEqual([true, true, true]);
+  });
+
+  test('measures today and the last stretches against the ones before them', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
+
+    await page.goto('/dashboard');
+
+    // Two came in today, one yesterday around the same time: twice as many as the day before.
+    const today = page.locator('p-card').filter({ hasText: 'ggü. gestern' });
+    await expect(today).toContainText('2');
+    await expect(today).toContainText('+100');
+    // Nothing in the week before the last one, so the tile gives the number itself.
+    const week = page.locator('p-card').filter({ hasText: 'ggü. Vorwoche' });
+    await expect(week).toContainText('3');
+    await expect(week).toContainText('+3');
+  });
+
+  test('switches the arrivals chart between today, the days and the months', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
+
+    await page.goto('/dashboard');
+    const chart = page.locator('canvas').last();
+    await expect(chart).toBeVisible();
+    const thirtyDays = await chart.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
+
+    await page.getByRole('button', { name: 'Heute', exact: true }).click();
+
+    // A different picture, and the button says which stretch is on it.
+    await expect(page.getByRole('button', { name: 'Heute', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    expect(await chart.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).not.toBe(thirtyDays);
+
+    await page.getByRole('button', { name: '12 Monate' }).click();
+
+    await expect(page.getByRole('button', { name: '12 Monate' })).toHaveAttribute('aria-pressed', 'true');
+    expect(await chart.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).not.toBe(thirtyDays);
   });
 
   test('picks up what came in while the page stood still, when asked to', async ({ page }) => {

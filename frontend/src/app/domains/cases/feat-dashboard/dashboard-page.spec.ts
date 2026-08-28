@@ -27,7 +27,12 @@ const translations = {
     total: 'Cases in total',
     untriaged: 'Not triaged yet',
     needsAnswer: 'Waiting for an answer',
-    today: 'Arrived today',
+    refresh: 'Refresh',
+    today: 'Today',
+    week: 'Last 7 days',
+    month: 'Last 30 days',
+    comparedTo: { today: 'vs. yesterday', week: 'vs. previous week', month: 'vs. previous month' },
+    period: { today: 'Today', week: '7 days', month: '30 days', year: '12 months' },
     byCategory: 'Cases per category',
     byTier: 'Cases per tier',
     arrivals: 'Arrivals',
@@ -121,7 +126,7 @@ describe('DashboardPage', () => {
     expect(text).toMatch(/Cases in total\s*4/);
     expect(text).toMatch(/Not triaged yet\s*1/);
     expect(text).toMatch(/Waiting for an answer\s*2/);
-    expect(text).toMatch(/Arrived today\s*3/);
+    expect(text).toMatch(/Today\s*3/);
   });
 
   it('draws the categories, the tiers and the arrivals', () => {
@@ -140,9 +145,9 @@ describe('DashboardPage', () => {
     const tiers = chartData(fixture, 1);
     expect(tiers.labels).toEqual(['Automatic', 'Draft', 'Manual', 'Info', 'Ignore', 'Not triaged']);
     expect(tiers.datasets[0].data).toEqual([2, 0, 0, 0, 0, 1]);
-    // Fourteen days, and today's three cases on the last of them.
+    // Thirty days to begin with, and today's three cases on the last of them.
     const arrivals = chartData(fixture, 2);
-    expect(arrivals.labels).toHaveLength(14);
+    expect(arrivals.labels).toHaveLength(30);
     expect(arrivals.datasets[0].data.at(-1)).toBe(3);
   });
 
@@ -182,6 +187,53 @@ describe('DashboardPage', () => {
     await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*2/);
+  });
+
+  it('measures the last stretches against the ones before them', async () => {
+    const hoursAgo = (hours: number) => {
+      const then = new Date();
+      then.setHours(then.getHours() - hours);
+      return then;
+    };
+    cases.set([
+      // Two today, one yesterday around the same time: twice as many as the day before.
+      aCase({ receivedAt: hoursAgo(1) }),
+      aCase({ id: '2', receivedAt: hoursAgo(2) }),
+      aCase({ id: '3', receivedAt: hoursAgo(25) }),
+    ]);
+
+    const text = (createFixture().nativeElement as HTMLElement).textContent;
+
+    expect(text).toMatch(/Today\s*2/);
+    // The space before the percent sign is a non-breaking one.
+    expect(text).toMatch(/\+100\s%/);
+    expect(text).toContain('vs. yesterday');
+    // Nothing in the seven days before the last seven, so there is no percentage to give.
+    expect(text).toMatch(/Last 7 days\s*3/);
+    expect(text).toContain('+3');
+    expect(text).toContain('vs. previous week');
+    expect(text).toMatch(/Last 30 days\s*3/);
+  });
+
+  it('counts the arrivals in the steps the chosen period asks for', async () => {
+    cases.set([aCase()]);
+    const fixture = createFixture();
+    await fixture.whenStable();
+
+    // Thirty days to begin with, one point per day.
+    expect(chartData(fixture, 2).labels).toHaveLength(30);
+
+    const element = fixture.nativeElement as HTMLElement;
+    // Each option of the select button renders as a toggle button carrying its label.
+    const period = (label: string) => element.querySelector<HTMLElement>(`p-togglebutton[aria-label="${label}"]`)!;
+    period('Today').click();
+    await fixture.whenStable();
+    // Today, one point per hour.
+    expect(chartData(fixture, 2).labels).toHaveLength(24);
+
+    period('12 months').click();
+    await fixture.whenStable();
+    expect(chartData(fixture, 2).labels).toHaveLength(12);
   });
 
   it('reads again when the refresh button is pressed', async () => {

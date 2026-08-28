@@ -22,10 +22,23 @@ export type TierCount = {
   count: number;
 };
 
-/** How many cases arrived on one day, counted from midnight to midnight in local time. */
-export type DayCount = {
-  day: Date;
+/**
+ * How many cases arrived in one stretch of time, named by when that stretch begins — an hour, a
+ * day or a month, depending on what was counted. All of it in local time.
+ */
+export type PeriodCount = {
+  start: Date;
   count: number;
+};
+
+/**
+ * What arrived in a stretch of days up to now, and what arrived in the equally long stretch before
+ * it. Both end at the same time of day, so a morning is compared with a morning rather than with a
+ * whole day — a number that would be behind every single morning.
+ */
+export type WindowCount = {
+  count: number;
+  previous: number;
 };
 
 /**
@@ -65,29 +78,95 @@ export function countByTier(cases: Case[]): TierCount[] {
 }
 
 /**
+ * How much came in in each hour of the day `now` falls in, from midnight to midnight. The hours
+ * still ahead are part of it and empty, so the shape of a day is the same one all day long.
+ */
+export function countByHour(cases: Case[], now: Date): PeriodCount[] {
+  return count(cases, 24, (index) => {
+    const hour = startOfDay(now);
+    hour.setHours(index);
+    return hour;
+  });
+}
+
+/**
  * How much came in on each of the last `days` days, oldest first and today last. Days without a
  * single mail are part of it: a quiet Sunday is what makes a busy Monday visible.
  */
-export function countByDay(cases: Case[], days: number, today: Date): DayCount[] {
-  const counts = new Map<number, number>();
-  for (let ago = days - 1; ago >= 0; ago--) {
-    // Counted back in calendar days rather than in milliseconds: the day the clocks change is
-    // 23 or 25 hours long, and subtracting a fixed day from it lands beside midnight.
+export function countByDay(cases: Case[], days: number, today: Date): PeriodCount[] {
+  return count(cases, days, (index) => {
+    // Counted in calendar days rather than in milliseconds: the day the clocks change is 23 or 25
+    // hours long, and stepping a fixed day through it lands beside midnight.
     const day = startOfDay(today);
-    day.setDate(day.getDate() - ago);
-    counts.set(day.getTime(), 0);
-  }
+    day.setDate(day.getDate() - (days - 1 - index));
+    return day;
+  });
+}
+
+/** How much came in in each of the last `months` months, this one last and still filling up. */
+export function countByMonth(cases: Case[], months: number, now: Date): PeriodCount[] {
+  return count(cases, months, (index) => {
+    const month = startOfMonth(now);
+    month.setMonth(month.getMonth() - (months - 1 - index));
+    return month;
+  });
+}
+
+/**
+ * What came in over the last `days` days, and what came in over the same stretch shifted back by
+ * `days`. Both are equally long and end at the same time of day, so this morning is measured
+ * against yesterday morning rather than against a whole yesterday it could never catch up with.
+ * The stretch starts at midnight, which makes it exactly what countByDay draws; the few hours
+ * between the two stretches therefore belong to neither.
+ */
+export function countInWindow(cases: Case[], days: number, now: Date): WindowCount {
+  const start = startOfDay(now);
+  start.setDate(start.getDate() - (days - 1));
+  const before = new Date(start);
+  before.setDate(before.getDate() - days);
+  const previousEnd = new Date(now);
+  previousEnd.setDate(previousEnd.getDate() - days);
+
+  let current = 0;
+  let previous = 0;
   for (const aCase of cases) {
-    const day = startOfDay(aCase.receivedAt).getTime();
-    if (counts.has(day)) {
-      counts.set(day, (counts.get(day) ?? 0) + 1);
+    const received = aCase.receivedAt;
+    if (received >= start && received <= now) {
+      current++;
+    } else if (received >= before && received <= previousEnd) {
+      previous++;
     }
   }
-  return [...counts.entries()].map(([day, count]) => ({ day: new Date(day), count }));
+  return { count: current, previous };
+}
+
+/**
+ * The shared shape of the three: one bucket per stretch, oldest first, and every bucket kept even
+ * when nothing landed in it. A case belongs to the newest bucket that begins before it.
+ */
+function count(cases: Case[], buckets: number, startOfBucket: (index: number) => Date): PeriodCount[] {
+  const counts = Array.from({ length: buckets }, (_, index) => ({ start: startOfBucket(index), count: 0 }));
+  for (const aCase of cases) {
+    // From the back: the newest bucket that begins before the case is the one it belongs to, and
+    // anything older than the first bucket is not part of the stretch at all.
+    for (let index = counts.length - 1; index >= 0; index--) {
+      if (counts[index].start <= aCase.receivedAt) {
+        counts[index].count++;
+        break;
+      }
+    }
+  }
+  return counts;
 }
 
 function startOfDay(date: Date): Date {
   const day = new Date(date);
   day.setHours(0, 0, 0, 0);
   return day;
+}
+
+function startOfMonth(date: Date): Date {
+  const month = startOfDay(date);
+  month.setDate(1);
+  return month;
 }
