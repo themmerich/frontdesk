@@ -34,6 +34,12 @@ const headquarters = {
 const filiale = { ...headquarters, id: 'b2', name: 'Filiale Hamburg', headquarters: false, city: 'Hamburg' };
 
 test.describe('Company', () => {
+  test.beforeEach(async ({ page }) => {
+    // The inbox offers the categories for picking in its rows; unanswered, the request comes
+    // back 401 from the real backend and the interceptor sends the browser to the login.
+    await page.route('**/api/case-categories/selectable', (route) => route.fulfill({ json: [] }));
+  });
+
   test('lets an admin edit the company, and the sidebar picks the name up', async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));

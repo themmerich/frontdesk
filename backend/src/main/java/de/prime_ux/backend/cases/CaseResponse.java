@@ -12,13 +12,16 @@ import java.util.UUID;
  * case; the tier travels lowercase, like every other enum on the wire.
  */
 public record CaseResponse(UUID id, String sender, String recipient, String subject, Instant receivedAt,
-		boolean hasAttachments, long sizeBytes, String summary, String categoryName, String categoryColor,
-		String tier, BigDecimal confidence) {
+		boolean hasAttachments, long sizeBytes, String summary, UUID categoryId, String categoryName,
+		String categoryColor, String tier, BigDecimal confidence) {
 
 	static CaseResponse from(Case aCase) {
 		CaseCategory category = aCase.getCategory();
 		return new CaseResponse(aCase.getId(), aCase.getSender(), aCase.getRecipient(), aCase.getSubject(),
 				aCase.getReceivedAt(), aCase.isHasAttachments(), aCase.getSizeBytes(), aCase.getSummary(),
+				// The inbox lets a person file a case from the row it stands in, and a picker
+				// needs a key rather than a name.
+				category == null ? null : category.getId(),
 				category == null ? null : category.getName(),
 				category == null || category.getColor() == null ? null
 						: category.getColor().name().toLowerCase(Locale.ROOT),

@@ -25,6 +25,7 @@ describe('CasesService', () => {
         hasAttachments: false,
         sizeBytes: 2048,
         summary: null,
+        categoryId: null,
         categoryName: null,
         categoryColor: null,
         tier: null,

@@ -56,6 +56,9 @@ function mockCases() {
 test.describe('Dashboard', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: mockUser }));
+    // The inbox offers the categories for picking in its rows; unanswered, the request comes
+    // back 401 from the real backend and the interceptor sends the browser to the login.
+    await page.route('**/api/case-categories/selectable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
   });
 

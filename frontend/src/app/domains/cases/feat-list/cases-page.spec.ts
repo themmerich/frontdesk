@@ -4,12 +4,15 @@ import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { Confirmation, ConfirmationService, MessageService, ToastMessageOptions } from 'primeng/api';
 
+import { CaseCategoriesService } from '../data/case-categories-service';
 import { CasesService } from '../data/cases-service';
 import { Case } from '../model/case';
 import { CasesPage } from './cases-page';
 
 const translations = {
   cases: {
+    classificationSaved: 'Classification saved.',
+    classificationError: 'The classification could not be saved.',
     title: 'Cases',
     sender: 'From',
     recipient: 'To',
@@ -33,13 +36,22 @@ describe('CasesPage', () => {
   const error = signal<Error | undefined>(undefined);
   let removed: string[][];
   let removeFails: boolean;
+  let classified: { id: string; categoryId: string | null; tier: string | null }[];
+  let failClassification: boolean;
   const casesServiceStub = {
     cases: { value: cases, error },
     remove: (ids: string[]) => {
       removed.push(ids);
       return removeFails ? Promise.reject(new Error('nope')) : Promise.resolve();
     },
+    changeClassification: (id: string, categoryId: string | null, tier: string | null) => {
+      classified.push({ id, categoryId, tier });
+      return failClassification ? Promise.reject(new Error('nope')) : Promise.resolve();
+    },
   } as unknown as CasesService;
+  const categoriesServiceStub = {
+    categories: { value: signal([]), error: signal(undefined) },
+  } as unknown as CaseCategoriesService;
 
   let toasts: ToastMessageOptions[];
   let confirmations: Confirmation[];
@@ -49,6 +61,8 @@ describe('CasesPage', () => {
     error.set(undefined);
     removed = [];
     removeFails = false;
+    classified = [];
+    failClassification = false;
     toasts = [];
     confirmations = [];
     await TestBed.configureTestingModule({
@@ -65,6 +79,7 @@ describe('CasesPage', () => {
         // The subject cell links to the case detail.
         provideRouter([]),
         { provide: CasesService, useValue: casesServiceStub },
+        { provide: CaseCategoriesService, useValue: categoriesServiceStub },
         // Both outlets live in the shell, which is not part of this fixture; the
         // stubs record what the page would have asked and said.
         {
@@ -87,6 +102,7 @@ describe('CasesPage', () => {
         hasAttachments: false,
         sizeBytes: 2048,
         summary: null,
+        categoryId: null,
         categoryName: null,
         categoryColor: null,
         tier: null,
@@ -99,6 +115,24 @@ describe('CasesPage', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent;
     expect(text).toContain('Cases');
     expect(text).toContain('anna@example.com');
+  });
+
+  it('saves what was picked in a row, and says so', async () => {
+    const fixture = TestBed.createComponent(CasesPage);
+
+    await fixture.componentInstance['onClassificationChanged']({ id: '1', categoryId: 'c2', tier: 'manual' });
+
+    expect(classified).toEqual([{ id: '1', categoryId: 'c2', tier: 'manual' }]);
+    expect(toasts.map((toast) => toast.summary)).toEqual(['Classification saved.']);
+  });
+
+  it('says so when what was picked cannot be saved', async () => {
+    failClassification = true;
+    const fixture = TestBed.createComponent(CasesPage);
+
+    await fixture.componentInstance['onClassificationChanged']({ id: '1', categoryId: null, tier: null });
+
+    expect(toasts.map((toast) => toast.severity)).toEqual(['error']);
   });
 
   it('shows the load error when the API is unreachable', () => {

@@ -229,45 +229,86 @@
         (dblclick)="onRowDoubleClick($event, row)"
       >
         @for (col of visibleColumns(); track col.field) {
-          <td>
-            @switch (col.field) {
-              @case ('hasAttachments') {
-                @if (row.hasAttachments) {
-                  <i class="pi pi-paperclip" role="img" [attr.aria-label]="t('cases.hasAttachment')"></i>
+          <!-- The two the triage decided are corrected where they are read: a click on the cell
+               opens the picker, picking saves. Clicks stay in the cell, or the row underneath
+               would take them as picking the row and a double click would open the case. -->
+          @if (col.field === 'categoryName' || col.field === 'tier') {
+            <td
+              [pEditableColumn]="row"
+              [pEditableColumnField]="col.field"
+              (click)="$event.stopPropagation()"
+              (dblclick)="$event.stopPropagation()"
+            >
+              <p-celleditor>
+                <ng-template #input>
+                  @if (col.field === 'categoryName') {
+                    <p-select
+                      appendTo="body"
+                      class="w-full"
+                      [options]="categoryChoices()"
+                      optionLabel="label"
+                      optionValue="value"
+                      [ngModel]="row.categoryId"
+                      [ariaLabel]="t('cases.category')"
+                      (onChange)="onPickCategory(row, $event.value)"
+                    />
+                  } @else {
+                    <p-select
+                      appendTo="body"
+                      class="w-full"
+                      [options]="tierOptions()"
+                      optionLabel="label"
+                      optionValue="value"
+                      [ngModel]="row.tier"
+                      [ariaLabel]="t('cases.tier')"
+                      (onChange)="onPickTier(row, $event.value)"
+                    />
+                  }
+                </ng-template>
+                <ng-template #output>
+                  @if (col.field === 'categoryName') {
+                    @if (row.categoryName) {
+                      {{ row.categoryName }}
+                    } @else {
+                      <span class="text-surface-400 dark:text-surface-500">–</span>
+                    }
+                  } @else {
+                    @if (row.tier) {
+                      <p-tag [value]="t(tierLabelKey(row.tier))" [severity]="tierSeverity(row.tier)" />
+                    } @else {
+                      <span class="text-surface-400 dark:text-surface-500" [attr.aria-label]="t('cases.notTriaged')">–</span>
+                    }
+                  }
+                </ng-template>
+              </p-celleditor>
+            </td>
+          } @else {
+            <td>
+              @switch (col.field) {
+                @case ('hasAttachments') {
+                  @if (row.hasAttachments) {
+                    <i class="pi pi-paperclip" role="img" [attr.aria-label]="t('cases.hasAttachment')"></i>
+                  }
+                }
+                @case ('recipient') {
+                  @if (row.recipient) {
+                    {{ row.recipient }}
+                  } @else {
+                    <span class="text-surface-400 dark:text-surface-500">–</span>
+                  }
+                }
+                @case ('sizeBytes') {
+                  {{ row.sizeBytes | fileSize }}
+                }
+                @case ('receivedAt') {
+                  {{ row.receivedAt | date: 'short' }}
+                }
+                @default {
+                  {{ row[col.field] }}
                 }
               }
-              @case ('recipient') {
-                @if (row.recipient) {
-                  {{ row.recipient }}
-                } @else {
-                  <span class="text-surface-400 dark:text-surface-500">–</span>
-                }
-              }
-              @case ('categoryName') {
-                @if (row.categoryName) {
-                  {{ row.categoryName }}
-                } @else {
-                  <span class="text-surface-400 dark:text-surface-500">–</span>
-                }
-              }
-              @case ('tier') {
-                @if (row.tier) {
-                  <p-tag [value]="t(tierLabelKey(row.tier))" [severity]="tierSeverity(row.tier)" />
-                } @else {
-                  <span class="text-surface-400 dark:text-surface-500" [attr.aria-label]="t('cases.notTriaged')">–</span>
-                }
-              }
-              @case ('sizeBytes') {
-                {{ row.sizeBytes | fileSize }}
-              }
-              @case ('receivedAt') {
-                {{ row.receivedAt | date: 'short' }}
-              }
-              @default {
-                {{ row[col.field] }}
-              }
-            }
-          </td>
+            </td>
+          }
         }
         <td class="whitespace-nowrap">
           <!-- The keyboard way in, and the discoverable one: a double click on the row

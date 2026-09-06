@@ -27,6 +27,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     hasAttachments: false,
     sizeBytes: 2048,
     summary: null,
+    categoryId: null,
     categoryName: null,
     categoryColor: null,
     tier: null,

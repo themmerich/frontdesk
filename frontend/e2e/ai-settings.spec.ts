@@ -14,6 +14,9 @@ const A_KEY = 'sk-ant-api03-testkey_0123456789';
 test.describe('AI access', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
+    // The inbox offers the categories for picking in its rows; unanswered, the request comes
+    // back 401 from the real backend and the interceptor sends the browser to the login.
+    await page.route('**/api/case-categories/selectable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     // The start page is the inbox; without this it would ask a backend that is not
     // part of this suite, and an unauthorised answer sends the app to the login.

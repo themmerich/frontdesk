@@ -15,6 +15,8 @@ export type Case = {
   sizeBytes: number;
   /** What the triage made of the case; all of it null until it looked at the case. */
   summary: string | null;
+  /** Which category the case sits in; a picker needs the key, the name is what is read. */
+  categoryId: string | null;
   categoryName: string | null;
   /** The colour the category carries, if any; the row is drawn in it. */
   categoryColor: CaseCategoryColor | null;
@@ -29,8 +31,6 @@ export type Case = {
  */
 export type CaseDetail = Case & {
   bodyText: string;
-  /** Which category the case sits in, for the picker that can move it to another one. */
-  categoryId: string | null;
 };
 
 /** A category as a case is filed under it: what it is called, and the colour it is drawn in. */

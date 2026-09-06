@@ -47,6 +47,11 @@ const mockUser = {
 test.describe('Cases page', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: mockUser }));
+    // The rows offer the categories for picking; unanswered, the request comes back 401 from the
+    // real backend and the interceptor sends the browser to the login.
+    await page.route('**/api/case-categories/selectable', (route) =>
+      route.fulfill({ json: [{ id: 'c1', name: 'Statusanfrage Bestellung', color: 'blue' }] }),
+    );
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
   });
 
@@ -131,6 +136,37 @@ test.describe('Cases page', () => {
 
     expect(deleteCalls).toBe(0);
     await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+  });
+
+  test('files a case from its row, and saves it on the spot', async ({ page }) => {
+    let saved: { categoryId: string | null; tier: string | null } | null = null;
+    await page.route('**/api/case-categories/selectable', (route) =>
+      route.fulfill({
+        json: [
+          { id: 'c1', name: 'Statusanfrage Bestellung', color: 'blue' },
+          { id: 'c2', name: 'Reklamation', color: 'red' },
+        ],
+      }),
+    );
+    await page.route('**/api/cases/2/classification', async (route) => {
+      saved = route.request().postDataJSON() as { categoryId: string | null; tier: string | null };
+      await route.fulfill({ json: { ...mockCases[1], categoryId: saved.categoryId, categoryName: 'Reklamation' } });
+    });
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    const row = page.getByRole('row', { name: /Invoice copy/ });
+
+    // The category cell turns into a picker when it is clicked.
+    await row.locator('td[data-p-editable-column]').first().click();
+    await row.locator('p-select').click();
+    await page.locator('.p-select-overlay li', { hasText: 'Reklamation' }).first().click();
+
+    await expect(page.getByText('Einordnung gespeichert.')).toBeVisible();
+    // The untriaged case keeps its empty verdict: filing says what it is about, nothing more.
+    expect(saved).toEqual({ categoryId: 'c2', tier: null });
+    // And picking in the cell did not pick the row underneath it.
+    await expect(page.locator('tbody tr[aria-selected="true"]')).toHaveCount(0);
   });
 
   test('picks one row per click, adds with ctrl, and leaves the row buttons alone', async ({ page }) => {

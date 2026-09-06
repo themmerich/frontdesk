@@ -3,10 +3,11 @@ import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { Router } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
+import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseColumnsService } from '../data/case-columns-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
-import { Case } from '../model/case';
+import { Case, CaseTier } from '../model/case';
 import { CaseList } from '../ui/case-list';
 
 @Component({
@@ -17,6 +18,7 @@ import { CaseList } from '../ui/case-list';
 export class CasesPage {
   protected readonly casesService = inject(CasesService);
   protected readonly columnsService = inject(CaseColumnsService);
+  protected readonly categoriesService = inject(CaseCategoriesService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
@@ -26,6 +28,16 @@ export class CasesPage {
   /** What the detail view pages through: the order as it stands after filter and sorting. */
   protected onOrderChanged(ids: string[]): void {
     this.orderStore.set(ids);
+  }
+
+  /** Saving what was picked in a row; the table only said what a person made of the case. */
+  protected async onClassificationChanged(change: { id: string; categoryId: string | null; tier: CaseTier | null }): Promise<void> {
+    try {
+      await this.casesService.changeClassification(change.id, change.categoryId, change.tier);
+      this.messageService.add({ severity: 'success', summary: this.transloco.translate('cases.classificationSaved') });
+    } catch {
+      this.messageService.add({ severity: 'error', summary: this.transloco.translate('cases.classificationError') });
+    }
   }
 
   protected onCaseOpened(aCase: Case): void {

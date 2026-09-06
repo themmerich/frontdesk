@@ -13,12 +13,14 @@
       <app-case-list
         class="flex min-h-0 flex-auto flex-col"
         [cases]="casesService.cases.value()"
+        [categories]="categoriesService.categories.error() ? [] : categoriesService.categories.value()"
         [(columnOrder)]="columnsService.order"
         [(visibleFields)]="columnsService.visibleFields"
         [(columnWidths)]="columnsService.widths"
         (deleteRequested)="onDeleteRequested($event)"
         (caseOpened)="onCaseOpened($event)"
         (orderChanged)="onOrderChanged($event)"
+        (classificationChanged)="onClassificationChanged($event)"
       />
     }
   </main>
