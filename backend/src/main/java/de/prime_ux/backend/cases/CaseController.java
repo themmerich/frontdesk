@@ -1,5 +1,7 @@
 package de.prime_ux.backend.cases;
 
+import de.prime_ux.backend.triage.CaseCategory;
+import de.prime_ux.backend.triage.CaseCategoryRepository;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
 import jakarta.validation.Valid;
@@ -23,10 +25,13 @@ import org.springframework.web.server.ResponseStatusException;
 class CaseController {
 
 	private final CaseRepository caseRepository;
+	private final CaseCategoryRepository caseCategoryRepository;
 	private final AppUserRepository appUserRepository;
 
-	CaseController(CaseRepository caseRepository, AppUserRepository appUserRepository) {
+	CaseController(CaseRepository caseRepository, CaseCategoryRepository caseCategoryRepository,
+			AppUserRepository appUserRepository) {
 		this.caseRepository = caseRepository;
+		this.caseCategoryRepository = caseCategoryRepository;
 		this.appUserRepository = appUserRepository;
 	}
 
@@ -60,6 +65,20 @@ class CaseController {
 	}
 
 	/**
+	 * A person filing the case elsewhere, or nowhere. A category of another tenant is not found
+	 * rather than forbidden, for the same reason a case of another tenant is not.
+	 */
+	@PutMapping("/{id}/category")
+	@Transactional
+	CaseDetailResponse changeCategory(@PathVariable UUID id, @Valid @RequestBody ChangeCategoryRequest request,
+			Authentication authentication) {
+		UUID tenantId = currentTenantId(authentication);
+		Case aCase = ownCase(id, tenantId);
+		aCase.changeCategory(request.categoryId() == null ? null : ownCategory(request.categoryId(), tenantId));
+		return CaseDetailResponse.from(caseRepository.save(aCase));
+	}
+
+	/**
 	 * Deletes a selection for good; the inbox asks before it gets here. Ids belonging to another
 	 * tenant match nothing, so the answer is the same whether they exist or not.
 	 */
@@ -73,6 +92,12 @@ class CaseController {
 	private Case ownCase(UUID id, UUID tenantId) {
 		return caseRepository.findWithCategoryById(id)
 				.filter(aCase -> aCase.getTenant().getId().equals(tenantId))
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+	}
+
+	private CaseCategory ownCategory(UUID id, UUID tenantId) {
+		return caseCategoryRepository.findById(id)
+				.filter(category -> category.getTenant().getId().equals(tenantId))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 	}
 

@@ -60,6 +60,17 @@ class CaseCategoryController {
 				.toList();
 	}
 
+	/**
+	 * The categories a case can be filed under, for everyone who works in the inbox rather than in
+	 * the administration. Only the active ones: a category that was retired is not something to
+	 * put new cases into, and the one a case already sits in travels with the case itself.
+	 */
+	@GetMapping("/selectable")
+	List<SelectableCategoryResponse> listSelectableCategories(Authentication authentication) {
+		return caseCategoryRepository.findAllByTenantIdOrderBySortOrderAsc(currentTenant(authentication).getId())
+				.stream().filter(CaseCategory::isActive).map(SelectableCategoryResponse::from).toList();
+	}
+
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	@Transactional

@@ -35,13 +35,18 @@ const listed = [
   },
 ];
 
-const detail = { ...listed[0], bodyText: 'Sehr geehrte Damen und Herren,\n\nbitte senden Sie mir eine Kopie zu.' };
+const detail = { ...listed[0], categoryId: 'c1', bodyText: 'Sehr geehrte Damen und Herren,\n\nbitte senden Sie mir eine Kopie zu.' };
 
 test.describe('Case detail', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: mockUser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: listed }));
+    // The detail page reads the categories a case can be filed under; unanswered, the request
+    // comes back 401 from the real backend and the interceptor sends the browser to the login.
+    await page.route('**/api/case-categories/selectable', (route) =>
+      route.fulfill({ json: [{ id: 'c1', name: 'Rechnung', color: 'amber' }] }),
+    );
     await page.route('**/api/cases/1', (route) => route.fulfill({ json: detail }));
     await page.route('**/api/cases/2', (route) => route.fulfill({ json: { ...listed[1], bodyText: 'Wo bleibt die Lieferung?' } }));
   });
@@ -123,6 +128,40 @@ test.describe('Case detail', () => {
     await expect(page.getByRole('button', { name: 'Nächster Vorgang' })).toHaveCount(0);
   });
 
+  test('files the case under another category, and under none', async ({ page }) => {
+    let filed = { ...detail };
+    await page.route('**/api/case-categories/selectable', (route) =>
+      route.fulfill({
+        json: [
+          { id: 'c1', name: 'Rechnung', color: 'amber' },
+          { id: 'c2', name: 'Reklamation', color: 'red' },
+        ],
+      }),
+    );
+    await page.route('**/api/cases/1', (route) => route.fulfill({ json: filed }));
+    await page.route('**/api/cases/1/category', async (route) => {
+      const body = route.request().postDataJSON() as { categoryId: string | null };
+      filed = { ...filed, categoryId: body.categoryId, categoryName: body.categoryId === 'c2' ? 'Reklamation' : null };
+      await route.fulfill({ json: filed });
+    });
+
+    await page.goto('/cases/1');
+    const picker = page.locator('p-select[inputid="category"]');
+    await expect(picker).toHaveText('Rechnung');
+
+    await picker.click();
+    await page.getByRole('option', { name: 'Reklamation' }).click();
+
+    await expect(picker).toHaveText('Reklamation');
+    await expect(page.getByText('Kategorie geändert.')).toBeVisible();
+
+    // A case that fits none of them is left without one rather than pressed into the nearest.
+    await picker.click();
+    await page.getByRole('option', { name: 'Ohne Kategorie' }).click();
+
+    await expect(picker).toHaveText('Ohne Kategorie');
+  });
+
   test('lets a person overrule the tier', async ({ page }) => {
     let sent: Record<string, unknown> | undefined;
     await page.route('**/api/cases/1/tier', (route) => {
@@ -131,7 +170,7 @@ test.describe('Case detail', () => {
     });
 
     await page.goto('/cases/1');
-    await page.locator('p-select').click();
+    await page.locator('p-select[inputid="tier"]').click();
     await page.getByRole('option', { name: 'Manuell' }).click();
 
     await expect(page.getByText('Stufe geändert.')).toBeVisible();

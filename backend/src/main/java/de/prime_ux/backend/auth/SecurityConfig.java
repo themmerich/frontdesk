@@ -39,6 +39,10 @@ class SecurityConfig {
 				// the admins' realm.
 				.requestMatchers("/api/settings/**").hasRole("ADMIN")
 				.requestMatchers("/api/users/**").hasRole("ADMIN")
+				// Before the admin rule below, which would otherwise swallow it: whoever
+				// works in the inbox files cases under a category and needs to read the
+				// list of them. Managing the categories stays with the admins.
+				.requestMatchers(HttpMethod.GET, "/api/case-categories/selectable").authenticated()
 				.requestMatchers("/api/case-categories/**").hasRole("ADMIN")
 				.requestMatchers("/api/triage-settings/**").hasRole("ADMIN")
 				// Everyone reads the company (the sidebar shows name and logo);
