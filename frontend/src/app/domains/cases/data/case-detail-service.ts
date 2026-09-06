@@ -21,15 +21,13 @@ export class CaseDetailService {
     },
   });
 
-  /** A person overruling the triage; the answer carries the case as it now stands. */
-  async changeTier(tier: CaseTier): Promise<void> {
-    const changed = await firstValueFrom(this.http.put<CaseDetailResponse>(`/api/cases/${this.id()}/tier`, { tier }));
-    this.detail.set({ ...changed, receivedAt: new Date(changed.receivedAt) });
-  }
-
-  /** A person filing the case elsewhere, or nowhere — null is a choice, not a missing value. */
-  async changeCategory(categoryId: string | null): Promise<void> {
-    const changed = await firstValueFrom(this.http.put<CaseDetailResponse>(`/api/cases/${this.id()}/category`, { categoryId }));
+  /**
+   * A person overruling the triage: the category and the tier travel together, because the page
+   * saves them together and half a correction is worse than none. The answer carries the case as
+   * it now stands.
+   */
+  async changeClassification(categoryId: string | null, tier: CaseTier): Promise<void> {
+    const changed = await firstValueFrom(this.http.put<CaseDetailResponse>(`/api/cases/${this.id()}/classification`, { categoryId, tier }));
     this.detail.set({ ...changed, receivedAt: new Date(changed.receivedAt) });
   }
 }
