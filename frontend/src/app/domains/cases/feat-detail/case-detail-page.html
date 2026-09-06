@@ -68,10 +68,6 @@
           <h2 class="text-sm font-medium">{{ t('caseDetail.verdict') }}</h2>
           <dl class="flex flex-col gap-2 text-sm">
             <div class="flex items-baseline justify-between gap-3">
-              <dt class="text-surface-500 dark:text-surface-400">{{ t('caseDetail.category') }}</dt>
-              <dd [attr.data-category-color]="aCase.categoryColor">{{ aCase.categoryName ?? '–' }}</dd>
-            </div>
-            <div class="flex items-baseline justify-between gap-3">
               <dt class="text-surface-500 dark:text-surface-400">{{ t('caseDetail.confidence') }}</dt>
               <dd>{{ aCase.confidence !== null ? (aCase.confidence | percent) : '–' }}</dd>
             </div>
@@ -79,6 +75,22 @@
           @if (aCase.summary) {
             <p class="text-sm">{{ aCase.summary }}</p>
           }
+          <!-- Both corrections stand where the verdict is read: the category says what the mail
+               is about, the tier what happens with it, and the two are separate decisions. -->
+          <div class="flex flex-col gap-2">
+            <label for="category" class="text-sm text-surface-500 dark:text-surface-400">{{ t('caseDetail.category') }}</label>
+            <p-select
+              inputId="category"
+              appendTo="body"
+              class="w-full"
+              [options]="categoryOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="aCase.categoryId"
+              [disabled]="isChangingCategory()"
+              (onChange)="onChangeCategory($event.value)"
+            />
+          </div>
           <div class="flex flex-col gap-2">
             <label for="tier" class="text-sm text-surface-500 dark:text-surface-400">{{ t('caseDetail.tier') }}</label>
             <!-- Overruling the triage is the point of the human in the loop, so it happens

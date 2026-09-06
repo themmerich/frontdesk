@@ -4,6 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { Confirmation, ConfirmationService, MessageService, ToastMessageOptions } from 'primeng/api';
 
+import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseDetailService } from '../data/case-detail-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
@@ -31,6 +32,9 @@ const translations = {
     next: 'Next case',
     verdict: 'Assessment',
     category: 'Category',
+    noCategory: 'Without a category',
+    categoryChanged: 'Category changed.',
+    categoryError: 'The category could not be changed.',
     confidence: 'Model confidence',
     tier: 'Tier',
     original: 'Original message',
@@ -54,6 +58,7 @@ const aCase: CaseDetail = {
   hasAttachments: true,
   sizeBytes: 2048,
   summary: 'Kunde bittet um eine Kopie.',
+  categoryId: 'c1',
   categoryName: 'Rechnung',
   categoryColor: 'amber',
   tier: 'draft',
@@ -77,7 +82,20 @@ describe('CaseDetailPage', () => {
       changedTiers.push(tier);
       return Promise.resolve();
     },
+    changeCategory: (categoryId: string | null) => {
+      changedCategories.push(categoryId);
+      return Promise.resolve();
+    },
   } as unknown as CaseDetailService;
+  let changedCategories: (string | null)[];
+  const categories = signal([
+    { id: 'c1', name: 'Statusanfrage Bestellung', color: 'blue' as const },
+    { id: 'c2', name: 'Reklamation', color: 'red' as const },
+  ]);
+  const categoriesError = signal<Error | undefined>(undefined);
+  const categoriesServiceStub = {
+    categories: { value: categories, error: categoriesError },
+  } as unknown as CaseCategoriesService;
   const casesServiceStub = {
     cases: { reload: () => undefined },
     remove: (ids: string[]) => {
@@ -94,6 +112,8 @@ describe('CaseDetailPage', () => {
     detail.set(aCase);
     detailError.set(undefined);
     changedTiers = [];
+    changedCategories = [];
+    categoriesError.set(undefined);
     removed = [];
     toasts = [];
     confirmations = [];
@@ -111,6 +131,7 @@ describe('CaseDetailPage', () => {
         provideZonelessChangeDetection(),
         provideRouter([]),
         { provide: CaseDetailService, useValue: detailServiceStub },
+        { provide: CaseCategoriesService, useValue: categoriesServiceStub },
         { provide: CasesService, useValue: casesServiceStub },
         {
           provide: ConfirmationService,
@@ -161,6 +182,39 @@ describe('CaseDetailPage', () => {
     expect(links.every((link) => link.getAttribute('rel') === 'noopener noreferrer')).toBe(true);
     // The rest of the mail stays the text it was, brackets, full stops and line break included.
     expect(element.textContent).toContain('(Sendungsnummer dort).');
+  });
+
+  it('lets a person file the case under another category, or under none', async () => {
+    const fixture = createFixture();
+
+    // The tenant's categories, and the choice of none at all in front of them.
+    const options = fixture.componentInstance['categoryOptions']() as { label: string; value: string | null }[];
+    expect(options.map((option) => option.label)).toEqual(['Without a category', 'Statusanfrage Bestellung', 'Reklamation']);
+    expect(options[0].value).toBeNull();
+
+    await fixture.componentInstance['onChangeCategory']('c2');
+
+    expect(changedCategories).toEqual(['c2']);
+    expect(toasts.map((toast) => toast.summary)).toEqual(['Category changed.']);
+
+    await fixture.componentInstance['onChangeCategory'](null);
+
+    expect(changedCategories).toEqual(['c2', null]);
+  });
+
+  it('keeps a category the case sits in but nobody can pick any more', () => {
+    // Retired since the case was filed: dropping it from the list would file the case elsewhere
+    // the moment somebody opens it.
+    detail.set({ ...aCase, categoryId: 'gone', categoryName: 'Alte Kategorie' });
+
+    const options = createFixture().componentInstance['categoryOptions']() as { label: string; value: string | null }[];
+
+    expect(options.map((option) => option.label)).toEqual([
+      'Without a category',
+      'Alte Kategorie',
+      'Statusanfrage Bestellung',
+      'Reklamation',
+    ]);
   });
 
   it('hides the paging when the page was opened without a list behind it', () => {

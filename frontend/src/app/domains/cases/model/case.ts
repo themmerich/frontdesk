@@ -29,6 +29,15 @@ export type Case = {
  */
 export type CaseDetail = Case & {
   bodyText: string;
+  /** Which category the case sits in, for the picker that can move it to another one. */
+  categoryId: string | null;
+};
+
+/** A category as a case is filed under it: what it is called, and the colour it is drawn in. */
+export type SelectableCategory = {
+  id: string;
+  name: string;
+  color: CaseCategoryColor | null;
 };
 
 /**

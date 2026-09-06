@@ -200,6 +200,53 @@ class CaseControllerTest {
 
 	@Test
 	@WithMockUser(username = "anna")
+	void letsAPersonFileACaseUnderAnotherCategoryWithoutMovingTheTier() throws Exception {
+		CaseCategory statusRequest = caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS",
+				"Statusanfrage Bestellung", "Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0));
+		CaseCategory complaint = caseCategoryRepository.save(new CaseCategory(tenant, "COMPLAINT", "Reklamation",
+				"Beschwerde über eine Lieferung.", CaseTier.MANUAL, 1));
+		complaint.recolor(CategoryColor.RED);
+		caseCategoryRepository.save(complaint);
+		Case triaged = new Case(tenant, "<misfiled@test>", "anna@example.com", "info@example.com", "Lieferung 4711",
+				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		triaged.applyTriage(statusRequest, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
+		caseRepository.save(triaged);
+
+		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/category").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"categoryId\": \"" + complaint.getId() + "\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.categoryId").value(complaint.getId().toString()))
+				.andExpect(jsonPath("$.categoryName").value("Reklamation"))
+				.andExpect(jsonPath("$.categoryColor").value("red"))
+				// What happens with the case is its own decision and did not move with the filing.
+				.andExpect(jsonPath("$.tier").value("automatic"))
+				.andExpect(jsonPath("$.summary").value("Frage zur Lieferung."));
+
+		// A case that fits none of them is better left without one.
+		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/category").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"categoryId\": null}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.categoryId").doesNotExist())
+				.andExpect(jsonPath("$.categoryName").doesNotExist());
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void doesNotFileACaseUnderAnotherTenantsCategory() throws Exception {
+		CaseCategory theirs = caseCategoryRepository.save(new CaseCategory(otherTenant, "THEIRS", "Fremde Kategorie",
+				"Gehört jemand anderem.", CaseTier.MANUAL, 0));
+		Case ours = caseRepository.save(new Case(tenant, "<ours@test>", "anna@example.com", "info@example.com",
+				"Unsere Mail", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+
+		mockMvc.perform(put("/api/cases/" + ours.getId() + "/category").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"categoryId\": \"" + theirs.getId() + "\"}"))
+				.andExpect(status().isNotFound());
+
+		assertThat(caseRepository.findWithCategoryById(ours.getId()).orElseThrow().getCategory()).isNull();
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
 	void deletesTheSelectedCasesAndLeavesTheRestAlone() throws Exception {
 		Case first = caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "info@example.com",
 				"Weg damit", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));

@@ -113,6 +113,15 @@ public class Case {
 	}
 
 	/**
+	 * A person filing the case under another category, or under none at all. The tier stays where
+	 * it is: which category a mail belongs to and what happens with it are two decisions, and a
+	 * correction to the one is not a correction to the other.
+	 */
+	public void changeCategory(CaseCategory category) {
+		this.category = category;
+	}
+
+	/**
 	 * Records what the triage made of this case. The category may be null when the model found
 	 * nothing that fits; the tier never is, because every case has to land somewhere.
 	 */

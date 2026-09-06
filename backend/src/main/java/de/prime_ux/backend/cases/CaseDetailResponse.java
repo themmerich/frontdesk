@@ -12,14 +12,15 @@ import java.util.UUID;
  * reload, and the list never shows it.
  */
 record CaseDetailResponse(UUID id, String sender, String recipient, String subject, String bodyText,
-		Instant receivedAt, boolean hasAttachments, long sizeBytes, String summary, String categoryName,
-		String categoryColor, String tier, BigDecimal confidence) {
+		Instant receivedAt, boolean hasAttachments, long sizeBytes, String summary, UUID categoryId,
+		String categoryName, String categoryColor, String tier, BigDecimal confidence) {
 
 	static CaseDetailResponse from(Case aCase) {
 		CaseCategory category = aCase.getCategory();
 		return new CaseDetailResponse(aCase.getId(), aCase.getSender(), aCase.getRecipient(), aCase.getSubject(),
 				aCase.getBodyText(), aCase.getReceivedAt(), aCase.isHasAttachments(), aCase.getSizeBytes(),
-				aCase.getSummary(), category == null ? null : category.getName(),
+				aCase.getSummary(), category == null ? null : category.getId(),
+				category == null ? null : category.getName(),
 				category == null || category.getColor() == null ? null
 						: category.getColor().name().toLowerCase(Locale.ROOT),
 				aCase.getTier() == null ? null : aCase.getTier().name().toLowerCase(Locale.ROOT),

@@ -103,6 +103,27 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
+	@WithMockUser(username = "ben")
+	void offersTheActiveCategoriesToWhoeverWorksInTheInbox() throws Exception {
+		invoice.update(invoice.getName(), invoice.getDescription(), invoice.getTier(), false);
+		caseCategoryRepository.save(invoice);
+		caseCategoryRepository.save(new CaseCategory(otherTenant, "THEIRS", "Fremde Kategorie",
+				"Gehört jemand anderem.", CaseTier.MANUAL, 0));
+
+		// Ben is no admin: he files cases, he does not manage the categories.
+		mockMvc.perform(get("/api/case-categories/selectable"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].id").value(orderStatus.getId().toString()))
+				.andExpect(jsonPath("$[0].name").value("Statusanfrage Bestellung"))
+				// Only what a picker needs; what a category is for stays with the admins.
+				.andExpect(jsonPath("$[0].description").doesNotExist())
+				.andExpect(jsonPath("$[0].caseCount").doesNotExist());
+
+		mockMvc.perform(get("/api/case-categories")).andExpect(status().isForbidden());
+	}
+
+	@Test
 	@WithMockUser(username = "anna", roles = "ADMIN")
 	void createsACategoryAndDerivesItsCodeFromTheName() throws Exception {
 		mockMvc.perform(post("/api/case-categories").with(csrf())

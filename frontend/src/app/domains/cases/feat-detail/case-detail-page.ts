@@ -11,6 +11,7 @@ import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 
+import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseDetailService } from '../data/case-detail-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
@@ -58,6 +59,7 @@ export class CaseDetailPage {
   readonly id = input.required<string>();
 
   protected readonly detailService = inject(CaseDetailService);
+  protected readonly categoriesService = inject(CaseCategoriesService);
   private readonly casesService = inject(CasesService);
   private readonly orderStore = inject(CaseOrderStore);
   private readonly confirmationService = inject(ConfirmationService);
@@ -88,6 +90,29 @@ export class CaseDetailPage {
    * The mail as it is shown: its text cut into the pieces that are addresses and the pieces that
    * are not. Bound as text either way — a mail body comes from a stranger and is never markup.
    */
+  /**
+   * What the category picker offers: the categories the tenant keeps, and the choice of none at
+   * all. A case that sits in a category which has since been retired keeps it in the list, so
+   * opening the case does not quietly file it somewhere else.
+   */
+  protected readonly categoryOptions = computed(() => {
+    this.translation();
+    const current = this.detailService.detail.value();
+    // value() throws while the resource is in the error state, and a list that cannot be loaded
+    // must not take the whole page with it: the case is still readable, only the choice is gone.
+    const categories = this.categoriesService.categories.error() ? [] : this.categoriesService.categories.value();
+    const known = categories.some((category) => category.id === current?.categoryId);
+    return [
+      { label: this.transloco.translate('caseDetail.noCategory'), value: null },
+      ...(known || current?.categoryId === undefined || current?.categoryId === null
+        ? []
+        : [{ label: current.categoryName ?? '', value: current.categoryId }]),
+      ...categories.map((category) => ({ label: category.name, value: category.id })),
+    ];
+  });
+
+  protected readonly isChangingCategory = signal(false);
+
   protected readonly bodyParts = computed(() => mailTextParts(this.detailService.detail.value()?.bodyText ?? ''));
 
   protected tierLabelKey(tier: CaseTier): string {
@@ -115,6 +140,20 @@ export class CaseDetailPage {
       this.toast('error', 'caseDetail.tierError');
     } finally {
       this.isChangingTier.set(false);
+    }
+  }
+
+  protected async onChangeCategory(categoryId: string | null): Promise<void> {
+    this.isChangingCategory.set(true);
+    try {
+      await this.detailService.changeCategory(categoryId);
+      // The inbox draws its rows in the category's colour, and it is one page back.
+      this.casesService.cases.reload();
+      this.toast('success', 'caseDetail.categoryChanged');
+    } catch {
+      this.toast('error', 'caseDetail.categoryError');
+    } finally {
+      this.isChangingCategory.set(false);
     }
   }
 

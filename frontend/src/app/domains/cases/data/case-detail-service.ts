@@ -26,4 +26,10 @@ export class CaseDetailService {
     const changed = await firstValueFrom(this.http.put<CaseDetailResponse>(`/api/cases/${this.id()}/tier`, { tier }));
     this.detail.set({ ...changed, receivedAt: new Date(changed.receivedAt) });
   }
+
+  /** A person filing the case elsewhere, or nowhere — null is a choice, not a missing value. */
+  async changeCategory(categoryId: string | null): Promise<void> {
+    const changed = await firstValueFrom(this.http.put<CaseDetailResponse>(`/api/cases/${this.id()}/category`, { categoryId }));
+    this.detail.set({ ...changed, receivedAt: new Date(changed.receivedAt) });
+  }
 }
