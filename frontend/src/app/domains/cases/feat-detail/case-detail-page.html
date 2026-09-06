@@ -1,5 +1,5 @@
 <ng-container *transloco="let t">
-  <main class="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-col gap-4">
+  <main class="flex h-full min-h-0 w-full flex-col gap-4">
     @if (detailService.detail.error()) {
       <p-message severity="error">{{ t('caseDetail.loadError') }}</p-message>
       <a routerLink="/" class="text-primary hover:underline">{{ t('caseDetail.backToInbox') }}</a>
@@ -61,8 +61,8 @@
         </p>
       </div>
 
-      <!-- The mail keeps a readable measure; the verdict sits beside it on wide screens
-           and moves above it on narrow ones, where the answer matters before the evidence. -->
+      <!-- The verdict sits beside the mail on wide screens and moves above it on narrow ones,
+           where the answer matters before the evidence. -->
       <div class="flex min-h-0 flex-auto flex-col gap-4 lg:flex-row-reverse">
         <aside class="flex flex-col gap-3 lg:w-72 lg:shrink-0">
           <h2 class="text-sm font-medium">{{ t('caseDetail.verdict') }}</h2>
@@ -99,11 +99,14 @@
 
         <section class="flex min-h-0 flex-auto flex-col gap-2">
           <h2 class="text-sm font-medium">{{ t('caseDetail.original') }}</h2>
-          <div
-            class="min-h-0 flex-auto overflow-y-auto rounded-lg bg-surface-50 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:bg-surface-800"
-          >
-            {{ aCase.bodyText }}
-          </div>
+          <!-- Every piece bound as text; only the ones that are addresses get an anchor around
+               them. Nothing of the mail is ever rendered as markup.
+
+               Written without a break between the pieces, and kept that way: the box preserves
+               whitespace, so a newline in the template would land in the mail as a space. -->
+          <!-- prettier-ignore -->
+          <div class="min-h-0 flex-auto overflow-y-auto rounded-lg bg-surface-50 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:bg-surface-800"
+          >@for (part of bodyParts(); track $index) {@if (part.href) {<a [href]="part.href" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2 hover:no-underline">{{ part.text }}</a>} @else {{{ part.text }}}}</div>
           @if (aCase.hasAttachments) {
             <p class="text-sm text-surface-500 dark:text-surface-400">
               <i class="pi pi-paperclip" aria-hidden="true"></i>

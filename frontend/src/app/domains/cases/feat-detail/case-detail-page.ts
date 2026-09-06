@@ -15,6 +15,7 @@ import { CaseDetailService } from '../data/case-detail-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
 import { CaseDetail, CaseTier } from '../model/case';
+import { mailTextParts } from '../model/mail-text';
 import { FileSizePipe } from '../ui/file-size-pipe';
 
 /**
@@ -82,6 +83,12 @@ export class CaseDetailPage {
       value: tier,
     }));
   });
+
+  /**
+   * The mail as it is shown: its text cut into the pieces that are addresses and the pieces that
+   * are not. Bound as text either way — a mail body comes from a stranger and is never markup.
+   */
+  protected readonly bodyParts = computed(() => mailTextParts(this.detailService.detail.value()?.bodyText ?? ''));
 
   protected tierLabelKey(tier: CaseTier): string {
     return {

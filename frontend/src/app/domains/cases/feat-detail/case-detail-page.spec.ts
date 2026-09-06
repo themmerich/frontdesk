@@ -145,6 +145,24 @@ describe('CaseDetailPage', () => {
     expect(element.textContent).toContain('Attachments are not stored yet.');
   });
 
+  it('makes the addresses in the mail clickable, and opens them in a new tab', () => {
+    detail.set({
+      ...aCase,
+      bodyText: 'Status unter https://example.com/status/4711 (Sendungsnummer dort).\nMehr auf www.example.com/faq.',
+    });
+
+    const element = createFixture().nativeElement as HTMLElement;
+
+    const links = Array.from(element.querySelectorAll('a[target="_blank"]'));
+    expect(links.map((link) => link.textContent)).toEqual(['https://example.com/status/4711', 'www.example.com/faq']);
+    // An address without a scheme would otherwise read as a path inside this app.
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['https://example.com/status/4711', 'https://www.example.com/faq']);
+    // A new tab must not be handed a way back into this one.
+    expect(links.every((link) => link.getAttribute('rel') === 'noopener noreferrer')).toBe(true);
+    // The rest of the mail stays the text it was, brackets, full stops and line break included.
+    expect(element.textContent).toContain('(Sendungsnummer dort).');
+  });
+
   it('hides the paging when the page was opened without a list behind it', () => {
     const element = createFixture().nativeElement as HTMLElement;
 
