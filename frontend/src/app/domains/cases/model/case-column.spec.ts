@@ -15,13 +15,13 @@ describe('parseColumnPreferences', () => {
     const stored = {
       order: ['subject', 'sender', 'recipient', 'hasAttachments', 'categoryName', 'tier', 'sizeBytes', 'receivedAt'],
       visibleFields: ['subject', 'sender'],
-      widths: { __selection: 48, subject: 320, sender: 180, __actions: 100 },
+      widths: { subject: 320, sender: 180, __actions: 100 },
     };
 
     expect(parseColumnPreferences(stored)).toEqual({
       order: ['subject', 'sender', 'recipient', 'hasAttachments', 'categoryName', 'tier', 'sizeBytes', 'receivedAt'],
       visibleFields: ['subject', 'sender'],
-      widths: { __selection: 48, subject: 320, sender: 180, __actions: 100 },
+      widths: { subject: 320, sender: 180, __actions: 100 },
     });
   });
 

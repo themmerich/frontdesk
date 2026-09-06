@@ -39,13 +39,12 @@ export const CASE_COLUMNS: readonly CaseColumnDefinition[] = [
 export const DEFAULT_COLUMN_ORDER: readonly CaseColumnField[] = CASE_COLUMNS.map((column) => column.field);
 
 /**
- * The two columns that are always there and carry no field of their own: the tick in front of
- * every row, and the row's actions behind it. A remembered width needs a name for them too.
+ * The one column that is always there and carries no field of its own: the row's actions behind
+ * everything else. A remembered width needs a name for it too.
  */
-export const SELECTION_COLUMN = '__selection';
 export const ACTIONS_COLUMN = '__actions';
 
-export type CaseColumnWidthKey = CaseColumnField | typeof SELECTION_COLUMN | typeof ACTIONS_COLUMN;
+export type CaseColumnWidthKey = CaseColumnField | typeof ACTIONS_COLUMN;
 
 /**
  * What a column was dragged to, in pixels — by column, not by position. Position is what the
@@ -99,7 +98,7 @@ function knownWidths(value: unknown): CaseColumnWidths {
   if (value === null || typeof value !== 'object') {
     return {};
   }
-  const known = new Set<string>([SELECTION_COLUMN, ACTIONS_COLUMN, ...DEFAULT_COLUMN_ORDER]);
+  const known = new Set<string>([ACTIONS_COLUMN, ...DEFAULT_COLUMN_ORDER]);
   const widths = Object.entries(value)
     .map(([key, width]): [string, unknown] => [renamed(key), width])
     .filter(([key, width]) => known.has(key) && typeof width === 'number' && Number.isFinite(width) && width > 0);
