@@ -71,8 +71,6 @@
     "delete": "Löschen",
     "actions": "Aktionen",
     "edit": "Bearbeiten",
-    "selectAll": "Alle auswählen",
-    "selectRow": "Vorgang auswählen",
     "deleteRow": "Vorgang löschen",
     "deleteSelected": "Auswahl löschen",
     "deleteHeader": "Löschen bestätigen",

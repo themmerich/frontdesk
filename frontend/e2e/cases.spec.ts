@@ -133,6 +133,38 @@ test.describe('Cases page', () => {
     await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
   });
 
+  test('picks one row per click, adds with ctrl, and leaves the row buttons alone', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    const picked = page.locator('tbody tr[aria-selected="true"]');
+
+    await page.getByRole('row', { name: /Delivery status/ }).click();
+
+    await expect(picked).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Auswahl löschen' })).toBeEnabled();
+
+    // A plain click picks that one row and lets go of the rest; ctrl adds instead.
+    await page.getByRole('row', { name: /Invoice copy/ }).click();
+    await expect(picked).toHaveCount(1);
+    await page.getByRole('row', { name: /Delivery status/ }).click({ modifiers: ['Control'] });
+    await expect(picked).toHaveCount(2);
+    await page.getByRole('row', { name: /Delivery status/ }).click({ modifiers: ['Control'] });
+    await expect(picked).toHaveCount(1);
+
+    // Shift reaches from the picked row to this one; both mails are then picked.
+    await page.getByRole('row', { name: /Delivery status/ }).click({ modifiers: ['Shift'] });
+    await expect(picked).toHaveCount(2);
+
+    // The row's own buttons do their own thing; the picking stays as it is.
+    await page
+      .getByRole('row', { name: /Invoice copy/ })
+      .getByRole('button', { name: 'Vorgang löschen' })
+      .click();
+    await expect(page.getByRole('alertdialog', { name: 'Löschen bestätigen' })).toBeVisible();
+    await expect(picked).toHaveCount(2);
+  });
+
   test('deletes a selection through the toolbar, which stays disabled until something is ticked', async ({ page }) => {
     let deleted: Record<string, unknown> | undefined;
     await page.route('**/api/cases', (route) => {
@@ -147,8 +179,9 @@ test.describe('Cases page', () => {
     const toolbarDelete = page.getByRole('button', { name: 'Auswahl löschen' });
     await expect(toolbarDelete).toBeDisabled();
 
-    // The header checkbox ticks every row at once.
-    await page.getByRole('columnheader').first().getByRole('checkbox').click();
+    // A click picks a row, shift-click everything up to it.
+    await page.getByRole('row', { name: /Delivery status/ }).click();
+    await page.getByRole('row', { name: /Invoice copy/ }).click({ modifiers: ['Shift'] });
     await expect(toolbarDelete).toBeEnabled();
     await toolbarDelete.click();
 
@@ -302,7 +335,7 @@ test.describe('Cases page', () => {
     await page.goto('/');
 
     // A heading above the first case of each stretch, newest stretch first.
-    const headings = page.locator('tbody tr:not(:has(p-table-checkbox))');
+    const headings = page.locator('tbody tr:not([data-p-selectable-row])');
     await expect(headings).toHaveCount(3);
     await expect(headings.nth(0)).toHaveText('Heute');
     await expect(headings.nth(1)).toHaveText('Gestern');
@@ -336,7 +369,7 @@ test.describe('Cases page', () => {
 
     // Scrolled past its first rows, the heading stands still below the column headers.
     const measured = await page.evaluate(() => {
-      const heading = document.querySelector('tbody tr:not(:has(p-table-checkbox))')!;
+      const heading = document.querySelector('tbody tr:not([data-p-selectable-row])')!;
       return {
         text: heading.textContent?.trim(),
         headingTop: Math.round(heading.getBoundingClientRect().top),
@@ -407,12 +440,12 @@ test.describe('Cases page', () => {
     // Twenty-five to a page, and the count of all of them beside it.
     await expect(page.getByText('1 – 25 von 30 Vorgängen')).toBeVisible();
     // The rows carrying a case; between them stand the headings of the stretches of time.
-    await expect(page.locator('tbody tr:has(p-table-checkbox)')).toHaveCount(25);
+    await expect(page.locator('tbody tr[data-p-selectable-row]')).toHaveCount(25);
 
     await page.getByRole('button', { name: 'Nächste Seite' }).click();
 
     await expect(page.getByText('26 – 30 von 30 Vorgängen')).toBeVisible();
-    await expect(page.locator('tbody tr:has(p-table-checkbox)')).toHaveCount(5);
+    await expect(page.locator('tbody tr[data-p-selectable-row]')).toHaveCount(5);
   });
 
   test('fills a page where the stored state predates the paginator', async ({ page }) => {
@@ -449,7 +482,7 @@ test.describe('Cases page', () => {
     await page.getByRole('button', { name: 'Ansicht zurücksetzen' }).click();
 
     // Both cases back, in the order the inbox opens with: newest first.
-    const subjects = page.locator('tbody tr td:nth-child(5)');
+    const subjects = page.locator('tbody tr td:nth-child(4)');
     await expect(subjects).toHaveText([/Invoice copy/, /Delivery status/]);
     await expect(page.getByRole('textbox', { name: 'Suchen' })).toHaveValue('');
     await expect(page.getByRole('columnheader', { name: 'Anhang' })).toBeVisible();
@@ -465,11 +498,8 @@ test.describe('Cases page', () => {
     const search = page.getByRole('textbox', { name: 'Suchen' });
     await search.fill('invoice');
     await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
-    // Ticked for the next click, not for the next visit.
-    await page
-      .getByRole('row', { name: /Invoice copy/ })
-      .getByRole('checkbox')
-      .click();
+    // Picked for the next click, not for the next visit.
+    await page.getByRole('row', { name: /Invoice copy/ }).click();
     await expect(page.getByRole('button', { name: 'Auswahl löschen' })).toBeEnabled();
 
     await page.reload();

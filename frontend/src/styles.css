@@ -95,6 +95,21 @@
   color: var(--app-category-grey);
 }
 
+/* A picked row has to be plain to see. The theme's own highlight is a hint of mint that all but
+   disappears next to the colours the rows are drawn in, so the tint is turned up and the row gets
+   a bar on its left edge — which also survives when a whole stretch of rows is picked at once. */
+:root {
+  --p-datatable-row-selected-background: var(--p-primary-100);
+}
+
+.dark {
+  --p-datatable-row-selected-background: color-mix(in srgb, var(--p-primary-400) 24%, transparent);
+}
+
+.p-datatable-row-selected > td:first-child {
+  box-shadow: inset 0.25rem 0 0 var(--p-primary-color);
+}
+
 /* The tables' filter menus (cases/ui/case-list, admin/ui/user-list) hang in an overlay on
    <body>, where component styles cannot reach them. PrimeNG stretches the two match-mode
    selects across the menu but leaves what sits below them at its own width, so a text field

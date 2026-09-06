@@ -13,6 +13,8 @@
     scrollHeight="flex"
     [tableStyle]="{ 'min-width': minTableWidth() }"
     dataKey="id"
+    selectionMode="multiple"
+    [metaKeySelection]="true"
     [paginator]="true"
     [rows]="defaultRows"
     [rowsPerPageOptions]="[10, 25, 50, 100]"
@@ -115,9 +117,6 @@
       <tr>
         <!-- Every header says which column it is, so a dragged width is remembered by column
              rather than by the place that column happens to stand in. -->
-        <th scope="col" class="w-12" [attr.data-column]="selectionColumn">
-          <p-table-header-checkbox [ariaLabel]="t('cases.selectAll')" />
-        </th>
         @for (col of visibleColumns(); track col.field) {
           <!-- One header for both kinds of column: the attachment column carries a
                filter but no sorting, so the sortable behaviour is switched off
@@ -210,19 +209,25 @@
          asks for it while the list is in the order the stretches are about. -->
     <ng-template #groupheader let-row>
       <tr pRowGroupHeader class="bg-surface-50 dark:bg-surface-800">
-        <td [attr.colspan]="visibleColumns().length + 2" class="text-sm font-semibold">{{ row.receivedGroupLabel }}</td>
+        <td [attr.colspan]="visibleColumns().length + 1" class="text-sm font-semibold">{{ row.receivedGroupLabel }}</td>
       </tr>
     </ng-template>
-    <ng-template #body let-row>
+    <ng-template #body let-row let-rowIndex="rowIndex">
       <!-- The category's colour, as the text colour of the whole row: what kind of mail
            this is should be readable before any single cell is. The attribute carries the
            palette name and styles.css resolves it, so the row never hard-codes a value and
            the same name reads light and dark. Cells with a colour of their own (the tier
            tag, the dashes) keep it. -->
-      <tr [attr.data-category-color]="row.categoryColor" (dblclick)="onRowDoubleClick($event, row)">
-        <td>
-          <p-table-checkbox [value]="row" [ariaLabel]="t('cases.selectRow')" />
-        </td>
+      <!-- Clicked, a row is picked; clicked with shift, everything up to it. PrimeNG leaves
+           clicks on the row's own buttons alone, so the pencil and the bin still do their own
+           thing. -->
+      <tr
+        [pSelectableRow]="row"
+        [pSelectableRowIndex]="rowIndex"
+        [attr.aria-selected]="isSelected(row)"
+        [attr.data-category-color]="row.categoryColor"
+        (dblclick)="onRowDoubleClick($event, row)"
+      >
         @for (col of visibleColumns(); track col.field) {
           <td>
             @switch (col.field) {
@@ -290,7 +295,7 @@
     </ng-template>
     <ng-template #emptymessage>
       <tr>
-        <td [attr.colspan]="visibleColumns().length + 2">{{ t('cases.empty') }}</td>
+        <td [attr.colspan]="visibleColumns().length + 1">{{ t('cases.empty') }}</td>
       </tr>
     </ng-template>
   </p-table>

@@ -63,7 +63,7 @@ describe('CaseList date groups', () => {
 
   /** The headings the table writes between the rows, in the order they stand. */
   function headings(fixture: ReturnType<typeof createFixture>): string[] {
-    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr:not(:has(p-table-checkbox))');
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr:not([data-p-selectable-row])');
     return Array.from(rows).map((row) => row.textContent?.trim() ?? '');
   }
 
@@ -91,7 +91,7 @@ describe('CaseList date groups', () => {
     ]);
 
     expect(headings(fixture)).toEqual(['Today']);
-    expect((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr:has(p-table-checkbox)')).toHaveLength(3);
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr[data-p-selectable-row]')).toHaveLength(3);
   });
 
   it('steps aside when the list is put in another order', async () => {

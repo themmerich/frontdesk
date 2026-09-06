@@ -34,8 +34,6 @@ const translations = {
     export: 'Export',
     delete: 'Delete',
     actions: 'Actions',
-    selectAll: 'Select all',
-    selectRow: 'Select case',
     deleteRow: 'Delete case',
     edit: 'Edit',
     deleteSelected: 'Delete selection',
@@ -146,8 +144,7 @@ describe('CaseList', () => {
   it('keeps the attachment header out of sight but not out of reach', () => {
     const element = createFixture([]).nativeElement as HTMLElement;
 
-    // The first header is the selection checkbox; the attachment column follows.
-    const header = element.querySelectorAll('thead th')[1];
+    const header = element.querySelectorAll('thead th')[0];
     // The paperclip in the cells says it; the word above them only takes room.
     expect(header.textContent?.trim()).toBe('Attachment');
     expect(header.querySelector('.sr-only')?.textContent).toBe('Attachment');
@@ -253,20 +250,6 @@ describe('CaseList', () => {
     expect(options).toEqual(['Automatic', 'Draft', 'Manual', 'Info', 'Ignore']);
   });
 
-  it('asks the page to delete the row the button belongs to, not the selection', async () => {
-    const fixture = createFixture([aCase({ subject: 'Weg damit' }), aCase({ id: '2', subject: 'Bleibt' })]);
-    const requested: Case[][] = [];
-    fixture.componentInstance.deleteRequested.subscribe((cases) => requested.push(cases));
-    const element = fixture.nativeElement as HTMLElement;
-
-    const rowWithSubject = Array.from(element.querySelectorAll('tbody tr')).find((row) => row.textContent?.includes('Weg damit'))!;
-    (rowWithSubject.querySelector('button[aria-label="Delete case"]') as HTMLButtonElement).click();
-    await fixture.whenStable();
-
-    expect(requested).toHaveLength(1);
-    expect(requested[0].map((selected) => selected.subject)).toEqual(['Weg damit']);
-  });
-
   it('opens a case through the row action and through a double click', async () => {
     const fixture = createFixture([aCase({ subject: 'Rechnung 2026-081' })]);
     const opened: Case[] = [];
@@ -274,7 +257,7 @@ describe('CaseList', () => {
     fixture.componentInstance.caseOpened.subscribe((one) => opened.push(one));
     fixture.componentInstance.orderChanged.subscribe((ids) => orders.push(ids));
     // The first row carrying a case: above it stands the heading of its stretch of time.
-    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr:has(p-table-checkbox)')!;
+    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr[data-p-selectable-row]')!;
 
     (row.querySelector('button[aria-label="Edit"]') as HTMLButtonElement).click();
     await fixture.whenStable();
@@ -294,53 +277,12 @@ describe('CaseList', () => {
     const opened: Case[] = [];
     fixture.componentInstance.caseOpened.subscribe((one) => opened.push(one));
 
-    // Ticking a row twice must select it, not open it.
-    const checkbox = (fixture.nativeElement as HTMLElement).querySelector('p-table-checkbox input')!;
-    checkbox.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    // Pressing the row's own button twice must do what the button does, not open the case.
+    const button = (fixture.nativeElement as HTMLElement).querySelector('button[aria-label="Delete case"]')!;
+    button.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     await fixture.whenStable();
 
     expect(opened).toEqual([]);
-  });
-
-  it('keeps the toolbar delete out of reach until something is ticked', async () => {
-    const fixture = createFixture([aCase({ subject: 'Erste' }), aCase({ id: '2', subject: 'Zweite' })]);
-    const requested: Case[][] = [];
-    fixture.componentInstance.deleteRequested.subscribe((cases) => requested.push(cases));
-    const element = fixture.nativeElement as HTMLElement;
-    const toolbarDelete = Array.from(element.querySelectorAll('button')).find((button) => button.textContent?.includes('Delete'))!;
-
-    expect(toolbarDelete.disabled).toBe(true);
-
-    // The header checkbox ticks every row at once.
-    (element.querySelector('p-table-header-checkbox input') as HTMLInputElement).click();
-    await fixture.whenStable();
-
-    expect(toolbarDelete.disabled).toBe(false);
-    toolbarDelete.click();
-    await fixture.whenStable();
-
-    expect(requested).toHaveLength(1);
-    expect(requested[0].map((selected) => selected.subject).sort()).toEqual(['Erste', 'Zweite']);
-  });
-
-  it('drops deleted rows out of the selection when the list reloads', async () => {
-    const fixture = createFixture([aCase({ subject: 'Erste' }), aCase({ id: '2', subject: 'Zweite' })]);
-    const element = fixture.nativeElement as HTMLElement;
-    (element.querySelector('p-table-header-checkbox input') as HTMLInputElement).click();
-    await fixture.whenStable();
-
-    // What the reload after a deletion looks like from here.
-    fixture.componentRef.setInput('cases', [aCase({ id: '2', subject: 'Zweite' })]);
-    await fixture.whenStable();
-
-    const toolbarDelete = Array.from(element.querySelectorAll('button')).find((button) => button.textContent?.includes('Delete'))!;
-    // Still one ticked, and it is the one that survived — not a stale row.
-    expect(toolbarDelete.disabled).toBe(false);
-    const requested: Case[][] = [];
-    fixture.componentInstance.deleteRequested.subscribe((cases) => requested.push(cases));
-    toolbarDelete.click();
-    await fixture.whenStable();
-    expect(requested[0].map((selected) => selected.subject)).toEqual(['Zweite']);
   });
 
   it('shows the empty message when there are no cases', () => {
@@ -362,7 +304,7 @@ describe('CaseList', () => {
     const fixture = createFixture([aCase()]);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelectorAll('th')).toHaveLength(10);
+    expect(element.querySelectorAll('th')).toHaveLength(9);
 
     const columnsButton = element.querySelector('p-button button') as HTMLButtonElement;
     columnsButton.click();
@@ -373,7 +315,7 @@ describe('CaseList', () => {
     subjectCheckbox.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(9);
+    expect(element.querySelectorAll('th')).toHaveLength(8);
     expect(element.textContent).not.toContain('Delivery status');
 
     const resetButton = Array.from(document.querySelectorAll('button')).find((button) =>
@@ -383,7 +325,7 @@ describe('CaseList', () => {
     resetButton.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(10);
+    expect(element.querySelectorAll('th')).toHaveLength(9);
     expect(element.textContent).toContain('Delivery status');
   });
 
@@ -461,9 +403,9 @@ describe('CaseList', () => {
     table.sort({ field: 'sizeBytes', order: 1 });
     await fixture.whenStable();
 
-    // Fifth cell: checkbox, attachment, sender, recipient, subject.
+    // Fourth cell: attachment, sender, recipient, subject.
     const subjects = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr')).map((row) =>
-      row.querySelectorAll('td')[4].textContent?.trim(),
+      row.querySelectorAll('td')[3].textContent?.trim(),
     );
     expect(subjects).toEqual(['Small with the bigger unit', 'Large with the smaller number']);
   });

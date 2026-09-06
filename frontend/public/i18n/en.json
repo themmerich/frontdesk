@@ -71,8 +71,6 @@
     "delete": "Delete",
     "actions": "Actions",
     "edit": "Edit",
-    "selectAll": "Select all",
-    "selectRow": "Select case",
     "deleteRow": "Delete case",
     "deleteSelected": "Delete selection",
     "deleteHeader": "Confirm deletion",

@@ -67,15 +67,14 @@ describe('CaseList remembered state', () => {
   it('remembers a dragged width under the column it belongs to', async () => {
     const fixture = createFixture();
     const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
-    // The tick, the eight columns, the row actions — as they stand by default.
-    measureHeadersAs(fixture, [48, 65, 200, 150, 300, 150, 130, 190, 90, 100]);
+    // The eight columns and the row actions, as they stand by default.
+    measureHeadersAs(fixture, [65, 200, 150, 300, 150, 130, 190, 90, 100]);
 
     table.onColResize.emit({ element: document.createElement('th'), delta: -40 });
     await fixture.whenStable();
 
     // Not only the column that was dragged: in fit mode every width is a share of the same table.
     expect(fixture.componentInstance.columnWidths()).toEqual({
-      __selection: 48,
       hasAttachments: 65,
       sender: 200,
       recipient: 150,
@@ -92,7 +91,6 @@ describe('CaseList remembered state', () => {
     const fixture = createFixture();
     const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
     fixture.componentRef.setInput('columnWidths', {
-      __selection: 48,
       hasAttachments: 65,
       sender: 200,
       recipient: 150,
@@ -111,7 +109,7 @@ describe('CaseList remembered state', () => {
     // Sender keeps its 200 although the column in front of it is gone — by position it would
     // have inherited the 65 of the attachment column.
     const stored = JSON.parse(localStorage.getItem('frontdesk-case-table') ?? '{}') as Record<string, unknown>;
-    expect(stored['columnWidths']).toBe('48,200,300,100');
+    expect(stored['columnWidths']).toBe('200,300,100');
   });
 
   function pressButton(fixture: ReturnType<typeof createFixture>, label: string): void {
@@ -155,7 +153,7 @@ describe('CaseList remembered state', () => {
     expect(table.rows()).toBe(25);
     expect(table.first()).toBe(0);
     // The rows carrying a case; the table also writes a heading above each stretch of time.
-    expect((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr:has(p-table-checkbox)')).toHaveLength(2);
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr[data-p-selectable-row]')).toHaveLength(2);
   });
 
   it('remembers how many rows a page holds, but not the page one stood on', () => {
@@ -191,7 +189,7 @@ describe('CaseList remembered state', () => {
   it('keeps out of the way while a shown column has no width of its own', async () => {
     const fixture = createFixture();
     const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
-    // Only two of the ten rendered columns were ever measured.
+    // Only two of the nine rendered columns were ever measured.
     fixture.componentRef.setInput('columnWidths', { sender: 200, subject: 300 });
     await fixture.whenStable();
 
@@ -241,7 +239,7 @@ describe('CaseList remembered state', () => {
 
     search.value = 'invoice';
     search.dispatchEvent(new Event('input'));
-    (element.querySelector('p-table-header-checkbox input') as HTMLInputElement).click();
+    element.querySelector<HTMLElement>('tbody tr[data-p-selectable-row]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     // The table applies filters after its debounce delay (300 ms by default).
     await new Promise((resolve) => setTimeout(resolve, 400));
     await fixture.whenStable();

@@ -38,7 +38,6 @@ import {
   CaseColumnWidthKey,
   CaseColumnWidths,
   DEFAULT_COLUMN_ORDER,
-  SELECTION_COLUMN,
 } from '../model/case-column';
 import { FileSizePipe } from './file-size-pipe';
 
@@ -163,8 +162,7 @@ export class CaseList {
 
   protected readonly defaultRows = DEFAULT_ROWS;
 
-  /** The names the two fixed columns are remembered under; the others go by their field. */
-  protected readonly selectionColumn = SELECTION_COLUMN;
+  /** The name the row actions are remembered under; the others go by their field. */
   protected readonly actionsColumn = ACTIONS_COLUMN;
 
   constructor() {
@@ -271,7 +269,7 @@ export class CaseList {
    */
   private readonly renderedWidths = computed<string | undefined>(() => {
     const widths = this.columnWidths();
-    const rendered: CaseColumnWidthKey[] = [SELECTION_COLUMN, ...this.visibleColumns().map((column) => column.field), ACTIONS_COLUMN];
+    const rendered: CaseColumnWidthKey[] = [...this.visibleColumns().map((column) => column.field), ACTIONS_COLUMN];
     const values = rendered.map((column) => widths[column]);
     return values.every((width) => width !== undefined) ? values.join(',') : undefined;
   });
@@ -289,6 +287,14 @@ export class CaseList {
       measured[header.dataset['column'] as keyof CaseColumnWidths] = Math.round(header.getBoundingClientRect().width);
     }
     this.columnWidths.update((widths) => ({ ...widths, ...measured }));
+  }
+
+  /**
+   * Whether a row is among the picked ones. PrimeNG paints them and nothing more, so the state
+   * is spelled out for anyone who cannot see the paint — where a checkbox used to say it.
+   */
+  protected isSelected(row: Case): boolean {
+    return this.selection().some((selected) => selected.id === row.id);
   }
 
   protected onColumnDrop(event: CdkDragDrop<CaseColumn[]>): void {
@@ -401,10 +407,10 @@ export class CaseList {
   /**
    * A floor for the table, so columns keep a readable width instead of being squeezed to nothing
    * once many of them are shown. Below it the table scrolls sideways within the page rather than
-   * pushing the layout out of the viewport. The checkbox and the row action are narrow and come
-   * on top of the toggleable ones.
+   * pushing the layout out of the viewport. The row actions are narrow and come on top of the
+   * toggleable columns.
    */
-  protected readonly minTableWidth = computed(() => `${this.visibleColumns().length * 9 + 8}rem`);
+  protected readonly minTableWidth = computed(() => `${this.visibleColumns().length * 9 + 5}rem`);
 
   /** The tag's label and colour per tier; a tier is a small closed set, so both are spelled out. */
   protected tierLabelKey(tier: CaseTier): string {
@@ -451,10 +457,10 @@ export class CaseList {
 
   /**
    * A double click anywhere on the row opens it, except on the controls that mean something
-   * else — ticking a row twice must not open it.
+   * else — the pencil and the bin do their own thing.
    */
   protected onRowDoubleClick(event: Event, row: Case): void {
-    if ((event.target as HTMLElement).closest('button, input, .p-checkbox')) {
+    if ((event.target as HTMLElement).closest('button, input')) {
       return;
     }
     this.onOpen(row);
