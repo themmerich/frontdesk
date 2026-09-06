@@ -60,6 +60,34 @@ test.describe('Case detail', () => {
     await expect(page.getByText('Diese Mail hat Anhänge')).toBeVisible();
   });
 
+  test('uses the whole width and makes the addresses in the mail clickable', async ({ page }) => {
+    await page.route('**/api/cases/1', (route) =>
+      route.fulfill({ json: { ...detail, bodyText: 'Status unter https://example.com/status/4711 (dort auch die Nummer).' } }),
+    );
+    await page.setViewportSize({ width: 1500, height: 800 });
+
+    await page.goto('/cases/1');
+    await expect(page.getByRole('heading', { name: 'Rechnung 2026-081' })).toBeVisible();
+
+    // Nothing capping the page: it is as wide as the card it sits in.
+    const widths = await page.evaluate(() => {
+      const main = document.querySelector('main')!;
+      return [Math.round(main.getBoundingClientRect().width), Math.round(main.parentElement!.getBoundingClientRect().width)];
+    });
+    expect(widths[0]).toBe(widths[1]);
+
+    // The mail reads as it was written: cutting the text into linked and unlinked pieces must
+    // not leave a space behind where the template broke a line.
+    const shown = await page.locator('main section div').last().textContent();
+    expect(shown).toBe('Status unter https://example.com/status/4711 (dort auch die Nummer).');
+
+    const link = page.getByRole('link', { name: 'https://example.com/status/4711' });
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    // The bracket behind the address belongs to the sentence, not to the link.
+    await expect(link).toHaveAttribute('href', 'https://example.com/status/4711');
+  });
+
   test('pages through the list order and back again', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('row', { name: /Rechnung 2026-081/ }).dblclick();
