@@ -52,6 +52,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     hasAttachments: false,
     sizeBytes: 2048,
     summary: null,
+    categoryId: null,
     categoryName: null,
     categoryColor: null,
     tier: null,
@@ -196,6 +197,41 @@ describe('CaseList', () => {
     // dark value, so no colour is ever hard-coded here.
     expect(coloured.getAttribute('data-category-color')).toBe('amber');
     expect(plain.hasAttribute('data-category-color')).toBe(false);
+  });
+
+  it('files a case from the row it stands in, keeping the other half of the verdict', async () => {
+    const fixture = createFixture([aCase({ categoryId: 'c1', categoryName: 'Statusanfrage', tier: 'automatic' })]);
+    fixture.componentRef.setInput('categories', [
+      { id: 'c1', name: 'Statusanfrage', color: 'blue' },
+      { id: 'c2', name: 'Reklamation', color: 'red' },
+    ]);
+    await fixture.whenStable();
+    const changes: { id: string; categoryId: string | null; tier: string | null }[] = [];
+    fixture.componentInstance.classificationChanged.subscribe((change) => changes.push(change));
+
+    // The cell turns into a picker when it is clicked.
+    const cell = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('td[data-p-editable-column]')!;
+    cell.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await fixture.whenStable();
+    const picker = cell.querySelector('p-select');
+    expect(picker).not.toBeNull();
+
+    fixture.componentInstance['onPickCategory'](fixture.componentInstance.cases()[0], 'c2');
+    // The tier travels along as it stands: filing a mail says what it is about, nothing more.
+    expect(changes).toEqual([{ id: '1', categoryId: 'c2', tier: 'automatic' }]);
+
+    fixture.componentInstance['onPickTier'](fixture.componentInstance.cases()[0], 'manual');
+    expect(changes[1]).toEqual({ id: '1', categoryId: 'c1', tier: 'manual' });
+  });
+
+  it('leaves a case the triage has not seen without a tier when it is filed by hand', () => {
+    const fixture = createFixture([aCase()]);
+    const changes: { tier: string | null }[] = [];
+    fixture.componentInstance.classificationChanged.subscribe((change) => changes.push(change));
+
+    fixture.componentInstance['onPickCategory'](fixture.componentInstance.cases()[0], 'c2');
+
+    expect(changes).toEqual([{ id: '1', categoryId: 'c2', tier: null }]);
   });
 
   it('offers the categories the inbox holds, and nothing else, as the category filter', async () => {

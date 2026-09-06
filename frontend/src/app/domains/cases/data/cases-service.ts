@@ -3,7 +3,7 @@ import { HttpClient, httpResource } from '@angular/common/http';
 import { DestroyRef, inject, Service } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { Case } from '../model/case';
+import { Case, CaseTier } from '../model/case';
 
 /** The wire shape: receivedAt is an ISO string until it is parsed into a Date. */
 type CaseResponse = Omit<Case, 'receivedAt'> & { receivedAt: string };
@@ -45,6 +45,16 @@ export class CasesService {
    */
   async remove(ids: string[]): Promise<void> {
     await firstValueFrom(this.http.delete<void>('/api/cases', { body: { ids } }));
+    this.cases.reload();
+  }
+
+  /**
+   * A person filing a case from the row it stands in. Both values travel, as they do from the
+   * detail page — the same endpoint, and half a correction is no better here. The list reloads
+   * afterwards, so what it shows is what the backend now holds rather than what was hoped for.
+   */
+  async changeClassification(id: string, categoryId: string | null, tier: CaseTier | null): Promise<void> {
+    await firstValueFrom(this.http.put<unknown>(`/api/cases/${id}/classification`, { categoryId, tier }));
     this.cases.reload();
   }
 

@@ -24,11 +24,12 @@ import { InputIconModule } from 'primeng/inputicon';
 import { InputTextModule } from 'primeng/inputtext';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { PopoverModule } from 'primeng/popover';
+import { SelectModule } from 'primeng/select';
 import { Table, TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 
-import { Case, CaseTier } from '../model/case';
+import { Case, CaseTier, SelectableCategory } from '../model/case';
 import { CaseDateGroupKind, caseDateGroup } from '../model/case-date-group';
 import {
   ACTIONS_COLUMN,
@@ -99,6 +100,7 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
     InputTextModule,
     MultiSelectModule,
     PopoverModule,
+    SelectModule,
     TableModule,
     TagModule,
     TooltipModule,
@@ -119,12 +121,21 @@ export class CaseList {
 
   readonly cases = input.required<Case[]>();
 
+  /** What the category cell offers. Empty while they are on their way, or could not be read. */
+  readonly categories = input<SelectableCategory[]>([]);
+
   /**
    * Deleting is the page's job, not the table's: the list says what the user picked, the page
    * asks and calls the backend. Carries the cases rather than their ids, so the question can
    * name what is about to go.
    */
   readonly deleteRequested = output<Case[]>();
+
+  /**
+   * A category or a tier picked in a row. Saving is the page's job; the table only says what a
+   * person made of the case, with both values, because that is what the backend takes.
+   */
+  readonly classificationChanged = output<{ id: string; categoryId: string | null; tier: CaseTier | null }>();
 
   /** A row was opened; routing is the page's job, not the table's. */
   readonly caseOpened = output<Case>();
@@ -295,6 +306,25 @@ export class CaseList {
    */
   protected isSelected(row: Case): boolean {
     return this.selection().some((selected) => selected.id === row.id);
+  }
+
+  /** The categories to pick from in a row, and the choice of none, which the triage may leave. */
+  protected readonly categoryChoices = computed(() => {
+    this.translation();
+    return [
+      { label: this.transloco.translate('cases.noCategory'), value: null },
+      ...this.categories().map((category) => ({ label: category.name, value: category.id })),
+    ];
+  });
+
+  protected onPickCategory(row: Case, categoryId: string | null): void {
+    // The tier travels along unchanged — a case the triage has not seen keeps its empty verdict.
+    // Saying what a mail is about is not saying what happens with it.
+    this.classificationChanged.emit({ id: row.id, categoryId, tier: row.tier });
+  }
+
+  protected onPickTier(row: Case, tier: CaseTier): void {
+    this.classificationChanged.emit({ id: row.id, categoryId: row.categoryId, tier });
   }
 
   protected onColumnDrop(event: CdkDragDrop<CaseColumn[]>): void {
