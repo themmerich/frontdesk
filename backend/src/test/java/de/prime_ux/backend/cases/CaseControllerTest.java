@@ -175,59 +175,40 @@ class CaseControllerTest {
 
 	@Test
 	@WithMockUser(username = "anna")
-	void letsAPersonOverruleTheTierWithoutLosingWhatTheModelSaid() throws Exception {
-		CaseCategory category = caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS",
-				"Statusanfrage Bestellung", "Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0));
-		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "info@example.com", "Lieferung 4711",
-				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
-		triaged.applyTriage(category, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
-		caseRepository.save(triaged);
-
-		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/tier").with(csrf())
-				.contentType(MediaType.APPLICATION_JSON).content("{\"tier\": \"manual\"}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.tier").value("manual"))
-				// Category, summary and confidence still describe the classification the
-				// model made; only what happens with the case changed.
-				.andExpect(jsonPath("$.categoryName").value("Statusanfrage Bestellung"))
-				.andExpect(jsonPath("$.confidence").value(0.95))
-				.andExpect(jsonPath("$.summary").value("Frage zur Lieferung."));
-
-		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/tier").with(csrf())
-				.contentType(MediaType.APPLICATION_JSON).content("{\"tier\": \"nonsense\"}"))
-				.andExpect(status().isBadRequest());
-	}
-
-	@Test
-	@WithMockUser(username = "anna")
-	void letsAPersonFileACaseUnderAnotherCategoryWithoutMovingTheTier() throws Exception {
+	void letsAPersonOverruleCategoryAndTierWithoutLosingWhatTheModelSaid() throws Exception {
 		CaseCategory statusRequest = caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS",
 				"Statusanfrage Bestellung", "Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0));
 		CaseCategory complaint = caseCategoryRepository.save(new CaseCategory(tenant, "COMPLAINT", "Reklamation",
 				"Beschwerde über eine Lieferung.", CaseTier.MANUAL, 1));
 		complaint.recolor(CategoryColor.RED);
 		caseCategoryRepository.save(complaint);
-		Case triaged = new Case(tenant, "<misfiled@test>", "anna@example.com", "info@example.com", "Lieferung 4711",
+		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "info@example.com", "Lieferung 4711",
 				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		triaged.applyTriage(statusRequest, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
 		caseRepository.save(triaged);
 
-		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/category").with(csrf())
-				.contentType(MediaType.APPLICATION_JSON).content("{\"categoryId\": \"" + complaint.getId() + "\"}"))
+		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/classification").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"categoryId\": \"" + complaint.getId() + "\", \"tier\": \"manual\"}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.categoryId").value(complaint.getId().toString()))
 				.andExpect(jsonPath("$.categoryName").value("Reklamation"))
 				.andExpect(jsonPath("$.categoryColor").value("red"))
-				// What happens with the case is its own decision and did not move with the filing.
-				.andExpect(jsonPath("$.tier").value("automatic"))
+				.andExpect(jsonPath("$.tier").value("manual"))
+				// Summary and confidence still describe the classification the model made.
+				.andExpect(jsonPath("$.confidence").value(0.95))
 				.andExpect(jsonPath("$.summary").value("Frage zur Lieferung."));
 
-		// A case that fits none of them is better left without one.
-		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/category").with(csrf())
-				.contentType(MediaType.APPLICATION_JSON).content("{\"categoryId\": null}"))
+		// A case that fits none of them is better left without a category; a tier it always has.
+		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/classification").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"categoryId\": null, \"tier\": \"info\"}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.categoryId").doesNotExist())
-				.andExpect(jsonPath("$.categoryName").doesNotExist());
+				.andExpect(jsonPath("$.tier").value("info"));
+
+		mockMvc.perform(put("/api/cases/" + triaged.getId() + "/classification").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"categoryId\": null, \"tier\": \"nonsense\"}"))
+				.andExpect(status().isBadRequest());
 	}
 
 	@Test
@@ -238,11 +219,14 @@ class CaseControllerTest {
 		Case ours = caseRepository.save(new Case(tenant, "<ours@test>", "anna@example.com", "info@example.com",
 				"Unsere Mail", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
 
-		mockMvc.perform(put("/api/cases/" + ours.getId() + "/category").with(csrf())
-				.contentType(MediaType.APPLICATION_JSON).content("{\"categoryId\": \"" + theirs.getId() + "\"}"))
+		mockMvc.perform(put("/api/cases/" + ours.getId() + "/classification").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"categoryId\": \"" + theirs.getId() + "\", \"tier\": \"manual\"}"))
 				.andExpect(status().isNotFound());
 
-		assertThat(caseRepository.findWithCategoryById(ours.getId()).orElseThrow().getCategory()).isNull();
+		Case unchanged = caseRepository.findWithCategoryById(ours.getId()).orElseThrow();
+		assertThat(unchanged.getCategory()).isNull();
+		assertThat(unchanged.getTier()).isNull();
 	}
 
 	@Test

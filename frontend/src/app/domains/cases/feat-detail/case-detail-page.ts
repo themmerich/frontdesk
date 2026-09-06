@@ -1,5 +1,5 @@
 import { DatePipe, PercentPipe } from '@angular/common';
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
@@ -67,8 +67,21 @@ export class CaseDetailPage {
   private readonly transloco = inject(TranslocoService);
   private readonly router = inject(Router);
 
-  protected readonly isChangingTier = signal(false);
+  protected readonly isSaving = signal(false);
   protected readonly isDeleting = signal(false);
+
+  /**
+   * What a person has picked but not saved yet. Both follow the case they belong to: opening
+   * another one starts from what the triage made of that case, not from the last edit.
+   */
+  protected readonly draftCategoryId = linkedSignal(() => this.detailService.detail.value()?.categoryId ?? null);
+  protected readonly draftTier = linkedSignal(() => this.detailService.detail.value()?.tier ?? null);
+
+  /** Nothing to save until something differs from what the case says today. */
+  protected readonly isDirty = computed(() => {
+    const aCase = this.detailService.detail.value();
+    return aCase !== undefined && (this.draftCategoryId() !== aCase.categoryId || this.draftTier() !== aCase.tier);
+  });
 
   /** Null when the page was opened through a link: there is no list to page through. */
   protected readonly neighbours = computed(() => this.orderStore.neighboursOf(this.id()));
@@ -111,8 +124,6 @@ export class CaseDetailPage {
     ];
   });
 
-  protected readonly isChangingCategory = signal(false);
-
   protected readonly bodyParts = computed(() => mailTextParts(this.detailService.detail.value()?.bodyText ?? ''));
 
   protected tierLabelKey(tier: CaseTier): string {
@@ -129,31 +140,25 @@ export class CaseDetailPage {
     return TIER_SEVERITY[tier];
   }
 
-  protected async onChangeTier(tier: CaseTier): Promise<void> {
-    this.isChangingTier.set(true);
-    try {
-      await this.detailService.changeTier(tier);
-      // The inbox shows the tier too, and it is one page back.
-      this.casesService.cases.reload();
-      this.toast('success', 'caseDetail.tierChanged');
-    } catch {
-      this.toast('error', 'caseDetail.tierError');
-    } finally {
-      this.isChangingTier.set(false);
+  /**
+   * Both corrections in one request: the category and the tier are saved together, so a case
+   * never ends up half corrected because the second call did not get through.
+   */
+  protected async onSave(): Promise<void> {
+    const tier = this.draftTier();
+    if (tier === null) {
+      return;
     }
-  }
-
-  protected async onChangeCategory(categoryId: string | null): Promise<void> {
-    this.isChangingCategory.set(true);
+    this.isSaving.set(true);
     try {
-      await this.detailService.changeCategory(categoryId);
-      // The inbox draws its rows in the category's colour, and it is one page back.
+      await this.detailService.changeClassification(this.draftCategoryId(), tier);
+      // The inbox shows the tier and draws its rows in the category's colour, one page back.
       this.casesService.cases.reload();
-      this.toast('success', 'caseDetail.categoryChanged');
+      this.toast('success', 'caseDetail.saved');
     } catch {
-      this.toast('error', 'caseDetail.categoryError');
+      this.toast('error', 'caseDetail.saveError');
     } finally {
-      this.isChangingCategory.set(false);
+      this.isSaving.set(false);
     }
   }
 

@@ -33,16 +33,14 @@ const translations = {
     verdict: 'Assessment',
     category: 'Category',
     noCategory: 'Without a category',
-    categoryChanged: 'Category changed.',
-    categoryError: 'The category could not be changed.',
+    saved: 'Classification saved.',
+    saveError: 'The classification could not be saved.',
     confidence: 'Model confidence',
     tier: 'Tier',
     original: 'Original message',
     unknownRecipient: 'Recipient unknown',
     attachmentsNotStored: 'Attachments are not stored yet.',
     delete: 'Delete',
-    tierChanged: 'Tier changed.',
-    tierError: 'The tier could not be changed.',
     loadError: 'Could not load the case.',
     loading: 'Loading',
   },
@@ -68,7 +66,7 @@ const aCase: CaseDetail = {
 describe('CaseDetailPage', () => {
   const detail = signal<CaseDetail | undefined>(aCase);
   const detailError = signal<Error | undefined>(undefined);
-  let changedTiers: string[];
+  let saved: { categoryId: string | null; tier: string }[];
   let removed: string[][];
   const detailServiceStub = {
     id: signal<string | null>(null),
@@ -78,16 +76,11 @@ describe('CaseDetailPage', () => {
       isLoading: signal(false),
       hasValue: () => detail() !== undefined,
     },
-    changeTier: (tier: string) => {
-      changedTiers.push(tier);
-      return Promise.resolve();
-    },
-    changeCategory: (categoryId: string | null) => {
-      changedCategories.push(categoryId);
+    changeClassification: (categoryId: string | null, tier: string) => {
+      saved.push({ categoryId, tier });
       return Promise.resolve();
     },
   } as unknown as CaseDetailService;
-  let changedCategories: (string | null)[];
   const categories = signal([
     { id: 'c1', name: 'Statusanfrage Bestellung', color: 'blue' as const },
     { id: 'c2', name: 'Reklamation', color: 'red' as const },
@@ -111,8 +104,7 @@ describe('CaseDetailPage', () => {
   beforeEach(async () => {
     detail.set(aCase);
     detailError.set(undefined);
-    changedTiers = [];
-    changedCategories = [];
+    saved = [];
     categoriesError.set(undefined);
     removed = [];
     toasts = [];
@@ -184,22 +176,51 @@ describe('CaseDetailPage', () => {
     expect(element.textContent).toContain('(Sendungsnummer dort).');
   });
 
-  it('lets a person file the case under another category, or under none', async () => {
+  it('saves the category and the tier together, and only when asked to', async () => {
     const fixture = createFixture();
+    const page = fixture.componentInstance;
 
-    // The tenant's categories, and the choice of none at all in front of them.
-    const options = fixture.componentInstance['categoryOptions']() as { label: string; value: string | null }[];
-    expect(options.map((option) => option.label)).toEqual(['Without a category', 'Statusanfrage Bestellung', 'Reklamation']);
-    expect(options[0].value).toBeNull();
+    // Picking writes nothing: the case is corrected from the button below.
+    page['draftCategoryId'].set('c2');
+    page['draftTier'].set('manual');
+    await fixture.whenStable();
+    expect(saved).toEqual([]);
+    expect(page['isDirty']()).toBe(true);
 
-    await fixture.componentInstance['onChangeCategory']('c2');
+    await page['onSave']();
 
-    expect(changedCategories).toEqual(['c2']);
-    expect(toasts.map((toast) => toast.summary)).toEqual(['Category changed.']);
+    expect(saved).toEqual([{ categoryId: 'c2', tier: 'manual' }]);
+    expect(toasts.map((toast) => toast.summary)).toEqual(['Classification saved.']);
+  });
 
-    await fixture.componentInstance['onChangeCategory'](null);
+  it('has nothing to save until something differs from the case', async () => {
+    const fixture = createFixture();
+    const page = fixture.componentInstance;
+    expect(page['isDirty']()).toBe(false);
 
-    expect(changedCategories).toEqual(['c2', null]);
+    page['draftCategoryId'].set(null);
+    await fixture.whenStable();
+    expect(page['isDirty']()).toBe(true);
+
+    // Back to what the case says: nothing to save again.
+    page['draftCategoryId'].set('c1');
+    await fixture.whenStable();
+    expect(page['isDirty']()).toBe(false);
+  });
+
+  it('starts from what the next case says, not from the edit left on the last one', async () => {
+    const fixture = createFixture();
+    const page = fixture.componentInstance;
+    page['draftTier'].set('ignore');
+    await fixture.whenStable();
+
+    // Paging to another case re-reads rather than re-creates the page.
+    detail.set({ ...aCase, id: 'c', categoryId: 'c2', tier: 'manual' });
+    await fixture.whenStable();
+
+    expect(page['draftTier']()).toBe('manual');
+    expect(page['draftCategoryId']()).toBe('c2');
+    expect(page['isDirty']()).toBe(false);
   });
 
   it('keeps a category the case sits in but nobody can pick any more', () => {
@@ -234,15 +255,6 @@ describe('CaseDetailPage', () => {
     await fixture.whenStable();
 
     expect(navigated).toEqual([['/cases', 'c']]);
-  });
-
-  it('lets a person overrule the tier', async () => {
-    const fixture = createFixture();
-
-    await fixture.componentInstance['onChangeTier']('manual');
-
-    expect(changedTiers).toEqual(['manual']);
-    expect(toasts[0].summary).toBe('Tier changed.');
   });
 
   it('asks before deleting and moves on to the next case', async () => {

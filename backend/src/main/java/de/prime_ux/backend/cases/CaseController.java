@@ -52,29 +52,21 @@ class CaseController {
 	}
 
 	/**
-	 * A person overruling the triage. The case keeps everything else the model said; only what
-	 * happens with it changes, and that decision belongs to the tenant.
+	 * A person overruling the triage: which category the case belongs to and what happens with it,
+	 * saved in one go because that is how the page offers them. The summary and the confidence
+	 * stay what the model said — they still describe the classification it made.
+	 *
+	 * <p>A category of another tenant is not found rather than forbidden, for the same reason a
+	 * case of another tenant is not.
 	 */
-	@PutMapping("/{id}/tier")
+	@PutMapping("/{id}/classification")
 	@Transactional
-	CaseDetailResponse changeTier(@PathVariable UUID id, @Valid @RequestBody ChangeTierRequest request,
-			Authentication authentication) {
-		Case aCase = ownCase(id, currentTenantId(authentication));
-		aCase.changeTier(request.toTier());
-		return CaseDetailResponse.from(caseRepository.save(aCase));
-	}
-
-	/**
-	 * A person filing the case elsewhere, or nowhere. A category of another tenant is not found
-	 * rather than forbidden, for the same reason a case of another tenant is not.
-	 */
-	@PutMapping("/{id}/category")
-	@Transactional
-	CaseDetailResponse changeCategory(@PathVariable UUID id, @Valid @RequestBody ChangeCategoryRequest request,
-			Authentication authentication) {
+	CaseDetailResponse changeClassification(@PathVariable UUID id,
+			@Valid @RequestBody ChangeClassificationRequest request, Authentication authentication) {
 		UUID tenantId = currentTenantId(authentication);
 		Case aCase = ownCase(id, tenantId);
 		aCase.changeCategory(request.categoryId() == null ? null : ownCategory(request.categoryId(), tenantId));
+		aCase.changeTier(request.toTier());
 		return CaseDetailResponse.from(caseRepository.save(aCase));
 	}
 

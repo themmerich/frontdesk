@@ -128,8 +128,9 @@ test.describe('Case detail', () => {
     await expect(page.getByRole('button', { name: 'Nächster Vorgang' })).toHaveCount(0);
   });
 
-  test('files the case under another category, and under none', async ({ page }) => {
-    let filed = { ...detail };
+  test('saves category and tier together, and only when the button is pressed', async ({ page }) => {
+    let stored = { ...detail };
+    let saves = 0;
     await page.route('**/api/case-categories/selectable', (route) =>
       route.fulfill({
         json: [
@@ -138,43 +139,38 @@ test.describe('Case detail', () => {
         ],
       }),
     );
-    await page.route('**/api/cases/1', (route) => route.fulfill({ json: filed }));
-    await page.route('**/api/cases/1/category', async (route) => {
-      const body = route.request().postDataJSON() as { categoryId: string | null };
-      filed = { ...filed, categoryId: body.categoryId, categoryName: body.categoryId === 'c2' ? 'Reklamation' : null };
-      await route.fulfill({ json: filed });
+    await page.route('**/api/cases/1', (route) => route.fulfill({ json: stored }));
+    await page.route('**/api/cases/1/classification', async (route) => {
+      saves++;
+      const body = route.request().postDataJSON() as { categoryId: string | null; tier: string };
+      stored = {
+        ...stored,
+        categoryId: body.categoryId,
+        categoryName: body.categoryId === 'c2' ? 'Reklamation' : null,
+        tier: body.tier,
+      };
+      await route.fulfill({ json: stored });
     });
 
     await page.goto('/cases/1');
-    const picker = page.locator('p-select[inputid="category"]');
-    await expect(picker).toHaveText('Rechnung');
+    const save = page.getByRole('button', { name: 'Speichern' });
+    // Nothing differs from the case yet.
+    await expect(save).toBeDisabled();
 
-    await picker.click();
+    await page.locator('p-select[inputid="category"]').click();
     await page.getByRole('option', { name: 'Reklamation' }).click();
-
-    await expect(picker).toHaveText('Reklamation');
-    await expect(page.getByText('Kategorie geändert.')).toBeVisible();
-
-    // A case that fits none of them is left without one rather than pressed into the nearest.
-    await picker.click();
-    await page.getByRole('option', { name: 'Ohne Kategorie' }).click();
-
-    await expect(picker).toHaveText('Ohne Kategorie');
-  });
-
-  test('lets a person overrule the tier', async ({ page }) => {
-    let sent: Record<string, unknown> | undefined;
-    await page.route('**/api/cases/1/tier', (route) => {
-      sent = route.request().postDataJSON() as Record<string, unknown>;
-      return route.fulfill({ json: { ...detail, tier: 'manual' } });
-    });
-
-    await page.goto('/cases/1');
     await page.locator('p-select[inputid="tier"]').click();
     await page.getByRole('option', { name: 'Manuell' }).click();
 
-    await expect(page.getByText('Stufe geändert.')).toBeVisible();
-    expect(sent).toMatchObject({ tier: 'manual' });
+    // Picked, not saved: the case is only corrected from the button below.
+    await expect(save).toBeEnabled();
+    expect(saves).toBe(0);
+
+    await save.click();
+
+    await expect(page.getByText('Einordnung gespeichert.')).toBeVisible();
+    expect(saves).toBe(1);
+    await expect(save).toBeDisabled();
   });
 
   test('deletes a case and moves on to the next one', async ({ page }) => {

@@ -86,9 +86,8 @@
               [options]="categoryOptions()"
               optionLabel="label"
               optionValue="value"
-              [ngModel]="aCase.categoryId"
-              [disabled]="isChangingCategory()"
-              (onChange)="onChangeCategory($event.value)"
+              [(ngModel)]="draftCategoryId"
+              [disabled]="isSaving()"
             />
           </div>
           <div class="flex flex-col gap-2">
@@ -102,9 +101,8 @@
               [options]="tierOptions()"
               optionLabel="label"
               optionValue="value"
-              [ngModel]="aCase.tier"
-              [disabled]="isChangingTier()"
-              (onChange)="onChangeTier($event.value)"
+              [(ngModel)]="draftTier"
+              [disabled]="isSaving()"
             />
           </div>
         </aside>
@@ -128,7 +126,9 @@
         </section>
       </div>
 
-      <div class="flex justify-end border-t border-surface-200 pt-3 dark:border-surface-700">
+      <!-- What was picked above is saved from here, beside the one other thing that can be done
+           with a case today. Nothing to save until something differs from what the case says. -->
+      <div class="flex justify-end gap-2 border-t border-surface-200 pt-3 dark:border-surface-700">
         <p-button
           icon="pi pi-trash"
           severity="danger"
@@ -137,6 +137,7 @@
           [loading]="isDeleting()"
           (onClick)="onDelete(aCase)"
         />
+        <p-button icon="pi pi-check" [label]="t('caseDetail.save')" [disabled]="!isDirty()" [loading]="isSaving()" (onClick)="onSave()" />
       </div>
     }
   </main>
