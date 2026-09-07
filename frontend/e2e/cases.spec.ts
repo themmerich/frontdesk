@@ -582,6 +582,82 @@ test.describe('Cases page', () => {
     await expect(page.getByRole('row', { name: /Invoice copy/ })).toBeVisible();
   });
 
+  test('works the inbox through in groups: deletes the noise, skims the rest, shows what is left', async ({ page }) => {
+    // Two more piles on top of the usual two cases: ads nobody reads, and a newsletter worth a glance.
+    const reviewCases = [
+      ...mockCases,
+      {
+        ...mockCases[0],
+        id: '3',
+        subject: 'Sale ends tonight',
+        categoryName: 'Werbung',
+        categoryColor: 'grey',
+        tier: 'ignore',
+        summary: null,
+      },
+      {
+        ...mockCases[0],
+        id: '4',
+        subject: 'Cheap printers',
+        categoryName: 'Werbung',
+        categoryColor: 'grey',
+        tier: 'ignore',
+        summary: null,
+      },
+      {
+        ...mockCases[0],
+        id: '5',
+        sender: 'news@example.com',
+        subject: 'Weekly digest',
+        categoryName: 'Newsletter',
+        categoryColor: 'teal',
+        tier: 'info',
+        summary: 'Branchennews der Woche, nichts Dringendes.',
+      },
+    ];
+    let deleted: string[] = [];
+    await page.route('**/api/cases', (route) => {
+      if (route.request().method() === 'DELETE') {
+        deleted = (route.request().postDataJSON() as { ids: string[] }).ids;
+        return route.fulfill({ status: 204, body: '' });
+      }
+      return route.fulfill({ json: reviewCases.filter((aCase) => !deleted.includes(aCase.id)) });
+    });
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Durchsicht' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Durchsicht' });
+    await expect(dialog).toBeVisible();
+
+    // One line per category and tier, the noise first, with the count of each. The unfolded
+    // summaries are rows too, but rows without a button.
+    const lines = dialog.locator('tbody tr').filter({ has: page.getByRole('button') });
+    await expect(lines).toHaveCount(4);
+    await expect(lines.nth(0)).toContainText(/Werbung\s*Ignorieren\s*2/);
+    await expect(lines.nth(1)).toContainText(/Newsletter\s*Info\s*1/);
+
+    // The newsletter is skimmed, not opened.
+    await dialog.getByRole('button', { name: 'Zusammenfassungen: Newsletter' }).click();
+    await expect(dialog.getByText('Branchennews der Woche, nichts Dringendes.')).toBeVisible();
+
+    // The ads go — through the same question as everywhere else — and their line goes with them,
+    // while the dialog stays open for the rest.
+    await dialog.getByRole('button', { name: 'Werbung löschen (2)' }).click();
+    await page.getByRole('alertdialog', { name: 'Löschen bestätigen' }).getByRole('button', { name: 'Löschen' }).click();
+    await expect(page.getByText('2 Vorgänge gelöscht.')).toBeVisible();
+    expect(deleted.sort()).toEqual(['3', '4']);
+    await expect(dialog).toBeVisible();
+    await expect(lines).toHaveCount(3);
+    await expect(dialog).not.toContainText('Werbung');
+
+    // What needs a person is shown in the table, and only that.
+    await dialog.getByRole('button', { name: 'Statusanfrage Bestellung anzeigen' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Invoice copy/ })).toHaveCount(0);
+    await expect(page.getByRole('row', { name: /Weekly digest/ })).toHaveCount(0);
+  });
+
   test('shows an empty state when there are no cases', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
 

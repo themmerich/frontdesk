@@ -40,7 +40,10 @@ import {
   CaseColumnWidths,
   DEFAULT_COLUMN_ORDER,
 } from '../model/case-column';
+import { ReviewGroup } from '../model/case-review';
+import { CaseReviewDialog } from './case-review-dialog';
 import { FileSizePipe } from './file-size-pipe';
+import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from './tier-tag';
 
 type CaseColumn = Omit<CaseColumnDefinition, 'labelKey'> & { header: string };
 
@@ -69,20 +72,6 @@ const DEFAULT_SORT_ORDER = -1;
 /** How many rows a page holds until someone chooses otherwise. */
 const DEFAULT_ROWS = 25;
 
-/**
- * Green, amber, red for the three tiers that need an answer — rising with the work left to a
- * person. Blue and grey for the two that need none.
- */
-type TierSeverity = 'success' | 'warn' | 'danger' | 'info' | 'secondary';
-
-const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
-  automatic: 'success',
-  draft: 'warn',
-  manual: 'danger',
-  info: 'info',
-  ignore: 'secondary',
-};
-
 @Component({
   selector: 'app-case-list',
   imports: [
@@ -90,6 +79,7 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
     CdkDragHandle,
     CdkDropList,
     DatePipe,
+    CaseReviewDialog,
     FileSizePipe,
     FormsModule,
     TranslocoDirective,
@@ -364,6 +354,27 @@ export class CaseList {
     this.table().filterGlobal(query, 'contains');
   }
 
+  /** Whether the review is open: the inbox in groups, with what can be done about each. */
+  protected readonly reviewOpen = signal(false);
+
+  /**
+   * The table filtered down to one group of the review: the two filters the group is made of and
+   * nothing else, because whatever was filtered or searched before would only hide part of it.
+   * Written the way the column filters write themselves, so their menus show what the table is
+   * now filtered by, and the table remembers it like any other filter.
+   */
+  protected onShowGroup(group: ReviewGroup): void {
+    const table = this.table();
+    table.clearFilterValues();
+    delete table.filters['global'];
+    this.globalSearch.set('');
+    // `in` matches a null the same way it matches a name: a group without a category, or one the
+    // triage has not seen, is a group like any other.
+    table.filters['categoryName'] = [{ value: [group.categoryName], matchMode: 'in', operator: 'and' }];
+    table.filters['tier'] = [{ value: [group.tier], matchMode: 'in', operator: 'and' }];
+    table._filter();
+  }
+
   /**
    * Everything the table remembers is a view preference — except the ticked rows, which PrimeNG
    * writes along with the rest. A ticked row is the working set of the next click, not something
@@ -442,15 +453,8 @@ export class CaseList {
    */
   protected readonly minTableWidth = computed(() => `${this.visibleColumns().length * 9 + 5}rem`);
 
-  /** The tag's label and colour per tier; a tier is a small closed set, so both are spelled out. */
   protected tierLabelKey(tier: CaseTier): string {
-    return {
-      automatic: 'cases.tierAutomatic',
-      draft: 'cases.tierDraft',
-      manual: 'cases.tierManual',
-      info: 'cases.tierInfo',
-      ignore: 'cases.tierIgnore',
-    }[tier];
+    return TIER_LABEL_KEY[tier];
   }
 
   protected tierSeverity(tier: CaseTier): TierSeverity {

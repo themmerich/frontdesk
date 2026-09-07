@@ -89,6 +89,15 @@
         </p-iconfield>
 
         <div class="flex items-center gap-2">
+          <!-- The inbox in groups, for working it through rather than reading it. -->
+          <p-button
+            icon="pi pi-list-check"
+            severity="secondary"
+            [outlined]="true"
+            [label]="t('cases.review')"
+            [pTooltip]="t('cases.reviewHint')"
+            (onClick)="reviewOpen.set(true)"
+          />
           <!-- The way back to the table as it comes: what was sorted, filtered, searched, and
                chosen as columns goes, and so does what was remembered of it. -->
           <p-button
@@ -340,4 +349,13 @@
       </tr>
     </ng-template>
   </p-table>
+
+  <!-- Deleting from the review is deleting: the same question, the same call, through the same
+       output. Showing a group is the table's own business and stays here. -->
+  <app-case-review-dialog
+    [cases]="cases()"
+    [(visible)]="reviewOpen"
+    (deleteRequested)="deleteRequested.emit($event)"
+    (groupShown)="onShowGroup($event)"
+  />
 </ng-container>

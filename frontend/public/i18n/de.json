@@ -95,7 +95,20 @@
     "tierAll": "Alle",
     "notTriaged": "Noch nicht bewertet",
     "tierInfo": "Info",
-    "tierIgnore": "Ignorieren"
+    "tierIgnore": "Ignorieren",
+    "review": "Durchsicht",
+    "reviewHint": "Posteingang nach Kategorie und Stufe durchsehen",
+    "reviewTitle": "Durchsicht",
+    "reviewCaption": "Vorgänge nach Kategorie und Stufe",
+    "reviewCount": "Anzahl",
+    "reviewSummaries": "Zusammenfassungen",
+    "reviewNoSummary": "Keine Zusammenfassung vorhanden.",
+    "reviewSummariesGroup": "Zusammenfassungen: {{category}}",
+    "reviewDelete": "{{category}} löschen ({{count}})",
+    "reviewShow": "Anzeigen",
+    "reviewShowGroup": "{{category}} anzeigen",
+    "reviewEmpty": "Nichts mehr durchzusehen.",
+    "reviewClose": "Schließen"
   },
   "caseDetail": {
     "backToInbox": "Posteingang",
