@@ -5,19 +5,25 @@
     <!-- Out of sight, not out of the document: the inbox is the start page and the
          table below is dense, but a page without a heading leaves screen readers
          without an anchor. -->
-    <h1 class="sr-only">{{ t('cases.title') }}</h1>
+    <h1 class="sr-only">{{ t(titleKey()) }}</h1>
     <!-- value() throws while the resource is in the error state, so the list only renders in the else branch. -->
     @if (casesService.cases.error()) {
       <p class="text-red-600 dark:text-red-400">{{ t('cases.loadError') }}</p>
     } @else {
       <app-case-list
         class="flex min-h-0 flex-auto flex-col"
-        [cases]="casesService.cases.value()"
+        [cases]="cases()"
+        [viewKey]="viewKey()"
+        [emptyKey]="emptyKey()"
+        [exportFilename]="exportFilename()"
+        [showReview]="!archived()"
+        [showReopen]="archived()"
         [categories]="categoriesService.categories.error() ? [] : categoriesService.categories.value()"
         [(columnOrder)]="columnsService.order"
         [(visibleFields)]="columnsService.visibleFields"
         [(columnWidths)]="columnsService.widths"
         (deleteRequested)="onDeleteRequested($event)"
+        (reopenRequested)="onReopenRequested($event)"
         (caseOpened)="onCaseOpened($event)"
         (orderChanged)="onOrderChanged($event)"
         (classificationChanged)="onClassificationChanged($event)"

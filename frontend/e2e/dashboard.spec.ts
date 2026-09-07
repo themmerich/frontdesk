@@ -66,10 +66,11 @@ test.describe('Dashboard', () => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
 
     await page.goto('/');
-    // The order in the sidebar: the dashboard first, the inbox below it.
+    // The order in the sidebar: the dashboard first, then the inbox and the archive.
     const casesLinks = page.getByRole('navigation').getByRole('link');
     await expect(casesLinks.first()).toHaveText('Dashboard');
     await expect(casesLinks.nth(1)).toHaveText('Posteingang');
+    await expect(casesLinks.nth(2)).toHaveText('Archiv');
 
     await casesLinks.first().click();
 

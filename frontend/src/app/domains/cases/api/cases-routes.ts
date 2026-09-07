@@ -10,6 +10,13 @@ export const casesRoutes: Routes = [
     loadComponent: () => import('../feat-dashboard/dashboard-page').then((m) => m.DashboardPage),
   },
   {
+    // The same page over the other pile: everything somebody has taken note of. The flag is
+    // bound straight to the page's input, the way query parameters are.
+    path: 'archive',
+    data: { archived: true },
+    loadComponent: () => import('../feat-list/cases-page').then((m) => m.CasesPage),
+  },
+  {
     // One group of the review, named by category and tier in the query parameters: a page that
     // can be linked to and walked away from, unlike the dialog it is opened from.
     path: 'review',

@@ -62,8 +62,12 @@ const GROUP_LABELS: Record<Exclude<CaseDateGroupKind, 'earlier'>, string> = {
   month: 'cases.groupThisMonth',
 };
 
-/** Where PrimeNG keeps what the table remembers: filters, sorting, and the resized widths. */
-const STATE_KEY = 'frontdesk-case-table';
+/**
+ * Where PrimeNG keeps what the table remembers: filters, sorting, and the resized widths. The
+ * inbox and the archive show the same table over different piles, and each remembers its own —
+ * what was filtered in the archive says nothing about the inbox.
+ */
+const DEFAULT_STATE_KEY = 'frontdesk-case-table';
 
 /** Newest first, which is what the inbox opens with and what a reset puts back. */
 const DEFAULT_SORT_FIELD = 'receivedAt';
@@ -102,14 +106,33 @@ export class CaseList {
   private readonly storage = inject(DOCUMENT).defaultView?.localStorage ?? null;
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
+  /** Under which name this table remembers its filters, sorting and widths. */
+  readonly viewKey = input(DEFAULT_STATE_KEY);
+
   /**
    * No storage, no state: where localStorage is missing or blocked, the table simply forgets
    * again instead of failing — PrimeNG reads the storage on every save and restore, and an
    * absent `stateKey` is what switches all of that off.
    */
-  protected readonly stateKey = this.storage === null ? undefined : STATE_KEY;
+  protected readonly stateKey = computed(() => (this.storage === null ? undefined : this.viewKey()));
 
   readonly cases = input.required<Case[]>();
+
+  /** What the CSV is called, and what stands there when the table has nothing to show. */
+  readonly exportFilename = input('cases');
+  readonly emptyKey = input('cases.empty');
+
+  /**
+   * Whether the review is offered. It works through what is still open, so the archive — where
+   * everything has been taken note of already — has nothing for it to do.
+   */
+  readonly showReview = input(true);
+
+  /**
+   * Whether a row can be put back into the inbox. The other way round of ticking a case off,
+   * and only ever a question where the ticked-off ones are.
+   */
+  readonly showReopen = input(false);
 
   /** What the category cell offers. Empty while they are on their way, or could not be read. */
   readonly categories = input<SelectableCategory[]>([]);
@@ -129,6 +152,9 @@ export class CaseList {
 
   /** A row was opened; routing is the page's job, not the table's. */
   readonly caseOpened = output<Case>();
+
+  /** A case that is to be worked through after all. Saving is the page's job. */
+  readonly reopenRequested = output<Case>();
 
   /**
    * The order the table currently shows, after filtering and sorting. The detail view pages
@@ -408,10 +434,10 @@ export class CaseList {
     // being written again — the same rule the column preferences follow, and what lets the reset
     // leave nothing behind even when something sorts once more after it.
     if (this.isDefaultState(stored)) {
-      this.storage?.removeItem(STATE_KEY);
+      this.storage?.removeItem(this.viewKey());
       return;
     }
-    this.storage?.setItem(STATE_KEY, JSON.stringify(stored));
+    this.storage?.setItem(this.viewKey(), JSON.stringify(stored));
   }
 
   /** Nothing sorted differently, nothing filtered, nothing searched, nothing dragged, no page size. */
@@ -457,7 +483,7 @@ export class CaseList {
    * pushing the layout out of the viewport. The row actions are narrow and come on top of the
    * toggleable columns.
    */
-  protected readonly minTableWidth = computed(() => `${this.visibleColumns().length * 9 + 5}rem`);
+  protected readonly minTableWidth = computed(() => `${this.visibleColumns().length * 9 + (this.showReopen() ? 8 : 5)}rem`);
 
   protected tierLabelKey(tier: CaseTier): string {
     return TIER_LABEL_KEY[tier];
@@ -504,6 +530,10 @@ export class CaseList {
       return;
     }
     this.onOpen(row);
+  }
+
+  protected onReopenRow(row: Case): void {
+    this.reopenRequested.emit(row);
   }
 
   protected onDeleteRow(row: Case): void {

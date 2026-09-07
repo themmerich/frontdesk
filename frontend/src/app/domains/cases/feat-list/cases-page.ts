@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -17,6 +17,13 @@ import { CaseList } from '../ui/case-list';
   templateUrl: './cases-page.html',
 })
 export class CasesPage {
+  /**
+   * Which pile this page shows, bound from the route: the inbox is what is still to be worked
+   * through, the archive what somebody has taken note of. One page for both, because everything
+   * else about them — the table, deleting, filing, opening a case — is the same thing.
+   */
+  readonly archived = input(false);
+
   protected readonly casesService = inject(CasesService);
   protected readonly columnsService = inject(CaseColumnsService);
   protected readonly categoriesService = inject(CaseCategoriesService);
@@ -29,6 +36,17 @@ export class CasesPage {
 
   /** Whether the review stands open in front of the table. */
   protected readonly reviewOpen = signal(false);
+
+  protected readonly cases = computed(() => (this.archived() ? this.casesService.archivedCases() : this.casesService.openCases()));
+
+  /**
+   * What tells the two pages apart: the pile, the name their view is remembered under, the word
+   * for an empty table, and whether the review is offered at all.
+   */
+  protected readonly viewKey = computed(() => (this.archived() ? 'frontdesk-archive-table' : 'frontdesk-case-table'));
+  protected readonly titleKey = computed(() => (this.archived() ? 'cases.archiveTitle' : 'cases.title'));
+  protected readonly emptyKey = computed(() => (this.archived() ? 'cases.emptyArchive' : 'cases.empty'));
+  protected readonly exportFilename = computed(() => (this.archived() ? 'archive' : 'cases'));
 
   constructor() {
     // Coming back from the summaries means coming back to the review, not merely to the inbox:
@@ -57,6 +75,20 @@ export class CasesPage {
       this.messageService.add({ severity: 'success', summary: this.transloco.translate('cases.classificationSaved') });
     } catch {
       this.messageService.add({ severity: 'error', summary: this.transloco.translate('cases.classificationError') });
+    }
+  }
+
+  /**
+   * Out of the archive and back into the inbox. No question first — nothing is lost by it, and
+   * the same row action puts it back. A word about it all the same: the row leaves the page it
+   * was clicked on, and where it went should not have to be guessed.
+   */
+  protected async onReopenRequested(aCase: Case): Promise<void> {
+    try {
+      await this.casesService.markHandled(aCase.id, false);
+      this.messageService.add({ severity: 'success', summary: this.transloco.translate('cases.reopened') });
+    } catch {
+      this.messageService.add({ severity: 'error', summary: this.transloco.translate('cases.reopenError') });
     }
   }
 

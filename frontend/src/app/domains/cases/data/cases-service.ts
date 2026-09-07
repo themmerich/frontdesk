@@ -1,6 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpClient, httpResource } from '@angular/common/http';
-import { DestroyRef, inject, Service } from '@angular/core';
+import { computed, DestroyRef, inject, Service } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { Case, CaseTier } from '../model/case';
@@ -31,6 +31,19 @@ export class CasesService {
         handledAt: item.handledAt ? new Date(item.handledAt) : null,
       })),
   });
+
+  /**
+   * What is still to be worked through, and what has been. One request answers both: the backend
+   * hands over the tenant's cases, and whether somebody has taken note of one is a field on it.
+   *
+   * <p>The inbox shows the open ones and the archive the rest, so nothing is in both places and
+   * nothing falls between them. Both read through the guard, because value() throws while the
+   * resource is in the error state.
+   */
+  readonly openCases = computed(() => this.loaded().filter((aCase) => aCase.handledAt === null));
+  readonly archivedCases = computed(() => this.loaded().filter((aCase) => aCase.handledAt !== null));
+
+  private readonly loaded = computed<Case[]>(() => (this.cases.error() ? [] : this.cases.value()));
 
   constructor() {
     // Mail arrives while the page just sits there, so the list keeps itself

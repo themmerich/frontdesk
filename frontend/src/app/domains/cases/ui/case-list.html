@@ -21,11 +21,11 @@
     [showCurrentPageReport]="true"
     [currentPageReportTemplate]="t('cases.pageReport')"
     [(selection)]="selection"
-    exportFilename="cases"
+    [exportFilename]="exportFilename()"
     sortField="receivedAt"
     [sortOrder]="-1"
     stateStorage="local"
-    [stateKey]="stateKey"
+    [stateKey]="stateKey()"
     [rowGroupMode]="groupMode()"
     [groupRowsBy]="groupField()"
     [groupRowsByOrder]="-1"
@@ -89,15 +89,17 @@
         </p-iconfield>
 
         <div class="flex items-center gap-2">
-          <!-- The inbox in groups, for working it through rather than reading it. -->
-          <p-button
-            icon="pi pi-list-check"
-            severity="secondary"
-            [outlined]="true"
-            [label]="t('cases.review')"
-            [pTooltip]="t('cases.reviewHint')"
-            (onClick)="reviewOpen.set(true)"
-          />
+          @if (showReview()) {
+            <!-- The inbox in groups, for working it through rather than reading it. -->
+            <p-button
+              icon="pi pi-list-check"
+              severity="secondary"
+              [outlined]="true"
+              [label]="t('cases.review')"
+              [pTooltip]="t('cases.reviewHint')"
+              (onClick)="reviewOpen.set(true)"
+            />
+          }
           <!-- The way back to the table as it comes: what was sorted, filtered, searched, and
                chosen as columns goes, and so does what was remembered of it. -->
           <p-button
@@ -331,6 +333,18 @@
             tooltipPosition="left"
             (onClick)="onOpen(row)"
           />
+          @if (showReopen()) {
+            <!-- The way out of the archive: ticked off too early, or come up again. -->
+            <p-button
+              icon="pi pi-undo"
+              variant="text"
+              severity="secondary"
+              [ariaLabel]="t('cases.reopenRow', { subject: row.subject })"
+              [pTooltip]="t('cases.reopen')"
+              tooltipPosition="left"
+              (onClick)="onReopenRow(row)"
+            />
+          }
           <p-button
             icon="pi pi-trash"
             variant="text"
@@ -345,18 +359,20 @@
     </ng-template>
     <ng-template #emptymessage>
       <tr>
-        <td [attr.colspan]="visibleColumns().length + 1">{{ t('cases.empty') }}</td>
+        <td [attr.colspan]="visibleColumns().length + 1">{{ t(emptyKey()) }}</td>
       </tr>
     </ng-template>
   </p-table>
 
   <!-- Deleting from the review is deleting: the same question, the same call, through the same
        output. Showing a group is the table's own business and stays here. -->
-  <app-case-review-dialog
-    [cases]="cases()"
-    [(visible)]="reviewOpen"
-    (deleteRequested)="deleteRequested.emit($event)"
-    (groupShown)="onShowGroup($event)"
-    (summariesRequested)="summariesRequested.emit($event)"
-  />
+  @if (showReview()) {
+    <app-case-review-dialog
+      [cases]="cases()"
+      [(visible)]="reviewOpen"
+      (deleteRequested)="deleteRequested.emit($event)"
+      (groupShown)="onShowGroup($event)"
+      (summariesRequested)="summariesRequested.emit($event)"
+    />
+  }
 </ng-container>
