@@ -30,6 +30,7 @@ describe('CasesService', () => {
         categoryColor: null,
         tier: null,
         confidence: null,
+        handledAt: null,
       },
     ];
     const service = TestBed.inject(CasesService);
@@ -43,6 +44,69 @@ describe('CasesService', () => {
     expect(service.cases.value()).toEqual(expected);
     // The table's date filter compares real Date objects.
     expect(service.cases.value()[0].receivedAt).toBeInstanceOf(Date);
+    httpTesting.verify();
+  });
+
+  it('marks a case as taken note of, takes it back, and reloads either way', async () => {
+    const service = TestBed.inject(CasesService);
+    const httpTesting = TestBed.inject(HttpTestingController);
+    TestBed.tick();
+    httpTesting.expectOne('/api/cases').flush([]);
+    await TestBed.inject(ApplicationRef).whenStable();
+
+    const marked = service.markHandled('1', true);
+    const request = httpTesting.expectOne('/api/cases/1/handled');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ handled: true });
+    request.flush({});
+    await marked;
+
+    // What the review shows is what the backend holds, not what was hoped for.
+    TestBed.tick();
+    httpTesting.expectOne('/api/cases').flush([]);
+
+    const takenBack = service.markHandled('1', false);
+    const undo = httpTesting.expectOne('/api/cases/1/handled');
+    expect(undo.request.body).toEqual({ handled: false });
+    undo.flush({});
+    await takenBack;
+
+    TestBed.tick();
+    httpTesting.expectOne('/api/cases').flush([]);
+    httpTesting.verify();
+  });
+
+  it('parses when a case was taken note of, and leaves it null while it is not', async () => {
+    const onTheWire = {
+      sender: 'anna@example.com',
+      recipient: 'info@example.com',
+      subject: 'Weekly digest',
+      receivedAt: '2026-08-19T08:30:00Z',
+      hasAttachments: false,
+      sizeBytes: 2048,
+      summary: null,
+      categoryId: null,
+      categoryName: null,
+      categoryColor: null,
+      tier: 'info',
+      confidence: null,
+    };
+    const service = TestBed.inject(CasesService);
+    const httpTesting = TestBed.inject(HttpTestingController);
+    TestBed.tick();
+
+    httpTesting.expectOne('/api/cases').flush([
+      { ...onTheWire, id: '1', handledAt: '2026-08-20T09:00:00Z' },
+      { ...onTheWire, id: '2', handledAt: null },
+      // An answer without the field at all: a case nobody has taken note of, not one carrying
+      // an Invalid Date that would quietly drop out of the review.
+      { ...onTheWire, id: '3' },
+    ]);
+    await TestBed.inject(ApplicationRef).whenStable();
+
+    expect(service.cases.value()[0].handledAt).toEqual(new Date('2026-08-20T09:00:00Z'));
+    expect(service.cases.value()[1].handledAt).toBeNull();
+    expect(service.cases.value()[2].handledAt).toBeNull();
     httpTesting.verify();
   });
 

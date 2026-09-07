@@ -61,6 +61,7 @@ const aCase: CaseDetail = {
   categoryColor: 'amber',
   tier: 'draft',
   confidence: 0.72,
+  handledAt: null,
 };
 
 describe('CaseDetailPage', () => {

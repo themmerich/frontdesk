@@ -7,6 +7,7 @@ import { FilterMetadata } from 'primeng/api';
 import { Table } from 'primeng/table';
 
 import { Case } from '../model/case';
+import { ReviewGroup } from '../model/case-review';
 import { CaseList } from './case-list';
 
 const translations = {
@@ -20,6 +21,9 @@ const translations = {
     noCategory: 'Without a category',
     review: 'Review',
     reviewTitle: 'Review',
+    reviewSummaries: 'Summaries',
+    reviewSummariesGroup: 'Summaries: {{category}}',
+    tierInfo: 'Info',
     reviewDelete: 'Delete {{category}} ({{count}})',
     reviewShow: 'Show',
     reviewShowGroup: 'Show {{category}}',
@@ -42,6 +46,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     categoryColor: null,
     tier: null,
     confidence: null,
+    handledAt: null,
     ...overrides,
   };
 }
@@ -146,6 +151,23 @@ describe('CaseList review', () => {
     fixture.detectChanges();
 
     expect((table(fixture).filteredValue as Case[]).map((row) => row.id)).toEqual(['4']);
+  });
+
+  it('passes a wish to read a group on to the page, which knows the route', async () => {
+    const fixture = TestBed.createComponent(CaseList);
+    fixture.componentRef.setInput('cases', [aCase({ id: '5', categoryId: 'news', categoryName: 'News', tier: 'info' })]);
+    fixture.detectChanges();
+    const requested: ReviewGroup[] = [];
+    fixture.componentInstance.summariesRequested.subscribe((group) => requested.push(group));
+    // The review is opened from the outside here, the way the page opens it on the way back.
+    fixture.componentInstance.reviewOpen.set(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    dialogButton('Summaries: News').click();
+
+    expect(requested.map((group) => [group.categoryName, group.tier])).toEqual([['News', 'info']]);
+    expect(fixture.componentInstance.reviewOpen()).toBe(false);
   });
 
   it('passes a deletion from the review on as a deletion', async () => {

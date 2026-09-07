@@ -1,6 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { CaseCategoriesService } from '../data/case-categories-service';
@@ -8,6 +8,7 @@ import { CaseColumnsService } from '../data/case-columns-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
 import { Case, CaseTier } from '../model/case';
+import { ReviewGroup } from '../model/case-review';
 import { CaseList } from '../ui/case-list';
 
 @Component({
@@ -24,6 +25,25 @@ export class CasesPage {
   private readonly transloco = inject(TranslocoService);
   private readonly orderStore = inject(CaseOrderStore);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  /** Whether the review stands open in front of the table. */
+  protected readonly reviewOpen = signal(false);
+
+  constructor() {
+    // Coming back from the summaries means coming back to the review, not merely to the inbox:
+    // the reader left in the middle of working through it. Read once and then taken out of the
+    // address, so a reload or a bookmark of this page is the plain inbox again.
+    if (this.route.snapshot.queryParamMap.has('review')) {
+      this.reviewOpen.set(true);
+      void this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+    }
+  }
+
+  /** The summaries of a group have a page of their own; the group travels in the address. */
+  protected onSummariesRequested(group: ReviewGroup): void {
+    void this.router.navigate(['/review'], { queryParams: { category: group.categoryName ?? '', tier: group.tier ?? '' } });
+  }
 
   /** What the detail view pages through: the order as it stands after filter and sorting. */
   protected onOrderChanged(ids: string[]): void {

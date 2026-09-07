@@ -48,6 +48,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     categoryColor: null,
     tier: null,
     confidence: null,
+    handledAt: null,
     ...overrides,
   };
 }
@@ -154,29 +155,16 @@ describe('CaseReviewDialog', () => {
     expect(fixture.componentInstance.visible()).toBe(false);
   });
 
-  it('unfolds the summaries of an info group, and says so where there is none', async () => {
-    const fixture = await openDialog([
-      aCase({ id: '1', ...jobs, subject: 'Senior developer', summary: 'Agency offers a senior role in Berlin.' }),
-      aCase({ id: '2', ...jobs, subject: 'Junior developer', summary: null }),
-    ]);
-    const toggle = button('Summaries: Job offers');
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(document.body.textContent).not.toContain('Agency offers');
+  it('hands an info group over to be read, and gets out of the way', async () => {
+    const fixture = await openDialog([aCase({ id: '1', ...jobs }), aCase({ id: '2', ...ads })]);
+    const requested: ReviewGroup[] = [];
+    fixture.componentInstance.summariesRequested.subscribe((group) => requested.push(group));
 
-    toggle.click();
-    fixture.detectChanges();
+    button('Summaries: Job offers').click();
 
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    const list = document.getElementById(toggle.getAttribute('aria-controls')!);
-    expect(list?.textContent).toContain('Senior developer');
-    expect(list?.textContent).toContain('Agency offers a senior role in Berlin.');
-    expect(list?.textContent).toContain('Junior developer');
-    expect(list?.textContent).toContain('No summary available.');
-
-    toggle.click();
-    fixture.detectChanges();
-
-    expect(document.body.textContent).not.toContain('Agency offers');
+    // The summaries have a page of their own; the dialog would only stand in front of it.
+    expect(requested.map((group) => [group.categoryName, group.tier])).toEqual([['Job offers', 'info']]);
+    expect(fixture.componentInstance.visible()).toBe(false);
   });
 
   it('says when there is nothing left', async () => {

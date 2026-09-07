@@ -13,7 +13,7 @@ import java.util.UUID;
  */
 public record CaseResponse(UUID id, String sender, String recipient, String subject, Instant receivedAt,
 		boolean hasAttachments, long sizeBytes, String summary, UUID categoryId, String categoryName,
-		String categoryColor, String tier, BigDecimal confidence) {
+		String categoryColor, String tier, BigDecimal confidence, Instant handledAt) {
 
 	static CaseResponse from(Case aCase) {
 		CaseCategory category = aCase.getCategory();
@@ -26,6 +26,9 @@ public record CaseResponse(UUID id, String sender, String recipient, String subj
 				category == null || category.getColor() == null ? null
 						: category.getColor().name().toLowerCase(Locale.ROOT),
 				aCase.getTier() == null ? null : aCase.getTier().name().toLowerCase(Locale.ROOT),
-				aCase.getConfidence());
+				aCase.getConfidence(),
+				// Null while nobody has taken note of the case: that is what the review works
+				// through, and what it counts.
+				aCase.getHandledAt());
 	}
 }

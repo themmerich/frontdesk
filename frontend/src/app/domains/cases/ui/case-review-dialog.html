@@ -46,27 +46,15 @@
                 <div class="flex flex-wrap items-center justify-end gap-2">
                   @if (needsNoAnswer(group)) {
                     @if (group.tier === 'info') {
-                      <!-- A plain button rather than p-button: it says whether the list below it is
-                           open, which the component does not let through to its own button. -->
-                      <button
-                        pButton
-                        type="button"
+                      <p-button
+                        icon="pi pi-align-left"
                         variant="text"
                         size="small"
                         severity="secondary"
-                        [attr.aria-label]="t('cases.reviewSummariesGroup', { category: groupName(group) })"
-                        [attr.aria-expanded]="isExpanded(group)"
-                        [attr.aria-controls]="'review-summaries-' + group.key"
-                        (click)="onToggleSummaries(group)"
-                      >
-                        <i
-                          class="p-button-icon pi"
-                          [class.pi-chevron-down]="!isExpanded(group)"
-                          [class.pi-chevron-up]="isExpanded(group)"
-                          aria-hidden="true"
-                        ></i>
-                        <span class="p-button-label">{{ t('cases.reviewSummaries') }}</span>
-                      </button>
+                        [label]="t('cases.reviewSummaries')"
+                        [ariaLabel]="t('cases.reviewSummariesGroup', { category: groupName(group) })"
+                        (onClick)="onSummaries(group)"
+                      />
                     }
                     <p-button
                       icon="pi pi-trash"
@@ -91,29 +79,6 @@
                 </div>
               </td>
             </tr>
-            @if (group.tier === 'info' && isExpanded(group)) {
-              <!-- One short text per mail, to be skimmed rather than read: enough to see whether
-                   any of them is more than what its category says. -->
-              <tr class="border-b border-surface-200 dark:border-surface-700">
-                <td colspan="4" class="px-3 pt-1 pb-3">
-                  <ul [id]="'review-summaries-' + group.key" class="flex flex-col gap-2">
-                    @for (aCase of group.cases; track aCase.id) {
-                      <li>
-                        <div class="flex flex-wrap items-baseline gap-x-2">
-                          <span class="font-medium">{{ aCase.subject }}</span>
-                          <span class="text-xs text-surface-500 dark:text-surface-400">{{ aCase.sender }}</span>
-                        </div>
-                        @if (aCase.summary) {
-                          <p class="text-surface-700 dark:text-surface-300">{{ aCase.summary }}</p>
-                        } @else {
-                          <p class="text-surface-400 italic dark:text-surface-500">{{ t('cases.reviewNoSummary') }}</p>
-                        }
-                      </li>
-                    }
-                  </ul>
-                </td>
-              </tr>
-            }
           }
         </tbody>
       </table>

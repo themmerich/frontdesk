@@ -58,6 +58,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     categoryColor: null,
     tier: null,
     confidence: null,
+    handledAt: null,
     ...overrides,
   };
 }
@@ -161,6 +162,7 @@ describe('CaseList', () => {
         categoryColor: 'blue',
         tier: 'automatic',
         confidence: 0.95,
+        handledAt: null,
       }),
       aCase({ id: '2', sender: 'ben@example.com', subject: 'Noch unbewertet', receivedAt: new Date('2026-08-19T09:15:00Z') }),
     ]).nativeElement as HTMLElement;
