@@ -71,6 +71,19 @@ class CaseController {
 	}
 
 	/**
+	 * A person taking note of a case, or taking that back. Not a deletion and not a correction of
+	 * the triage: what the model said still stands, it has just been read by somebody.
+	 */
+	@PutMapping("/{id}/handled")
+	@Transactional
+	CaseDetailResponse markHandled(@PathVariable UUID id, @Valid @RequestBody MarkHandledRequest request,
+			Authentication authentication) {
+		Case aCase = ownCase(id, currentTenantId(authentication));
+		aCase.markHandled(request.handled());
+		return CaseDetailResponse.from(caseRepository.save(aCase));
+	}
+
+	/**
 	 * Deletes a selection for good; the inbox asks before it gets here. Ids belonging to another
 	 * tenant match nothing, so the answer is the same whether they exist or not.
 	 */

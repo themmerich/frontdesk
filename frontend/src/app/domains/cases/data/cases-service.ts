@@ -5,8 +5,8 @@ import { firstValueFrom } from 'rxjs';
 
 import { Case, CaseTier } from '../model/case';
 
-/** The wire shape: receivedAt is an ISO string until it is parsed into a Date. */
-type CaseResponse = Omit<Case, 'receivedAt'> & { receivedAt: string };
+/** The wire shape: the two moments are ISO strings until they are parsed into Dates. */
+type CaseResponse = Omit<Case, 'receivedAt' | 'handledAt'> & { receivedAt: string; handledAt?: string | null };
 
 /**
  * How often an open list re-checks for new cases. Matches the backend's mail poll interval:
@@ -21,7 +21,15 @@ export class CasesService {
 
   readonly cases = httpResource<Case[]>(() => '/api/cases', {
     defaultValue: [],
-    parse: (cases) => (cases as CaseResponse[]).map((item) => ({ ...item, receivedAt: new Date(item.receivedAt) })),
+    parse: (cases) =>
+      (cases as CaseResponse[]).map((item) => ({
+        ...item,
+        receivedAt: new Date(item.receivedAt),
+        // Anything but a moment means nobody has taken note of the case. Said this way round
+        // because new Date(undefined) is an Invalid Date rather than an error, and a case
+        // carrying one would silently drop out of the review.
+        handledAt: item.handledAt ? new Date(item.handledAt) : null,
+      })),
   });
 
   constructor() {
@@ -55,6 +63,16 @@ export class CasesService {
    */
   async changeClassification(id: string, categoryId: string | null, tier: CaseTier | null): Promise<void> {
     await firstValueFrom(this.http.put<unknown>(`/api/cases/${id}/classification`, { categoryId, tier }));
+    this.cases.reload();
+  }
+
+  /**
+   * A person taking note of a case, or taking that back. Both directions through the same call,
+   * so a click one line too far down is undone by the same click. The list reloads afterwards:
+   * what the review shows is then what the backend holds rather than what was hoped for.
+   */
+  async markHandled(id: string, handled: boolean): Promise<void> {
+    await firstValueFrom(this.http.put<unknown>(`/api/cases/${id}/handled`, { handled }));
     this.cases.reload();
   }
 

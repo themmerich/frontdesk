@@ -213,6 +213,59 @@ class CaseControllerTest {
 
 	@Test
 	@WithMockUser(username = "anna")
+	void marksACaseAsTakenNoteOfAndTakesItBackAgain() throws Exception {
+		Case aCase = new Case(tenant, "<news@test>", "news@example.com", "info@example.com", "Wochenrückblick",
+				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		aCase.applyTriage(null, CaseTier.INFO, new BigDecimal("0.88"), "Branchennews der Woche.");
+		caseRepository.save(aCase);
+
+		mockMvc.perform(get("/api/cases")).andExpect(jsonPath("$[0].handledAt").doesNotExist());
+
+		mockMvc.perform(put("/api/cases/" + aCase.getId() + "/handled").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"handled\": true}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.handledAt").exists())
+				// Taking note is not a correction of the triage: what the model said still stands.
+				.andExpect(jsonPath("$.tier").value("info"))
+				.andExpect(jsonPath("$.summary").value("Branchennews der Woche."));
+
+		Instant firstTime = caseRepository.findById(aCase.getId()).orElseThrow().getHandledAt();
+		assertThat(firstTime).isNotNull();
+
+		// The same click again says nothing new, so the moment stays where it is.
+		mockMvc.perform(put("/api/cases/" + aCase.getId() + "/handled").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"handled\": true}"))
+				.andExpect(status().isOk());
+		assertThat(caseRepository.findById(aCase.getId()).orElseThrow().getHandledAt()).isEqualTo(firstTime);
+
+		// And it can be taken back, for the click that was one line too far down.
+		mockMvc.perform(put("/api/cases/" + aCase.getId() + "/handled").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"handled\": false}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.handledAt").doesNotExist());
+		assertThat(caseRepository.findById(aCase.getId()).orElseThrow().getHandledAt()).isNull();
+
+		// A body without the field would silently undo what was just marked.
+		mockMvc.perform(put("/api/cases/" + aCase.getId() + "/handled").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void doesNotTakeNoteOfAnotherTenantsCase() throws Exception {
+		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com",
+				"info@example.com", "Fremd", "body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+
+		mockMvc.perform(put("/api/cases/" + foreign.getId() + "/handled").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"handled\": true}"))
+				.andExpect(status().isNotFound());
+
+		assertThat(caseRepository.findById(foreign.getId()).orElseThrow().getHandledAt()).isNull();
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
 	void doesNotFileACaseUnderAnotherTenantsCategory() throws Exception {
 		CaseCategory theirs = caseCategoryRepository.save(new CaseCategory(otherTenant, "THEIRS", "Fremde Kategorie",
 				"Gehört jemand anderem.", CaseTier.MANUAL, 0));

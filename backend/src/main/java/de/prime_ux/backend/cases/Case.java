@@ -85,6 +85,11 @@ public class Case {
 	@Column(name = "triaged_at")
 	private Instant triagedAt;
 
+	// When a person took note of the case. Null while it is still waiting to be
+	// looked at, which is how the review finds what is left to work through.
+	@Column(name = "handled_at")
+	private Instant handledAt;
+
 	// The model's one-sentence answer to "what does the sender want?".
 	@Column
 	private String summary;
@@ -119,6 +124,22 @@ public class Case {
 	 */
 	public void changeCategory(CaseCategory category) {
 		this.category = category;
+	}
+
+	/**
+	 * A person taking note of a case, or taking that back. The moment stands where a flag would
+	 * do, because "since when" is what gets asked as soon as two people work the same inbox.
+	 *
+	 * <p>Marking an already handled case again leaves the first moment where it is: it is still
+	 * the same taking note, and the second click says nothing new.
+	 */
+	public void markHandled(boolean handled) {
+		if (!handled) {
+			this.handledAt = null;
+		}
+		else if (this.handledAt == null) {
+			this.handledAt = Instant.now();
+		}
 	}
 
 	/**

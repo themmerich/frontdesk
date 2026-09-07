@@ -102,13 +102,24 @@
     "reviewCaption": "Vorgänge nach Kategorie und Stufe",
     "reviewCount": "Anzahl",
     "reviewSummaries": "Zusammenfassungen",
-    "reviewNoSummary": "Keine Zusammenfassung vorhanden.",
     "reviewSummariesGroup": "Zusammenfassungen: {{category}}",
     "reviewDelete": "{{category}} löschen ({{count}})",
     "reviewShow": "Anzeigen",
     "reviewShowGroup": "{{category}} anzeigen",
     "reviewEmpty": "Nichts mehr durchzusehen.",
     "reviewClose": "Schließen"
+  },
+  "caseReview": {
+    "backToReview": "Zurück zur Durchsicht",
+    "oneCase": "1 Vorgang",
+    "manyCases": "{{count}} Vorgänge",
+    "noSummary": "Keine Zusammenfassung vorhanden.",
+    "handled": "Erledigt",
+    "handledCase": "„{{subject}}“ als erledigt markieren",
+    "handledError": "Konnte nicht als erledigt markiert werden.",
+    "open": "Ansehen",
+    "openCase": "„{{subject}}“ ansehen",
+    "empty": "Hier ist nichts mehr zu tun."
   },
   "caseDetail": {
     "backToInbox": "Posteingang",

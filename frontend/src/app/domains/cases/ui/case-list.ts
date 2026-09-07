@@ -354,8 +354,14 @@ export class CaseList {
     this.table().filterGlobal(query, 'contains');
   }
 
-  /** Whether the review is open: the inbox in groups, with what can be done about each. */
-  protected readonly reviewOpen = signal(false);
+  /**
+   * Whether the review is open: the inbox in groups, with what can be done about each. Two-way
+   * bound, so the page can open it again when a reader comes back from the summaries.
+   */
+  readonly reviewOpen = model(false);
+
+  /** A group whose summaries are to be read; the page routes to them. */
+  readonly summariesRequested = output<ReviewGroup>();
 
   /**
    * The table filtered down to one group of the review: the two filters the group is made of and

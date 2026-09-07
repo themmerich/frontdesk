@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, model, output, signal } from '@angular/core';
+import { Component, computed, inject, input, model, output } from '@angular/core';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -10,8 +10,8 @@ import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from './tier-tag';
 
 /**
  * The inbox worked through in groups: one line per category and tier, with what can be done about
- * the whole group. What needs nobody is cleared away here — deleted, or read as a list of short
- * summaries first; what needs a person is handed to the table, filtered down to just that group.
+ * the whole group. What needs nobody is cleared away here — deleted, or read first on the page
+ * that carries the summaries; what needs a person is handed to the table, filtered to that group.
  *
  * Dumb like the list: it says what was picked, the list and the page do it. Groups that were
  * dealt with fall out with the next reload; the dialog stays open until there is nothing left.
@@ -34,10 +34,10 @@ export class CaseReviewDialog {
   /** A group somebody wants to see in the table — the list turns it into its filters. */
   readonly groupShown = output<ReviewGroup>();
 
-  protected readonly groups = computed(() => reviewGroups(this.cases()));
+  /** A group somebody wants to read: the summaries have a page of their own. */
+  readonly summariesRequested = output<ReviewGroup>();
 
-  /** The groups whose summaries are open, by key, so they stay open across a reload. */
-  private readonly expanded = signal<string[]>([]);
+  protected readonly groups = computed(() => reviewGroups(this.cases()));
 
   protected readonly needsNoAnswer = needsNoAnswer;
 
@@ -49,12 +49,10 @@ export class CaseReviewDialog {
     return group.categoryName ?? this.transloco.translate('cases.noCategory');
   }
 
-  protected isExpanded(group: ReviewGroup): boolean {
-    return this.expanded().includes(group.key);
-  }
-
-  protected onToggleSummaries(group: ReviewGroup): void {
-    this.expanded.update((keys) => (keys.includes(group.key) ? keys.filter((key) => key !== group.key) : [...keys, group.key]));
+  protected onSummaries(group: ReviewGroup): void {
+    this.summariesRequested.emit(group);
+    // The summaries are a page; the dialog would only stand in front of it.
+    this.visible.set(false);
   }
 
   protected onDelete(group: ReviewGroup): void {

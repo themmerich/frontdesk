@@ -10,6 +10,12 @@ export const casesRoutes: Routes = [
     loadComponent: () => import('../feat-dashboard/dashboard-page').then((m) => m.DashboardPage),
   },
   {
+    // One group of the review, named by category and tier in the query parameters: a page that
+    // can be linked to and walked away from, unlike the dialog it is opened from.
+    path: 'review',
+    loadComponent: () => import('../feat-review/case-review-page').then((m) => m.CaseReviewPage),
+  },
+  {
     // Spelled out rather than ':id': the domain is mounted at the app root, so a
     // bare parameter would swallow /settings, /users and every other sibling.
     path: 'cases/:id',

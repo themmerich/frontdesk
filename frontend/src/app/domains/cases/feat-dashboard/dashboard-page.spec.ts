@@ -64,6 +64,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     categoryColor: null,
     tier: null,
     confidence: null,
+    handledAt: null,
     ...overrides,
   };
 }

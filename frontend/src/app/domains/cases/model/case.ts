@@ -23,6 +23,11 @@ export type Case = {
   tier: CaseTier | null;
   /** The model's own certainty between 0 and 1 — a self-assessment, not a measured probability. */
   confidence: number | null;
+  /**
+   * When a person took note of the case. Null while it is still waiting to be looked at, which is
+   * what the review works through. Deliberately not a deletion: the case stays in the inbox.
+   */
+  handledAt: Date | null;
 };
 
 /**

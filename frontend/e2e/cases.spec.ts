@@ -629,16 +629,11 @@ test.describe('Cases page', () => {
     const dialog = page.getByRole('dialog', { name: 'Durchsicht' });
     await expect(dialog).toBeVisible();
 
-    // One line per category and tier, the noise first, with the count of each. The unfolded
-    // summaries are rows too, but rows without a button.
-    const lines = dialog.locator('tbody tr').filter({ has: page.getByRole('button') });
+    // One line per category and tier, the noise first, with the count of each.
+    const lines = dialog.locator('tbody tr');
     await expect(lines).toHaveCount(4);
     await expect(lines.nth(0)).toContainText(/Werbung\s*Ignorieren\s*2/);
     await expect(lines.nth(1)).toContainText(/Newsletter\s*Info\s*1/);
-
-    // The newsletter is skimmed, not opened.
-    await dialog.getByRole('button', { name: 'Zusammenfassungen: Newsletter' }).click();
-    await expect(dialog.getByText('Branchennews der Woche, nichts Dringendes.')).toBeVisible();
 
     // The ads go — through the same question as everywhere else — and their line goes with them,
     // while the dialog stays open for the rest.
@@ -656,6 +651,72 @@ test.describe('Cases page', () => {
     await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
     await expect(page.getByRole('row', { name: /Invoice copy/ })).toHaveCount(0);
     await expect(page.getByRole('row', { name: /Weekly digest/ })).toHaveCount(0);
+  });
+
+  test('reads a group on its own page, takes note of one mail and opens another', async ({ page }) => {
+    const newsletter = {
+      ...mockCases[0],
+      id: '5',
+      sender: 'news@example.com',
+      subject: 'Wochenrückblick',
+      categoryName: 'Newsletter',
+      categoryColor: 'teal',
+      tier: 'info',
+      summary: 'Branchennews der Woche, nichts Dringendes.',
+    };
+    const jobOffer = { ...newsletter, id: '6', sender: 'hr@example.com', subject: 'Stellenangebot', summary: null };
+    const handled: { id: string; handled: boolean }[] = [];
+    await page.route('**/api/cases/*/handled', (route) => {
+      const id = new URL(route.request().url()).pathname.split('/').at(-2)!;
+      handled.push({ id, handled: (route.request().postDataJSON() as { handled: boolean }).handled });
+      return route.fulfill({ json: {} });
+    });
+    await page.route('**/api/cases/6', (route) => route.fulfill({ json: { ...jobOffer, bodyText: 'Wir suchen jemanden.' } }));
+    await page.route('**/api/cases', (route) =>
+      route.fulfill({
+        json: [
+          ...mockCases,
+          // A case somebody already took note of never reaches the review.
+          { ...newsletter, id: '7', subject: 'Alter Rückblick', handledAt: '2026-08-18T09:00:00Z' },
+          ...(handled.some((entry) => entry.id === '5') ? [{ ...newsletter, handledAt: '2026-08-20T09:00:00Z' }] : [newsletter]),
+          jobOffer,
+        ],
+      }),
+    );
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Durchsicht' }).click();
+    await page.getByRole('button', { name: 'Zusammenfassungen: Newsletter' }).click();
+
+    // A page of its own, reachable by its address rather than an overlay over the table.
+    await expect(page).toHaveURL(/\/review\?category=Newsletter&tier=info/);
+    await expect(page.getByRole('heading', { name: 'Newsletter', level: 1 })).toBeVisible();
+    await expect(page.getByText('2 Vorgänge')).toBeVisible();
+    // Scoped to the page: the sidebar's navigation is a list of items too.
+    const cards = page.getByRole('main').getByRole('listitem');
+    await expect(cards).toHaveCount(2);
+    await expect(cards.nth(0)).toContainText('Branchennews der Woche, nichts Dringendes.');
+    await expect(cards.nth(1)).toContainText('Keine Zusammenfassung vorhanden.');
+    // The one that was taken note of earlier is not offered again.
+    await expect(page.getByText('Alter Rückblick')).toHaveCount(0);
+
+    // Taken note of: no question, no toast, the card simply goes.
+    await page.getByRole('button', { name: '„Wochenrückblick“ als erledigt markieren' }).click();
+    await expect(cards).toHaveCount(1);
+    expect(handled).toEqual([{ id: '5', handled: true }]);
+
+    // And the one worth a closer look is opened, with the group as what paging walks through.
+    await page.getByRole('button', { name: '„Stellenangebot“ ansehen' }).click();
+    // The body only the detail view carries: the subject alone stands on the card as well.
+    await expect(page).toHaveURL(/\/cases\/6$/);
+    await expect(page.getByText('Wir suchen jemanden.')).toBeVisible();
+
+    // Back from the summaries is back into the review, not merely into the inbox.
+    await page.goBack();
+    await page.getByRole('link', { name: 'Zurück zur Durchsicht' }).click();
+    await expect(page.getByRole('dialog', { name: 'Durchsicht' })).toBeVisible();
+    // The address is the plain inbox again, so a bookmark of it is not the review.
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test('shows an empty state when there are no cases', async ({ page }) => {

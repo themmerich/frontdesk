@@ -107,6 +107,7 @@ describe('CasesPage', () => {
         categoryColor: null,
         tier: null,
         confidence: null,
+        handledAt: null,
       },
     ]);
     const fixture = TestBed.createComponent(CasesPage);
