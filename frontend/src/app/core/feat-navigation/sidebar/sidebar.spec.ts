@@ -11,6 +11,7 @@ const translations = {
   shell: {
     cases: 'Cases',
     inbox: 'Inbox',
+    archive: 'Archive',
     administration: 'Administration',
     users: 'Users',
     company: 'Company',
@@ -70,6 +71,14 @@ describe('Sidebar', () => {
     expect(text).toContain('frontdesk');
     expect(text).toContain('Cases');
     expect(text).toContain('Inbox');
+  });
+
+  it('links the archive next to the inbox', () => {
+    const fixture = TestBed.createComponent(Sidebar);
+    fixture.detectChanges();
+
+    const link = (fixture.nativeElement as HTMLElement).querySelector('a[href="/archive"]');
+    expect(link?.textContent).toContain('Archive');
   });
 
   it('links the inbox item to the start page', () => {

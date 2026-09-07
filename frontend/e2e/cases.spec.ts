@@ -719,6 +719,90 @@ test.describe('Cases page', () => {
     await expect(page).toHaveURL(/\/$/);
   });
 
+  test('files what was ticked off in the archive, and keeps it out of the inbox', async ({ page }) => {
+    const archived = {
+      ...mockCases[0],
+      id: '3',
+      sender: 'news@example.com',
+      subject: 'Erledigter Rückblick',
+      categoryName: 'Newsletter',
+      categoryColor: 'teal',
+      tier: 'info',
+      handledAt: '2026-08-20T09:00:00Z',
+    };
+    await page.route('**/api/cases', (route) => route.fulfill({ json: [...mockCases, archived] }));
+
+    await page.goto('/');
+    // The inbox is what is left to do; what somebody ticked off is not part of it.
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Erledigter Rückblick/ })).toHaveCount(0);
+    await expect(page.getByText('1 – 2 von 2 Vorgängen')).toBeVisible();
+
+    await page.getByRole('link', { name: 'Archiv' }).click();
+
+    await expect(page).toHaveURL(/\/archive$/);
+    await expect(page.getByRole('row', { name: /Erledigter Rückblick/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
+
+    // The same table as the inbox: the same columns, the same toolbar — except the review,
+    // which works through what is still open.
+    for (const column of ['Absender', 'Empfänger', 'Betreff', 'Kategorie', 'Stufe', 'Eingegangen']) {
+      await expect(page.getByRole('columnheader', { name: column })).toBeVisible();
+    }
+    await expect(page.getByRole('button', { name: 'Exportieren' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Ansicht zurücksetzen' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Durchsicht' })).toHaveCount(0);
+  });
+
+  test('puts a case out of the archive back into the inbox', async ({ page }) => {
+    const archived = {
+      ...mockCases[0],
+      id: '3',
+      sender: 'news@example.com',
+      subject: 'Zu früh abgehakt',
+      handledAt: '2026-08-20T09:00:00Z' as string | null,
+    };
+    let reopened: { id: string; handled: boolean } | null = null;
+    await page.route('**/api/cases/*/handled', (route) => {
+      const id = new URL(route.request().url()).pathname.split('/').at(-2)!;
+      reopened = { id, handled: (route.request().postDataJSON() as { handled: boolean }).handled };
+      return route.fulfill({ json: {} });
+    });
+    await page.route('**/api/cases', (route) =>
+      route.fulfill({ json: [...mockCases, { ...archived, handledAt: reopened ? null : archived.handledAt }] }),
+    );
+
+    await page.goto('/archive');
+    await expect(page.getByRole('row', { name: /Zu früh abgehakt/ })).toBeVisible();
+
+    await page.getByRole('button', { name: '„Zu früh abgehakt“ wieder öffnen' }).click();
+
+    await expect(page.getByText('Vorgang ist wieder im Posteingang.')).toBeVisible();
+    expect(reopened).toEqual({ id: '3', handled: false });
+    // Out of the archive, and there in the inbox.
+    await expect(page.getByRole('row', { name: /Zu früh abgehakt/ })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Posteingang' }).click();
+    await expect(page.getByRole('row', { name: /Zu früh abgehakt/ })).toBeVisible();
+  });
+
+  test('remembers what each of the two pages was filtered by, one apart from the other', async ({ page }) => {
+    const archived = { ...mockCases[0], id: '3', subject: 'Erledigter Rückblick', handledAt: '2026-08-20T09:00:00Z' };
+    await page.route('**/api/cases', (route) => route.fulfill({ json: [...mockCases, archived] }));
+
+    await page.goto('/archive');
+    await page.getByRole('textbox', { name: 'Suchen' }).fill('Rückblick');
+    // The archive keeps what it was filtered by, under a name of its own.
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('frontdesk-archive-table'))).toContain('Rückblick');
+
+    await page.getByRole('link', { name: 'Posteingang' }).click();
+
+    // The inbox is untouched by it: both mails are there, the search box is empty.
+    await expect(page.getByRole('textbox', { name: 'Suchen' })).toHaveValue('');
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Invoice copy/ })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('frontdesk-case-table'))).toBeNull();
+  });
+
   test('shows an empty state when there are no cases', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
 

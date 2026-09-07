@@ -110,6 +110,50 @@ describe('CasesService', () => {
     httpTesting.verify();
   });
 
+  it('tells the open cases from the archived ones, so neither page shows the other pile', async () => {
+    const onTheWire = {
+      sender: 'anna@example.com',
+      recipient: 'info@example.com',
+      subject: 'Delivery status',
+      receivedAt: '2026-08-19T08:30:00Z',
+      hasAttachments: false,
+      sizeBytes: 2048,
+      summary: null,
+      categoryId: null,
+      categoryName: null,
+      categoryColor: null,
+      tier: null,
+      confidence: null,
+    };
+    const service = TestBed.inject(CasesService);
+    const httpTesting = TestBed.inject(HttpTestingController);
+    TestBed.tick();
+
+    httpTesting.expectOne('/api/cases').flush([
+      { ...onTheWire, id: '1', handledAt: null },
+      { ...onTheWire, id: '2', handledAt: '2026-08-20T09:00:00Z' },
+      { ...onTheWire, id: '3', handledAt: null },
+    ]);
+    await TestBed.inject(ApplicationRef).whenStable();
+
+    expect(service.openCases().map((aCase) => aCase.id)).toEqual(['1', '3']);
+    expect(service.archivedCases().map((aCase) => aCase.id)).toEqual(['2']);
+    httpTesting.verify();
+  });
+
+  it('holds both piles empty while the list could not be loaded', async () => {
+    const service = TestBed.inject(CasesService);
+    const httpTesting = TestBed.inject(HttpTestingController);
+    TestBed.tick();
+
+    // value() throws in the error state; neither page may fall over that.
+    httpTesting.expectOne('/api/cases').error(new ProgressEvent('offline'));
+    await TestBed.inject(ApplicationRef).whenStable();
+
+    expect(service.openCases()).toEqual([]);
+    expect(service.archivedCases()).toEqual([]);
+  });
+
   it('starts with an empty list before the API answered', async () => {
     const service = TestBed.inject(CasesService);
 
