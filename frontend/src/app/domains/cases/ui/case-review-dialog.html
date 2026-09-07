@@ -1,0 +1,125 @@
+<ng-container *transloco="let t">
+  <p-dialog
+    [header]="t('cases.reviewTitle')"
+    [modal]="true"
+    [(visible)]="visible"
+    [style]="{ width: '60rem' }"
+    [breakpoints]="{ '960px': '95vw' }"
+  >
+    @if (groups().length === 0) {
+      <p class="py-6 text-center text-surface-500 dark:text-surface-400">{{ t('cases.reviewEmpty') }}</p>
+    } @else {
+      <table class="w-full text-sm">
+        <caption class="sr-only">
+          {{
+            t('cases.reviewCaption')
+          }}
+        </caption>
+        <thead>
+          <tr class="border-b border-surface-200 text-left text-surface-500 dark:border-surface-700 dark:text-surface-400">
+            <th scope="col" class="py-2 pr-3 font-medium">{{ t('cases.category') }}</th>
+            <th scope="col" class="py-2 pr-3 font-medium">{{ t('cases.tier') }}</th>
+            <th scope="col" class="py-2 pr-3 text-right font-medium">{{ t('cases.reviewCount') }}</th>
+            <th scope="col" class="py-2 text-right font-medium">{{ t('cases.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (group of groups(); track group.key) {
+            <!-- The category's colour, as in the inbox: the same attribute, resolved by styles.css. -->
+            <tr class="border-b border-surface-200 dark:border-surface-700" [attr.data-category-color]="group.categoryColor">
+              <td class="py-2 pr-3 font-medium">
+                @if (group.categoryName) {
+                  {{ group.categoryName }}
+                } @else {
+                  <span class="text-surface-400 dark:text-surface-500">{{ t('cases.noCategory') }}</span>
+                }
+              </td>
+              <td class="py-2 pr-3">
+                @if (group.tier) {
+                  <p-tag [value]="t(tierLabelKey(group.tier))" [severity]="tierSeverity(group.tier)" />
+                } @else {
+                  <span class="text-surface-400 dark:text-surface-500">{{ t('cases.notTriaged') }}</span>
+                }
+              </td>
+              <td class="py-2 pr-3 text-right tabular-nums">{{ group.cases.length }}</td>
+              <td class="py-2">
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                  @if (needsNoAnswer(group)) {
+                    @if (group.tier === 'info') {
+                      <!-- A plain button rather than p-button: it says whether the list below it is
+                           open, which the component does not let through to its own button. -->
+                      <button
+                        pButton
+                        type="button"
+                        variant="text"
+                        size="small"
+                        severity="secondary"
+                        [attr.aria-label]="t('cases.reviewSummariesGroup', { category: groupName(group) })"
+                        [attr.aria-expanded]="isExpanded(group)"
+                        [attr.aria-controls]="'review-summaries-' + group.key"
+                        (click)="onToggleSummaries(group)"
+                      >
+                        <i
+                          class="p-button-icon pi"
+                          [class.pi-chevron-down]="!isExpanded(group)"
+                          [class.pi-chevron-up]="isExpanded(group)"
+                          aria-hidden="true"
+                        ></i>
+                        <span class="p-button-label">{{ t('cases.reviewSummaries') }}</span>
+                      </button>
+                    }
+                    <p-button
+                      icon="pi pi-trash"
+                      variant="text"
+                      size="small"
+                      severity="danger"
+                      [label]="t('cases.delete')"
+                      [ariaLabel]="t('cases.reviewDelete', { category: groupName(group), count: group.cases.length })"
+                      (onClick)="onDelete(group)"
+                    />
+                  } @else {
+                    <p-button
+                      icon="pi pi-filter"
+                      variant="text"
+                      size="small"
+                      severity="secondary"
+                      [label]="t('cases.reviewShow')"
+                      [ariaLabel]="t('cases.reviewShowGroup', { category: groupName(group) })"
+                      (onClick)="onShow(group)"
+                    />
+                  }
+                </div>
+              </td>
+            </tr>
+            @if (group.tier === 'info' && isExpanded(group)) {
+              <!-- One short text per mail, to be skimmed rather than read: enough to see whether
+                   any of them is more than what its category says. -->
+              <tr class="border-b border-surface-200 dark:border-surface-700">
+                <td colspan="4" class="px-3 pt-1 pb-3">
+                  <ul [id]="'review-summaries-' + group.key" class="flex flex-col gap-2">
+                    @for (aCase of group.cases; track aCase.id) {
+                      <li>
+                        <div class="flex flex-wrap items-baseline gap-x-2">
+                          <span class="font-medium">{{ aCase.subject }}</span>
+                          <span class="text-xs text-surface-500 dark:text-surface-400">{{ aCase.sender }}</span>
+                        </div>
+                        @if (aCase.summary) {
+                          <p class="text-surface-700 dark:text-surface-300">{{ aCase.summary }}</p>
+                        } @else {
+                          <p class="text-surface-400 italic dark:text-surface-500">{{ t('cases.reviewNoSummary') }}</p>
+                        }
+                      </li>
+                    }
+                  </ul>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    }
+    <ng-template #footer>
+      <p-button severity="secondary" [outlined]="true" [label]="t('cases.reviewClose')" (onClick)="visible.set(false)" />
+    </ng-template>
+  </p-dialog>
+</ng-container>

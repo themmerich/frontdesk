@@ -30,6 +30,7 @@ const translations = {
     columns: 'Columns',
     reset: 'Reset',
     resetView: 'Reset view',
+    review: 'Review',
     search: 'Search',
     export: 'Export',
     delete: 'Delete',
@@ -327,13 +328,13 @@ describe('CaseList', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No cases yet');
   });
 
-  it('renders the toolbar with column toggler, global search, reset, export, and delete', () => {
+  it('renders the toolbar with column toggler, global search, review, reset, export, and delete', () => {
     const fixture = createFixture([]);
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('input[aria-label="Search"]')).not.toBeNull();
     const buttonLabels = Array.from(element.querySelectorAll('p-button')).map((button) => button.textContent?.trim());
-    expect(buttonLabels).toEqual(['Columns', 'Reset view', 'Export', 'Delete']);
+    expect(buttonLabels).toEqual(['Columns', 'Review', 'Reset view', 'Export', 'Delete']);
   });
 
   it('hides an unchecked column and restores it on reset', async () => {
