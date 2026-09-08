@@ -29,6 +29,8 @@
     "total": "Vorgänge gesamt",
     "untriaged": "Noch nicht bewertet",
     "needsAnswer": "Wartet auf eine Antwort",
+    "archived": "Im Archiv",
+    "trashed": "Im Papierkorb",
     "today": "Heute",
     "byCategory": "Vorgänge je Kategorie",
     "byTier": "Vorgänge je Stufe",

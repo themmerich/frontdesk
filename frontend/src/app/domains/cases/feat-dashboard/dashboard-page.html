@@ -17,10 +17,9 @@
     @if (casesService.cases.error()) {
       <p class="text-red-600 dark:text-red-400">{{ t('cases.loadError') }}</p>
     } @else {
-      <!-- The numbers first, because they are read at a glance and the charts are not. Three of
-           what the inbox holds, three of what came in — and those three say how that compares
-           with the stretch before them. -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      <!-- The numbers first, because they are read at a glance and the charts are not. Where the
+           post stands: what is left to do, and what has been dealt with one way or the other. -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <p-card>
           <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.total') }}</p>
           <p class="text-3xl font-semibold">{{ totals().all }}</p>
@@ -34,25 +33,41 @@
           <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.needsAnswer') }}</p>
           <p class="text-3xl font-semibold">{{ totals().manual }}</p>
         </p-card>
+        <p-card>
+          <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.archived') }}</p>
+          <p class="text-3xl font-semibold">{{ totals().archived }}</p>
+        </p-card>
+        <p-card>
+          <!-- Thrown away but not gone: it can be fetched back until somebody empties the bin. -->
+          <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.trashed') }}</p>
+          <p class="text-3xl font-semibold">{{ totals().trashed }}</p>
+        </p-card>
+      </div>
+
+      <!-- What came in, each stretch against the equally long one before it. -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         @for (window of windows(); track window.name) {
           <p-card>
             <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('dashboard.' + window.name) }}</p>
             <p class="text-3xl font-semibold">{{ window.count }}</p>
-            <!-- Not coloured: more mail is neither good nor bad news, only more. The arrow says
-                 which way it went, the words say what it is measured against. -->
+            <!-- A triangle points the way and carries the colour: green for more, red for less.
+                 Where the two stretches are equal there is no direction, so the dash stays grey.
+                 The words say what it is all measured against. -->
             <p class="flex items-center gap-1 text-sm text-surface-500 dark:text-surface-400">
-              @if (window.difference === 0) {
-                <i class="pi pi-minus text-xs!" aria-hidden="true"></i>
-              } @else if (window.difference > 0) {
-                <i class="pi pi-arrow-up text-xs!" aria-hidden="true"></i>
-              } @else {
-                <i class="pi pi-arrow-down text-xs!" aria-hidden="true"></i>
-              }
-              @if (window.percentage === null) {
-                <span>{{ window.difference > 0 ? '+' : '' }}{{ window.difference }}</span>
-              } @else {
-                <span>{{ window.percentage > 0 ? '+' : '' }}{{ window.percentage }}&nbsp;%</span>
-              }
+              <span class="flex items-center gap-1" [attr.data-trend]="window.trend">
+                <i
+                  class="pi text-xs!"
+                  [class.pi-caret-up]="window.trend === 'up'"
+                  [class.pi-caret-down]="window.trend === 'down'"
+                  [class.pi-minus]="window.trend === null"
+                  aria-hidden="true"
+                ></i>
+                @if (window.percentage === null) {
+                  <span>{{ window.difference > 0 ? '+' : '' }}{{ window.difference }}</span>
+                } @else {
+                  <span>{{ window.percentage > 0 ? '+' : '' }}{{ window.percentage }}&nbsp;%</span>
+                }
+              </span>
               <span>{{ t('dashboard.comparedTo.' + window.name) }}</span>
             </p>
           </p-card>

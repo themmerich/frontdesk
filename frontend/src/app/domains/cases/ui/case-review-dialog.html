@@ -77,7 +77,7 @@
               </div>
             </th>
             <th scope="col" pResizableColumn pSortableColumn="count" class="w-40">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center justify-center gap-2">
                 {{ t('cases.reviewCount') }}
                 <p-sorticon field="count" />
                 <p-columnfilter type="numeric" field="count" display="menu" [showOperator]="false" [showAddButton]="false" />
@@ -103,7 +103,9 @@
                 <span class="text-surface-400 dark:text-surface-500">{{ t('cases.notTriaged') }}</span>
               }
             </td>
-            <td class="text-right tabular-nums">{{ row.count }}</td>
+            <!-- Centred under its heading rather than pushed to the edge: a column of one- and
+                 two-digit numbers has nothing to line up against on the right. -->
+            <td class="text-center tabular-nums">{{ row.count }}</td>
             <td>
               <!-- Icons alone: three words per line, eight lines below each other, read as a wall
                    of text — and the tooltip says the same to whoever needs it spelled out. -->
