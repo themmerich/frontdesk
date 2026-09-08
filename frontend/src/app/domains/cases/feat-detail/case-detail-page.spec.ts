@@ -62,6 +62,7 @@ const aCase: CaseDetail = {
   tier: 'draft',
   confidence: 0.72,
   handledAt: null,
+  deletedAt: null,
 };
 
 describe('CaseDetailPage', () => {

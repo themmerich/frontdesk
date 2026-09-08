@@ -284,7 +284,7 @@ class CaseControllerTest {
 
 	@Test
 	@WithMockUser(username = "anna")
-	void deletesTheSelectedCasesAndLeavesTheRestAlone() throws Exception {
+	void movesTheSelectedCasesToTheTrashAndLeavesTheRestAlone() throws Exception {
 		Case first = caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "info@example.com",
 				"Weg damit", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
 		Case second = caseRepository.save(new Case(tenant, "<second@test>", "ben@example.com", "info@example.com",
@@ -297,7 +297,54 @@ class CaseControllerTest {
 				.content("{\"ids\": [\"%s\", \"%s\"]}".formatted(first.getId(), second.getId())))
 				.andExpect(status().isNoContent());
 
-		assertThat(caseRepository.findAll()).extracting(Case::getId).containsExactly(kept.getId());
+		// The rows stay: a mail cannot be fetched again once the mailbox marked it read.
+		assertThat(caseRepository.findAll()).extracting(Case::getId)
+				.containsExactlyInAnyOrder(first.getId(), second.getId(), kept.getId());
+		assertThat(caseRepository.findById(first.getId()).orElseThrow().getDeletedAt()).isNotNull();
+		assertThat(caseRepository.findById(second.getId()).orElseThrow().getDeletedAt()).isNotNull();
+		assertThat(caseRepository.findById(kept.getId()).orElseThrow().getDeletedAt()).isNull();
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void fetchesACaseBackOutOfTheTrashWithWhatWasKnownAboutIt() throws Exception {
+		Case aCase = new Case(tenant, "<back@test>", "anna@example.com", "info@example.com", "Doch nicht",
+				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		aCase.applyTriage(null, CaseTier.INFO, new BigDecimal("0.80"), "Newsletter der Woche.");
+		aCase.markHandled(true);
+		caseRepository.save(aCase);
+
+		mockMvc.perform(delete("/api/cases").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"ids\": [\"%s\"]}".formatted(aCase.getId()))).andExpect(status().isNoContent());
+		mockMvc.perform(get("/api/cases")).andExpect(jsonPath("$[0].deletedAt").exists());
+
+		mockMvc.perform(put("/api/cases/restore").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"ids\": [\"%s\"]}".formatted(aCase.getId()))).andExpect(status().isNoContent());
+
+		// Back where it was: throwing away said nothing about whether it was worked through.
+		Case restored = caseRepository.findById(aCase.getId()).orElseThrow();
+		assertThat(restored.getDeletedAt()).isNull();
+		assertThat(restored.getHandledAt()).isNotNull();
+		assertThat(restored.getTier()).isEqualTo(CaseTier.INFO);
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void deletesForGoodOnlyWhatIsInTheTrash() throws Exception {
+		Case thrownAway = caseRepository.save(new Case(tenant, "<gone@test>", "anna@example.com",
+				"info@example.com", "Endgültig weg", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+		Case inTheInbox = caseRepository.save(new Case(tenant, "<here@test>", "ben@example.com", "info@example.com",
+				"Steht noch im Posteingang", "body", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
+		mockMvc.perform(delete("/api/cases").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"ids\": [\"%s\"]}".formatted(thrownAway.getId()))).andExpect(status().isNoContent());
+
+		mockMvc.perform(delete("/api/cases/purge").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"ids\": [\"%s\", \"%s\"]}".formatted(thrownAway.getId(), inTheInbox.getId())))
+				.andExpect(status().isNoContent());
+
+		// Only what somebody threw away goes; the one still in the inbox is not touched by an id
+		// that happened to travel along.
+		assertThat(caseRepository.findAll()).extracting(Case::getId).containsExactly(inTheInbox.getId());
 	}
 
 	@Test
@@ -306,13 +353,18 @@ class CaseControllerTest {
 		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com",
 				"info@example.com", "Fremd", "body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
-		// A guessed id answers the same way whether it exists or not, and deletes nothing.
-		mockMvc.perform(delete("/api/cases").with(csrf())
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"ids\": [\"%s\"]}".formatted(foreign.getId())))
+		// A guessed id answers the same way whether it exists or not, and touches nothing —
+		// neither on the way into the trash, nor back out of it, nor out of the world.
+		String body = "{\"ids\": [\"%s\"]}".formatted(foreign.getId());
+		mockMvc.perform(delete("/api/cases").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body))
 				.andExpect(status().isNoContent());
+		mockMvc.perform(put("/api/cases/restore").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+				.content(body)).andExpect(status().isNoContent());
+		mockMvc.perform(delete("/api/cases/purge").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+				.content(body)).andExpect(status().isNoContent());
 
 		assertThat(caseRepository.existsById(foreign.getId())).isTrue();
+		assertThat(caseRepository.findById(foreign.getId()).orElseThrow().getDeletedAt()).isNull();
 	}
 
 	@Test

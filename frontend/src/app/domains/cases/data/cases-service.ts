@@ -5,8 +5,12 @@ import { firstValueFrom } from 'rxjs';
 
 import { Case, CaseTier } from '../model/case';
 
-/** The wire shape: the two moments are ISO strings until they are parsed into Dates. */
-type CaseResponse = Omit<Case, 'receivedAt' | 'handledAt'> & { receivedAt: string; handledAt?: string | null };
+/** The wire shape: the moments are ISO strings until they are parsed into Dates. */
+type CaseResponse = Omit<Case, 'receivedAt' | 'handledAt' | 'deletedAt'> & {
+  receivedAt: string;
+  handledAt?: string | null;
+  deletedAt?: string | null;
+};
 
 /**
  * How often an open list re-checks for new cases. Matches the backend's mail poll interval:
@@ -29,20 +33,24 @@ export class CasesService {
         // because new Date(undefined) is an Invalid Date rather than an error, and a case
         // carrying one would silently drop out of the review.
         handledAt: item.handledAt ? new Date(item.handledAt) : null,
+        deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
       })),
   });
 
   /**
-   * What is still to be worked through, and what has been. One request answers both: the backend
-   * hands over the tenant's cases, and whether somebody has taken note of one is a field on it.
+   * The three piles, from one request: what is still to be worked through, what has been, and
+   * what somebody threw away. Which one a case is in is decided by two moments on it, so it is
+   * in exactly one and none falls between them.
    *
-   * <p>The inbox shows the open ones and the archive the rest, so nothing is in both places and
-   * nothing falls between them. Both read through the guard, because value() throws while the
-   * resource is in the error state.
+   * <p>Everything that is not in the trash is still there — that is what the dashboard counts,
+   * because a mail somebody threw away is not work.
    */
-  readonly openCases = computed(() => this.loaded().filter((aCase) => aCase.handledAt === null));
-  readonly archivedCases = computed(() => this.loaded().filter((aCase) => aCase.handledAt !== null));
+  readonly openCases = computed(() => this.activeCases().filter((aCase) => aCase.handledAt === null));
+  readonly archivedCases = computed(() => this.activeCases().filter((aCase) => aCase.handledAt !== null));
+  readonly trashedCases = computed(() => this.loaded().filter((aCase) => aCase.deletedAt !== null));
+  readonly activeCases = computed(() => this.loaded().filter((aCase) => aCase.deletedAt === null));
 
+  /** Read through the guard: value() throws while the resource is in the error state. */
   private readonly loaded = computed<Case[]>(() => (this.cases.error() ? [] : this.cases.value()));
 
   constructor() {
@@ -60,12 +68,24 @@ export class CasesService {
   }
 
   /**
-   * Deletes a selection for good and reloads, so the list shows what is left rather than what the
-   * client believes is left. One request for the whole selection: a row action is a selection of
-   * one, and half a deletion is worse than none.
+   * Throws a selection away: into the trash, not out of the world. One request for the whole
+   * selection — a row action is a selection of one, and half a deletion is worse than none. The
+   * list reloads afterwards, so it shows what is where rather than what the client believes.
    */
   async remove(ids: string[]): Promise<void> {
     await firstValueFrom(this.http.delete<void>('/api/cases', { body: { ids } }));
+    this.cases.reload();
+  }
+
+  /** Back out of the trash, to where the case was: the archive if it was worked through. */
+  async restore(ids: string[]): Promise<void> {
+    await firstValueFrom(this.http.put<void>('/api/cases/restore', { ids }));
+    this.cases.reload();
+  }
+
+  /** Out of the world. Only from the trash, and only after the question that says as much. */
+  async purge(ids: string[]): Promise<void> {
+    await firstValueFrom(this.http.delete<void>('/api/cases/purge', { body: { ids } }));
     this.cases.reload();
   }
 

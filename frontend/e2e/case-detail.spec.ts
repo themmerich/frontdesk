@@ -189,7 +189,7 @@ test.describe('Case detail', () => {
     await page.getByRole('main').getByRole('button', { name: 'Löschen' }).click();
     await page.getByRole('alertdialog', { name: 'Löschen bestätigen' }).getByRole('button', { name: 'Löschen' }).click();
 
-    await expect(page.getByText('Vorgang gelöscht.')).toBeVisible();
+    await expect(page.getByText('Vorgang in den Papierkorb verschoben.')).toBeVisible();
     // Tidying up happens in a run, so the next case rather than the inbox.
     await expect(page).toHaveURL(/\/cases\/2$/);
   });

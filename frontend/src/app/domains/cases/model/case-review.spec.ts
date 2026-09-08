@@ -17,6 +17,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     tier: null,
     confidence: null,
     handledAt: null,
+    deletedAt: null,
     ...overrides,
   };
 }
@@ -75,6 +76,16 @@ describe('reviewGroups', () => {
     ]);
 
     // The read newsletter shrinks its group, the read ad takes its group with it.
+    expect(groups.map((group) => [group.categoryName, group.cases.length])).toEqual([['Jobangebot', 1]]);
+  });
+
+  it('leaves out what somebody threw away, which is waiting in the trash and not for an answer', () => {
+    const groups = reviewGroups([
+      aCase({ id: '1', ...jobs }),
+      aCase({ id: '2', ...jobs, deletedAt: new Date('2026-08-21T09:00:00') }),
+      aCase({ id: '3', ...ads, deletedAt: new Date('2026-08-21T09:01:00') }),
+    ]);
+
     expect(groups.map((group) => [group.categoryName, group.cases.length])).toEqual([['Jobangebot', 1]]);
   });
 

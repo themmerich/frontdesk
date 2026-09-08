@@ -65,6 +65,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     tier: null,
     confidence: null,
     handledAt: null,
+    deletedAt: null,
     ...overrides,
   };
 }
@@ -92,7 +93,14 @@ describe('DashboardPage', () => {
       ],
       providers: [
         provideZonelessChangeDetection(),
-        { provide: CasesService, useValue: { cases: { value: cases, error, status, isLoading, reload } } },
+        {
+          provide: CasesService,
+          useValue: {
+            cases: { value: cases, error, status, isLoading, reload },
+            // The numbers are about the work, so what somebody threw away is not among them.
+            activeCases: computed(() => (error() ? [] : cases()).filter((row) => row.deletedAt === null)),
+          },
+        },
       ],
     }).compileComponents();
   });

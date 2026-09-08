@@ -93,7 +93,8 @@ export class DashboardPage {
     const reading = effect(
       () => {
         if (this.casesService.cases.status() === 'resolved') {
-          untracked(() => this.cases.set(this.casesService.cases.value()));
+          // What somebody threw away is not work, and the numbers are about the work.
+          untracked(() => this.cases.set(this.casesService.activeCases()));
           reading.destroy();
         }
       },

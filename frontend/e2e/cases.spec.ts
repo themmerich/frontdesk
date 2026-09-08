@@ -112,7 +112,7 @@ test.describe('Cases page', () => {
     await expect(dialog).toContainText('Delivery status');
     await dialog.getByRole('button', { name: 'Löschen' }).click();
 
-    await expect(page.getByText('Vorgang gelöscht.')).toBeVisible();
+    await expect(page.getByText('Vorgang in den Papierkorb verschoben.')).toBeVisible();
     expect(deleted).toMatchObject({ ids: ['1'] });
     await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
   });
@@ -225,7 +225,7 @@ test.describe('Cases page', () => {
     await expect(dialog).toContainText('2');
     await dialog.getByRole('button', { name: 'Löschen' }).click();
 
-    await expect(page.getByText('2 Vorgänge gelöscht.')).toBeVisible();
+    await expect(page.getByText('2 Vorgänge in den Papierkorb verschoben.')).toBeVisible();
     expect((deleted?.ids as string[]).sort()).toEqual(['1', '2']);
   });
 
@@ -639,7 +639,7 @@ test.describe('Cases page', () => {
     // while the dialog stays open for the rest.
     await dialog.getByRole('button', { name: 'Werbung löschen (2)' }).click();
     await page.getByRole('alertdialog', { name: 'Löschen bestätigen' }).getByRole('button', { name: 'Löschen' }).click();
-    await expect(page.getByText('2 Vorgänge gelöscht.')).toBeVisible();
+    await expect(page.getByText('2 Vorgänge in den Papierkorb verschoben.')).toBeVisible();
     expect(deleted.sort()).toEqual(['3', '4']);
     await expect(dialog).toBeVisible();
     await expect(lines).toHaveCount(3);
@@ -801,6 +801,88 @@ test.describe('Cases page', () => {
     await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
     await expect(page.getByRole('row', { name: /Invoice copy/ })).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem('frontdesk-case-table'))).toBeNull();
+  });
+
+  test('collects what was deleted in the trash, and deletes it there for good', async ({ page }) => {
+    let trashed: string[] = [];
+    let purged: string[] = [];
+    await page.route('**/api/cases/purge', (route) => {
+      purged = (route.request().postDataJSON() as { ids: string[] }).ids;
+      return route.fulfill({ status: 204, body: '' });
+    });
+    await page.route('**/api/cases', (route) => {
+      if (route.request().method() === 'DELETE') {
+        trashed = (route.request().postDataJSON() as { ids: string[] }).ids;
+        return route.fulfill({ status: 204, body: '' });
+      }
+      return route.fulfill({
+        json: mockCases
+          .filter((aCase) => !purged.includes(aCase.id))
+          .map((aCase) => (trashed.includes(aCase.id) ? { ...aCase, handledAt: null, deletedAt: '2026-08-21T09:00:00Z' } : aCase)),
+      });
+    });
+
+    await page.goto('/');
+    await page
+      .getByRole('row', { name: /Delivery status/ })
+      .getByRole('button', { name: 'Vorgang löschen' })
+      .click();
+    await page.getByRole('alertdialog', { name: 'Löschen bestätigen' }).getByRole('button', { name: 'Löschen' }).click();
+
+    // Deleting is not gone: the case moved, and the word for it says where.
+    await expect(page.getByText('Vorgang in den Papierkorb verschoben.')).toBeVisible();
+    expect(trashed).toEqual(['1']);
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
+
+    await page.getByRole('link', { name: 'Papierkorb' }).click();
+
+    await expect(page).toHaveURL(/\/trash$/);
+    const row = page.getByRole('row', { name: /Delivery status/ });
+    await expect(row).toBeVisible();
+    // Here deleting means for good, and says so before it happens.
+    await expect(page.getByRole('button', { name: 'Auswahl löschen' })).toContainText('Endgültig löschen');
+    await row.getByRole('button', { name: 'Vorgang endgültig löschen' }).click();
+    const question = page.getByRole('alertdialog', { name: 'Endgültig löschen' });
+    await expect(question).toContainText('rückgängig');
+    await question.getByRole('button', { name: 'Endgültig löschen' }).click();
+
+    await expect(page.getByText('Vorgang endgültig gelöscht.')).toBeVisible();
+    expect(purged).toEqual(['1']);
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
+  });
+
+  test('fetches a case back out of the trash, to where it was', async ({ page }) => {
+    let restored: string[] = [];
+    await page.route('**/api/cases/restore', (route) => {
+      restored = (route.request().postDataJSON() as { ids: string[] }).ids;
+      return route.fulfill({ status: 204, body: '' });
+    });
+    await page.route('**/api/cases', (route) =>
+      route.fulfill({
+        json: [
+          mockCases[0],
+          // Thrown away after it was ticked off: it goes back to the archive, not to the inbox.
+          {
+            ...mockCases[1],
+            subject: 'Doch nicht weg',
+            handledAt: '2026-08-20T09:00:00Z',
+            deletedAt: restored.includes('2') ? null : '2026-08-21T09:00:00Z',
+          },
+        ],
+      }),
+    );
+
+    await page.goto('/trash');
+    await page.getByRole('button', { name: '„Doch nicht weg“ wiederherstellen' }).click();
+
+    await expect(page.getByText('Vorgang wiederhergestellt.')).toBeVisible();
+    expect(restored).toEqual(['2']);
+    await expect(page.getByRole('row', { name: /Doch nicht weg/ })).toHaveCount(0);
+
+    await page.getByRole('link', { name: 'Archiv' }).click();
+    await expect(page.getByRole('row', { name: /Doch nicht weg/ })).toBeVisible();
+    await page.getByRole('link', { name: 'Posteingang', exact: true }).click();
+    await expect(page.getByRole('row', { name: /Doch nicht weg/ })).toHaveCount(0);
   });
 
   test('shows an empty state when there are no cases', async ({ page }) => {
