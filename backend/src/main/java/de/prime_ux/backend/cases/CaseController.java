@@ -84,14 +84,46 @@ class CaseController {
 	}
 
 	/**
-	 * Deletes a selection for good; the inbox asks before it gets here. Ids belonging to another
-	 * tenant match nothing, so the answer is the same whether they exist or not.
+	 * Throws a selection away: it moves to the trash rather than leaving, because a mail cannot be
+	 * fetched again once the mailbox has marked it read. Ids belonging to another tenant match
+	 * nothing, so the answer is the same whether they exist or not.
 	 */
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Transactional
 	void deleteCases(@Valid @RequestBody DeleteCasesRequest request, Authentication authentication) {
-		caseRepository.deleteByTenantIdAndIdIn(currentTenantId(authentication), request.ids());
+		List<Case> own = ownCases(request.ids(), currentTenantId(authentication));
+		own.forEach(Case::moveToTrash);
+		caseRepository.saveAll(own);
+	}
+
+	/** Back out of the trash, to where the case was: the archive if it was worked through. */
+	@PutMapping("/restore")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@Transactional
+	void restoreCases(@Valid @RequestBody DeleteCasesRequest request, Authentication authentication) {
+		List<Case> own = ownCases(request.ids(), currentTenantId(authentication));
+		own.forEach(Case::restore);
+		caseRepository.saveAll(own);
+	}
+
+	/**
+	 * Deletes a selection for good; the trash asks before it gets here. Only from the trash: what
+	 * is still in the inbox has been thrown away by nobody, and this cannot be undone.
+	 */
+	@DeleteMapping("/purge")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@Transactional
+	void purgeCases(@Valid @RequestBody DeleteCasesRequest request, Authentication authentication) {
+		List<UUID> inTheTrash = ownCases(request.ids(), currentTenantId(authentication)).stream()
+				.filter(aCase -> aCase.getDeletedAt() != null).map(Case::getId).toList();
+		if (!inTheTrash.isEmpty()) {
+			caseRepository.deleteByTenantIdAndIdIn(currentTenantId(authentication), inTheTrash);
+		}
+	}
+
+	private List<Case> ownCases(List<UUID> ids, UUID tenantId) {
+		return caseRepository.findAllByTenantIdAndIdIn(tenantId, ids);
 	}
 
 	private Case ownCase(UUID id, UUID tenantId) {

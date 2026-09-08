@@ -23,8 +23,15 @@ public interface CaseRepository extends JpaRepository<Case, UUID> {
 	@EntityGraph(attributePaths = "category")
 	Optional<Case> findWithCategoryById(UUID id);
 
-	/** The cases the triage has not looked at yet, oldest first — mail waits in the order it came. */
-	List<Case> findByTenantIdAndTierIsNullOrderByReceivedAtAsc(UUID tenantId, Limit limit);
+	/**
+	 * The cases the triage has not looked at yet, oldest first — mail waits in the order it came.
+	 * What somebody threw away is not looked at: the model would be asked about a mail nobody
+	 * wants an answer to.
+	 */
+	List<Case> findByTenantIdAndTierIsNullAndDeletedAtIsNullOrderByReceivedAtAsc(UUID tenantId, Limit limit);
+
+	/** The cases of this tenant among the given ids; ids of another tenant's simply do not match. */
+	List<Case> findAllByTenantIdAndIdIn(UUID tenantId, Collection<UUID> ids);
 
 	boolean existsByTenantIdAndMessageId(UUID tenantId, String messageId);
 

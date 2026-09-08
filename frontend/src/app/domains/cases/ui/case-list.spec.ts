@@ -59,6 +59,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     tier: null,
     confidence: null,
     handledAt: null,
+    deletedAt: null,
     ...overrides,
   };
 }
@@ -163,6 +164,7 @@ describe('CaseList', () => {
         tier: 'automatic',
         confidence: 0.95,
         handledAt: null,
+        deletedAt: null,
       }),
       aCase({ id: '2', sender: 'ben@example.com', subject: 'Noch unbewertet', receivedAt: new Date('2026-08-19T09:15:00Z') }),
     ]).nativeElement as HTMLElement;

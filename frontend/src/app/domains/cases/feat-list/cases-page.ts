@@ -7,7 +7,7 @@ import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseColumnsService } from '../data/case-columns-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
-import { Case, CaseTier } from '../model/case';
+import { Case, CasePile, CaseTier } from '../model/case';
 import { ReviewGroup } from '../model/case-review';
 import { CaseList } from '../ui/case-list';
 
@@ -18,11 +18,15 @@ import { CaseList } from '../ui/case-list';
 })
 export class CasesPage {
   /**
-   * Which pile this page shows, bound from the route: the inbox is what is still to be worked
-   * through, the archive what somebody has taken note of. One page for both, because everything
-   * else about them — the table, deleting, filing, opening a case — is the same thing.
+   * Which pile this page shows, bound from the route: what is left to do, what was worked
+   * through, and what somebody threw away. One page for all three, because everything else about
+   * them — the table, deleting, filing, opening a case — is the same thing.
+   *
+   * <p>Read through the two below rather than compared against 'inbox' anywhere: the router sets
+   * an input the route does not name to undefined, so the inbox is what is left over, not what
+   * says its own name.
    */
-  readonly archived = input(false);
+  readonly pile = input<CasePile>('inbox');
 
   protected readonly casesService = inject(CasesService);
   protected readonly columnsService = inject(CaseColumnsService);
@@ -37,16 +41,41 @@ export class CasesPage {
   /** Whether the review stands open in front of the table. */
   protected readonly reviewOpen = signal(false);
 
-  protected readonly cases = computed(() => (this.archived() ? this.casesService.archivedCases() : this.casesService.openCases()));
+  protected readonly cases = computed(() => {
+    switch (this.pile()) {
+      case 'archive':
+        return this.casesService.archivedCases();
+      case 'trash':
+        return this.casesService.trashedCases();
+      default:
+        return this.casesService.openCases();
+    }
+  });
 
   /**
-   * What tells the two pages apart: the pile, the name their view is remembered under, the word
-   * for an empty table, and whether the review is offered at all.
+   * What tells the three pages apart: the name their view is remembered under, the heading, the
+   * word for an empty table, the name of the CSV, and which actions make sense where. The review
+   * works through what is open; putting back is the archive's, fetching back the trash's; and
+   * deleting means the trash everywhere except in the trash itself, where it means for good.
    */
-  protected readonly viewKey = computed(() => (this.archived() ? 'frontdesk-archive-table' : 'frontdesk-case-table'));
-  protected readonly titleKey = computed(() => (this.archived() ? 'cases.archiveTitle' : 'cases.title'));
-  protected readonly emptyKey = computed(() => (this.archived() ? 'cases.emptyArchive' : 'cases.empty'));
-  protected readonly exportFilename = computed(() => (this.archived() ? 'archive' : 'cases'));
+  private readonly page = computed(() => {
+    switch (this.pile()) {
+      case 'archive':
+        return { viewKey: 'frontdesk-archive-table', title: 'cases.archiveTitle', empty: 'cases.emptyArchive', file: 'archive' };
+      case 'trash':
+        return { viewKey: 'frontdesk-trash-table', title: 'cases.trashTitle', empty: 'cases.emptyTrash', file: 'trash' };
+      default:
+        return { viewKey: 'frontdesk-case-table', title: 'cases.title', empty: 'cases.empty', file: 'cases' };
+    }
+  });
+
+  protected readonly viewKey = computed(() => this.page().viewKey);
+  protected readonly titleKey = computed(() => this.page().title);
+  protected readonly emptyKey = computed(() => this.page().empty);
+  protected readonly exportFilename = computed(() => this.page().file);
+  protected readonly inTrash = computed(() => this.pile() === 'trash');
+  protected readonly inArchive = computed(() => this.pile() === 'archive');
+  protected readonly inInbox = computed(() => !this.inTrash() && !this.inArchive());
 
   constructor() {
     // Coming back from the summaries means coming back to the review, not merely to the inbox:
@@ -104,35 +133,51 @@ export class CasesPage {
     if (cases.length === 0) {
       return;
     }
+    // In the trash the question is the last one there is, so it says so and reads differently.
+    const forGood = this.inTrash();
+    const one = cases.length === 1;
     this.confirmationService.confirm({
-      header: this.transloco.translate('cases.deleteHeader'),
+      header: this.transloco.translate(forGood ? 'cases.purgeHeader' : 'cases.deleteHeader'),
       // One case is named, several are counted: a list of twenty subjects in a
       // dialog is not read, it is clicked away.
-      message:
-        cases.length === 1
-          ? this.transloco.translate('cases.deleteOne', { subject: cases[0].subject })
-          : this.transloco.translate('cases.deleteMany', { count: cases.length }),
+      message: one
+        ? this.transloco.translate(forGood ? 'cases.purgeOne' : 'cases.deleteOne', { subject: cases[0].subject })
+        : this.transloco.translate(forGood ? 'cases.purgeMany' : 'cases.deleteMany', { count: cases.length }),
       icon: 'pi pi-exclamation-triangle',
-      acceptLabel: this.transloco.translate('cases.deleteConfirm'),
+      acceptLabel: this.transloco.translate(forGood ? 'cases.purgeConfirm' : 'cases.deleteConfirm'),
       rejectLabel: this.transloco.translate('cases.deleteCancel'),
       acceptButtonStyleClass: 'p-button-danger',
       rejectButtonProps: { severity: 'secondary', outlined: true },
-      accept: () => void this.remove(cases),
+      accept: () => void this.remove(cases, forGood),
     });
   }
 
-  private async remove(cases: Case[]): Promise<void> {
+  private async remove(cases: Case[], forGood: boolean): Promise<void> {
+    const one = cases.length === 1;
     try {
-      await this.casesService.remove(cases.map((aCase) => aCase.id));
+      const ids = cases.map((aCase) => aCase.id);
+      await (forGood ? this.casesService.purge(ids) : this.casesService.remove(ids));
       this.messageService.add({
         severity: 'success',
-        summary:
-          cases.length === 1
-            ? this.transloco.translate('cases.deletedOne')
-            : this.transloco.translate('cases.deletedMany', { count: cases.length }),
+        summary: one
+          ? this.transloco.translate(forGood ? 'cases.purgedOne' : 'cases.deletedOne')
+          : this.transloco.translate(forGood ? 'cases.purgedMany' : 'cases.deletedMany', { count: cases.length }),
       });
     } catch {
       this.messageService.add({ severity: 'error', summary: this.transloco.translate('cases.deleteError') });
+    }
+  }
+
+  /**
+   * Out of the trash. No question first: this is the undo of a deletion, and what it undoes was
+   * asked about already. Where the case lands is where it was, so the word for it says no more.
+   */
+  protected async onRestoreRequested(aCase: Case): Promise<void> {
+    try {
+      await this.casesService.restore([aCase.id]);
+      this.messageService.add({ severity: 'success', summary: this.transloco.translate('cases.restored') });
+    } catch {
+      this.messageService.add({ severity: 'error', summary: this.transloco.translate('cases.restoreError') });
     }
   }
 }

@@ -71,6 +71,7 @@ test.describe('Dashboard', () => {
     await expect(casesLinks.first()).toHaveText('Dashboard');
     await expect(casesLinks.nth(1)).toHaveText('Posteingang');
     await expect(casesLinks.nth(2)).toHaveText('Archiv');
+    await expect(casesLinks.nth(3)).toHaveText('Papierkorb');
 
     await casesLinks.first().click();
 

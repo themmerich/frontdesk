@@ -90,6 +90,11 @@ public class Case {
 	@Column(name = "handled_at")
 	private Instant handledAt;
 
+	// When somebody threw the case away. It then sits in the trash rather than
+	// being gone: a mail cannot be fetched again once the mailbox marked it read.
+	@Column(name = "deleted_at")
+	private Instant deletedAt;
+
 	// The model's one-sentence answer to "what does the sender want?".
 	@Column
 	private String summary;
@@ -140,6 +145,23 @@ public class Case {
 		else if (this.handledAt == null) {
 			this.handledAt = Instant.now();
 		}
+	}
+
+	/**
+	 * Thrown away, or fetched back out of the trash. The row stays either way — what leaves for
+	 * good leaves through the repository, and only from the trash.
+	 *
+	 * <p>Throwing away says nothing about whether the case was worked through: it keeps its
+	 * handled moment, so a case fetched back lands where it was, in the inbox or in the archive.
+	 */
+	public void moveToTrash() {
+		if (this.deletedAt == null) {
+			this.deletedAt = Instant.now();
+		}
+	}
+
+	public void restore() {
+		this.deletedAt = null;
 	}
 
 	/**

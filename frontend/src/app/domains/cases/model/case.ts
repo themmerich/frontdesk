@@ -28,6 +28,11 @@ export type Case = {
    * what the review works through. Deliberately not a deletion: the case stays in the inbox.
    */
   handledAt: Date | null;
+  /**
+   * When somebody threw the case away. It then sits in the trash, out of the inbox and out of the
+   * archive, until it is deleted for good or fetched back.
+   */
+  deletedAt: Date | null;
 };
 
 /**
@@ -57,3 +62,9 @@ export type CaseCategoryColor = 'blue' | 'green' | 'amber' | 'red' | 'violet' | 
  * who writes it. `info` needs none but should be seen, `ignore` needs neither.
  */
 export type CaseTier = 'automatic' | 'draft' | 'manual' | 'info' | 'ignore';
+
+/**
+ * The three piles a case can be in, and the three pages that show them: what is left to do, what
+ * was worked through, and what somebody threw away. Every case is in exactly one of them.
+ */
+export type CasePile = 'inbox' | 'archive' | 'trash';

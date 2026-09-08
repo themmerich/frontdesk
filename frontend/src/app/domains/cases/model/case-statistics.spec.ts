@@ -17,6 +17,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     tier: null,
     confidence: null,
     handledAt: null,
+    deletedAt: null,
     ...overrides,
   };
 }

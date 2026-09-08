@@ -76,6 +76,16 @@
                   <span class="text-base leading-tight font-medium">{{ t('shell.archive') }}</span>
                 </a>
               </li>
+              <li>
+                <a
+                  routerLink="/trash"
+                  routerLinkActive="bg-primary-emphasis"
+                  class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+                >
+                  <i class="pi pi-trash text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+                  <span class="text-base leading-tight font-medium">{{ t('shell.trash') }}</span>
+                </a>
+              </li>
             </ul>
           </li>
           @if (authStore.currentUser()?.role === 'admin') {

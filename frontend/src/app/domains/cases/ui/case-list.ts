@@ -134,6 +134,13 @@ export class CaseList {
    */
   readonly showReopen = input(false);
 
+  /**
+   * Whether a row can be fetched out of the trash, and whether deleting means for good. Both are
+   * the trash's business: everywhere else, deleting is what puts a case there.
+   */
+  readonly showRestore = input(false);
+  readonly permanentDelete = input(false);
+
   /** What the category cell offers. Empty while they are on their way, or could not be read. */
   readonly categories = input<SelectableCategory[]>([]);
 
@@ -155,6 +162,9 @@ export class CaseList {
 
   /** A case that is to be worked through after all. Saving is the page's job. */
   readonly reopenRequested = output<Case>();
+
+  /** A case to be fetched out of the trash. Saving is the page's job, as everywhere here. */
+  readonly restoreRequested = output<Case>();
 
   /**
    * The order the table currently shows, after filtering and sorting. The detail view pages
@@ -483,7 +493,13 @@ export class CaseList {
    * pushing the layout out of the viewport. The row actions are narrow and come on top of the
    * toggleable columns.
    */
-  protected readonly minTableWidth = computed(() => `${this.visibleColumns().length * 9 + (this.showReopen() ? 8 : 5)}rem`);
+  protected readonly minTableWidth = computed(
+    () => `${this.visibleColumns().length * 9 + (this.showReopen() || this.showRestore() ? 8 : 5)}rem`,
+  );
+
+  /** What the delete says it does: into the trash, or out of the world. */
+  protected readonly deleteKey = computed(() => (this.permanentDelete() ? 'cases.deleteForever' : 'cases.delete'));
+  protected readonly deleteRowKey = computed(() => (this.permanentDelete() ? 'cases.deleteRowForever' : 'cases.deleteRow'));
 
   protected tierLabelKey(tier: CaseTier): string {
     return TIER_LABEL_KEY[tier];
@@ -534,6 +550,10 @@ export class CaseList {
 
   protected onReopenRow(row: Case): void {
     this.reopenRequested.emit(row);
+  }
+
+  protected onRestoreRow(row: Case): void {
+    this.restoreRequested.emit(row);
   }
 
   protected onDeleteRow(row: Case): void {

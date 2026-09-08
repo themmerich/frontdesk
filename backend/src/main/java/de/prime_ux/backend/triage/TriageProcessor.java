@@ -44,7 +44,8 @@ public class TriageProcessor {
 	 */
 	@Transactional
 	public int triageOnce(Tenant tenant, int batchSize) {
-		List<Case> untriaged = caseRepository.findByTenantIdAndTierIsNullOrderByReceivedAtAsc(tenant.getId(),
+		List<Case> untriaged = caseRepository.findByTenantIdAndTierIsNullAndDeletedAtIsNullOrderByReceivedAtAsc(
+				tenant.getId(),
 				Limit.of(batchSize));
 		if (untriaged.isEmpty()) {
 			return 0;

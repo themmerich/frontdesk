@@ -16,6 +16,20 @@ const translations = {
     title: 'Cases',
     archiveTitle: 'Archive',
     reopen: 'Reopen',
+    trashTitle: 'Trash',
+    emptyTrash: 'The trash is empty.',
+    restore: 'Restore',
+    restoreRow: 'Restore {{subject}}',
+    restored: 'Case restored.',
+    restoreError: 'The case could not be restored.',
+    deleteForever: 'Delete for good',
+    deleteRowForever: 'Delete case for good',
+    purgeHeader: 'Delete for good',
+    purgeOne: 'Delete {{subject}} for good?',
+    purgeMany: 'Delete these {{count}} cases for good?',
+    purgeConfirm: 'Delete for good',
+    purgedOne: 'Case deleted for good.',
+    purgedMany: '{{count}} cases deleted for good.',
     reopenRow: 'Reopen {{subject}}',
     reopened: 'The case is back in the inbox.',
     reopenError: 'The case could not be reopened.',
@@ -48,11 +62,23 @@ describe('CasesPage', () => {
   let failClassification: boolean;
   let reopened: { id: string; handled: boolean }[];
   let failReopen: boolean;
+  let restored: string[][];
+  let failRestore: boolean;
+  let purged: string[][];
   const casesServiceStub = {
     cases: { value: cases, error },
     // Split the way the service splits them: the inbox shows the open ones, the archive the rest.
-    openCases: computed(() => cases().filter((row) => row.handledAt === null)),
-    archivedCases: computed(() => cases().filter((row) => row.handledAt !== null)),
+    openCases: computed(() => cases().filter((row) => row.handledAt === null && row.deletedAt === null)),
+    archivedCases: computed(() => cases().filter((row) => row.handledAt !== null && row.deletedAt === null)),
+    trashedCases: computed(() => cases().filter((row) => row.deletedAt !== null)),
+    restore: (ids: string[]) => {
+      restored.push(ids);
+      return failRestore ? Promise.reject(new Error('nope')) : Promise.resolve();
+    },
+    purge: (ids: string[]) => {
+      purged.push(ids);
+      return removeFails ? Promise.reject(new Error('nope')) : Promise.resolve();
+    },
     remove: (ids: string[]) => {
       removed.push(ids);
       return removeFails ? Promise.reject(new Error('nope')) : Promise.resolve();
@@ -82,6 +108,9 @@ describe('CasesPage', () => {
     failClassification = false;
     reopened = [];
     failReopen = false;
+    restored = [];
+    failRestore = false;
+    purged = [];
     toasts = [];
     confirmations = [];
     await TestBed.configureTestingModule({
@@ -126,8 +155,20 @@ describe('CasesPage', () => {
       tier: null,
       confidence: null,
       handledAt: null,
+      deletedAt: null,
       ...overrides,
     };
+  }
+
+  function createFixture(pile: 'inbox' | 'archive' | 'trash') {
+    const fixture = TestBed.createComponent(CasesPage);
+    fixture.componentRef.setInput('pile', pile);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  function textOf(pile: 'inbox' | 'archive' | 'trash'): string {
+    return (createFixture(pile).nativeElement as HTMLElement).textContent ?? '';
   }
 
   /** What the toolbar offers, by the words on its buttons. */
@@ -158,7 +199,7 @@ describe('CasesPage', () => {
     expect(inboxText).not.toContain('ben@example.com');
 
     const archive = TestBed.createComponent(CasesPage);
-    archive.componentRef.setInput('archived', true);
+    archive.componentRef.setInput('pile', 'archive');
     archive.detectChanges();
     const archiveText = (archive.nativeElement as HTMLElement).textContent;
     expect(archiveText).toContain('ben@example.com');
@@ -175,16 +216,29 @@ describe('CasesPage', () => {
     expect(labels(inbox.nativeElement as HTMLElement)).toContain('Review');
 
     const archive = TestBed.createComponent(CasesPage);
-    archive.componentRef.setInput('archived', true);
+    archive.componentRef.setInput('pile', 'archive');
     archive.detectChanges();
     expect(labels(archive.nativeElement as HTMLElement)).not.toContain('Review');
+  });
+
+  it('is the inbox where the route names no pile at all', () => {
+    cases.set([aCase({ id: '1' })]);
+    const fixture = TestBed.createComponent(CasesPage);
+    // What the router does on a route without the input: it sets it, with nothing in it.
+    fixture.componentRef.setInput('pile', undefined);
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(labels(element)).toContain('Review');
+    expect(element.textContent).toContain('anna@example.com');
+    expect(fixture.componentInstance['viewKey']()).toBe('frontdesk-case-table');
   });
 
   it('lets each page remember its own filters and sorting', () => {
     const inbox = TestBed.createComponent(CasesPage);
     inbox.detectChanges();
     const archive = TestBed.createComponent(CasesPage);
-    archive.componentRef.setInput('archived', true);
+    archive.componentRef.setInput('pile', 'archive');
     archive.detectChanges();
 
     // Same table, two piles: what was filtered in the archive says nothing about the inbox.
@@ -202,7 +256,7 @@ describe('CasesPage', () => {
     expect((inbox.nativeElement as HTMLElement).querySelector('tbody button[aria-label^="Reopen"]')).toBeNull();
 
     const archive = TestBed.createComponent(CasesPage);
-    archive.componentRef.setInput('archived', true);
+    archive.componentRef.setInput('pile', 'archive');
     archive.detectChanges();
     const button = (archive.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('tbody button[aria-label^="Reopen"]')!;
     expect(button.getAttribute('aria-label')).toBe('Reopen Weekly digest');
@@ -219,13 +273,84 @@ describe('CasesPage', () => {
     failReopen = true;
     cases.set([aCase({ id: '2', handledAt: new Date('2026-08-20T09:00:00Z') })]);
     const archive = TestBed.createComponent(CasesPage);
-    archive.componentRef.setInput('archived', true);
+    archive.componentRef.setInput('pile', 'archive');
     archive.detectChanges();
 
     (archive.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('tbody button[aria-label^="Reopen"]')!.click();
     await archive.whenStable();
 
     expect(toasts.map((toast) => [toast.severity, toast.summary])).toEqual([['error', 'The case could not be reopened.']]);
+  });
+
+  it('shows in the trash what was thrown away, and nothing of it anywhere else', () => {
+    cases.set([
+      aCase({ id: '1', sender: 'anna@example.com' }),
+      aCase({ id: '2', sender: 'ben@example.com', handledAt: new Date('2026-08-20T09:00:00Z') }),
+      aCase({ id: '3', sender: 'cara@example.com', deletedAt: new Date('2026-08-21T09:00:00Z') }),
+      // Thrown away after it was ticked off: it belongs in the trash, not in the archive.
+      aCase({
+        id: '4',
+        sender: 'dora@example.com',
+        handledAt: new Date('2026-08-20T09:00:00Z'),
+        deletedAt: new Date('2026-08-21T10:00:00Z'),
+      }),
+    ]);
+
+    expect(textOf('inbox')).toContain('anna@example.com');
+    expect(textOf('inbox')).not.toContain('cara@example.com');
+    expect(textOf('archive')).toContain('ben@example.com');
+    expect(textOf('archive')).not.toContain('dora@example.com');
+
+    const trash = textOf('trash');
+    expect(trash).toContain('cara@example.com');
+    expect(trash).toContain('dora@example.com');
+    expect(trash).not.toContain('anna@example.com');
+    expect(trash).not.toContain('ben@example.com');
+  });
+
+  it('says in the trash that deleting is for good, and asks accordingly', async () => {
+    cases.set([aCase({ id: '3', subject: 'Weg damit', deletedAt: new Date('2026-08-21T09:00:00Z') })]);
+    const trash = createFixture('trash');
+
+    const element = trash.nativeElement as HTMLElement;
+    expect(labels(element)).toContain('Delete for good');
+    element.querySelector<HTMLButtonElement>('tbody button[aria-label="Delete case for good"]')!.click();
+
+    // The last question there is says as much, and answering it purges rather than deletes again.
+    expect(confirmations[0].header).toBe('Delete for good');
+    expect(confirmations[0].message).toBe('Delete Weg damit for good?');
+    confirmations[0].accept!();
+    await trash.whenStable();
+
+    expect(purged).toEqual([['3']]);
+    expect(removed).toEqual([]);
+    expect(toasts.map((toast) => toast.summary)).toEqual(['Case deleted for good.']);
+  });
+
+  it('fetches a case out of the trash, from the trash only', async () => {
+    cases.set([aCase({ id: '1' }), aCase({ id: '3', subject: 'Doch nicht', deletedAt: new Date('2026-08-21T09:00:00Z') })]);
+    const inbox = createFixture('inbox');
+    expect((inbox.nativeElement as HTMLElement).querySelector('tbody button[aria-label^="Restore"]')).toBeNull();
+
+    const trash = createFixture('trash');
+    (trash.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('tbody button[aria-label="Restore Doch nicht"]')!.click();
+    await trash.whenStable();
+
+    // No question first: this is the undo of a deletion that was asked about already.
+    expect(confirmations).toEqual([]);
+    expect(restored).toEqual([['3']]);
+    expect(toasts.map((toast) => toast.summary)).toEqual(['Case restored.']);
+  });
+
+  it('says so when a case could not be fetched out of the trash', async () => {
+    failRestore = true;
+    cases.set([aCase({ id: '3', deletedAt: new Date('2026-08-21T09:00:00Z') })]);
+    const trash = createFixture('trash');
+
+    (trash.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('tbody button[aria-label^="Restore"]')!.click();
+    await trash.whenStable();
+
+    expect(toasts.map((toast) => [toast.severity, toast.summary])).toEqual([['error', 'The case could not be restored.']]);
   });
 
   it('saves what was picked in a row, and says so', async () => {

@@ -12,6 +12,7 @@ const translations = {
     cases: 'Cases',
     inbox: 'Inbox',
     archive: 'Archive',
+    trash: 'Trash',
     administration: 'Administration',
     users: 'Users',
     company: 'Company',
@@ -79,6 +80,14 @@ describe('Sidebar', () => {
 
     const link = (fixture.nativeElement as HTMLElement).querySelector('a[href="/archive"]');
     expect(link?.textContent).toContain('Archive');
+  });
+
+  it('links the trash below the archive', () => {
+    const fixture = TestBed.createComponent(Sidebar);
+    fixture.detectChanges();
+
+    const link = (fixture.nativeElement as HTMLElement).querySelector('a[href="/trash"]');
+    expect(link?.textContent).toContain('Trash');
   });
 
   it('links the inbox item to the start page', () => {

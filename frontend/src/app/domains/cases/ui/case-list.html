@@ -116,7 +116,7 @@
             icon="pi pi-trash"
             severity="danger"
             [outlined]="true"
-            [label]="t('cases.delete')"
+            [label]="t(deleteKey())"
             [ariaLabel]="t('cases.deleteSelected')"
             [disabled]="selection().length === 0"
             (onClick)="onDeleteSelected()"
@@ -333,6 +333,18 @@
             tooltipPosition="left"
             (onClick)="onOpen(row)"
           />
+          @if (showRestore()) {
+            <!-- The way out of the trash, as long as the case is still in it. -->
+            <p-button
+              icon="pi pi-history"
+              variant="text"
+              severity="secondary"
+              [ariaLabel]="t('cases.restoreRow', { subject: row.subject })"
+              [pTooltip]="t('cases.restore')"
+              tooltipPosition="left"
+              (onClick)="onRestoreRow(row)"
+            />
+          }
           @if (showReopen()) {
             <!-- The way out of the archive: ticked off too early, or come up again. -->
             <p-button
@@ -349,8 +361,8 @@
             icon="pi pi-trash"
             variant="text"
             severity="danger"
-            [ariaLabel]="t('cases.deleteRow')"
-            [pTooltip]="t('cases.deleteRow')"
+            [ariaLabel]="t(deleteRowKey())"
+            [pTooltip]="t(deleteRowKey())"
             tooltipPosition="left"
             (onClick)="onDeleteRow(row)"
           />

@@ -36,8 +36,9 @@ export function reviewGroups(cases: Case[]): ReviewGroup[] {
   const groups = new Map<string, ReviewGroup>();
   for (const aCase of cases) {
     // What somebody has taken note of is done with, and the point of the review is to get it
-    // empty. The case itself stays in the inbox, where it can be found again.
-    if (aCase.handledAt !== null) {
+    // empty. The case itself stays in the inbox, where it can be found again. What was thrown
+    // away is not worked through either — it is waiting in the trash, not for an answer.
+    if (aCase.handledAt !== null || aCase.deletedAt !== null) {
       continue;
     }
     const key = `${aCase.categoryName ?? ''}|${aCase.tier ?? ''}`;

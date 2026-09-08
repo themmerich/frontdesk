@@ -45,6 +45,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     tier: 'info',
     confidence: 0.9,
     handledAt: null,
+    deletedAt: null,
     ...overrides,
   };
 }

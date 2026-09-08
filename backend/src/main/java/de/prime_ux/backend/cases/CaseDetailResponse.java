@@ -13,7 +13,8 @@ import java.util.UUID;
  */
 record CaseDetailResponse(UUID id, String sender, String recipient, String subject, String bodyText,
 		Instant receivedAt, boolean hasAttachments, long sizeBytes, String summary, UUID categoryId,
-		String categoryName, String categoryColor, String tier, BigDecimal confidence, Instant handledAt) {
+		String categoryName, String categoryColor, String tier, BigDecimal confidence, Instant handledAt,
+		Instant deletedAt) {
 
 	static CaseDetailResponse from(Case aCase) {
 		CaseCategory category = aCase.getCategory();
@@ -24,6 +25,6 @@ record CaseDetailResponse(UUID id, String sender, String recipient, String subje
 				category == null || category.getColor() == null ? null
 						: category.getColor().name().toLowerCase(Locale.ROOT),
 				aCase.getTier() == null ? null : aCase.getTier().name().toLowerCase(Locale.ROOT),
-				aCase.getConfidence(), aCase.getHandledAt());
+				aCase.getConfidence(), aCase.getHandledAt(), aCase.getDeletedAt());
 	}
 }
