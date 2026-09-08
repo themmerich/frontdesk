@@ -70,6 +70,26 @@
   --app-chart-grid: #334155;
 }
 
+/* Which way a number moved against the stretch before it. Green for more, red for
+   less — with the triangle pointing the same way, so the colour is a second
+   reading of it and never the only one. */
+:root {
+  --app-trend-up: #15803d;
+  --app-trend-down: #b91c1c;
+}
+
+.dark {
+  --app-trend-up: #86efac;
+  --app-trend-down: #fca5a5;
+}
+
+[data-trend='up'] {
+  color: var(--app-trend-up);
+}
+[data-trend='down'] {
+  color: var(--app-trend-down);
+}
+
 /* Applied through a data attribute rather than a class: the element carries the
    name it got from the API and nothing has to map it to a class list, so a
    binding can never fight with the classes PrimeNG puts on the same element. */

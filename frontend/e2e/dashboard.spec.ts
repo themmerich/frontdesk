@@ -116,6 +116,73 @@ test.describe('Dashboard', () => {
     await expect(week).toContainText('+3');
   });
 
+  test('counts what is filed and what was thrown away, and keeps the trash out of the rest', async ({ page }) => {
+    const today = new Date();
+    today.setMinutes(today.getMinutes() - 5);
+    const extra = (id: string, subject: string, fields: Record<string, unknown>) => ({
+      recipient: 'info@example.com',
+      hasAttachments: false,
+      sizeBytes: 2048,
+      summary: null,
+      sender: 'dora@example.com',
+      categoryName: null,
+      categoryColor: null,
+      tier: 'info',
+      confidence: null,
+      receivedAt: today.toISOString(),
+      id,
+      subject,
+      ...fields,
+    });
+    await page.route('**/api/cases', (route) =>
+      route.fulfill({
+        json: [
+          ...mockCases(),
+          extra('4', 'Abgehakt', { handledAt: today.toISOString() }),
+          extra('5', 'Weggeworfen', { deletedAt: today.toISOString() }),
+          // Thrown away after it was ticked off: it counts as trash, not as archive.
+          extra('6', 'Beides', { handledAt: today.toISOString(), deletedAt: today.toISOString() }),
+        ],
+      }),
+    );
+
+    await page.goto('/dashboard');
+
+    const tile = (label: string) => page.getByText(label, { exact: true }).locator('xpath=following-sibling::p');
+    await expect(tile('Im Archiv')).toHaveText('1');
+    await expect(tile('Im Papierkorb')).toHaveText('2');
+    // The three from the inbox plus the one in the archive; the two in the trash count nowhere else.
+    await expect(tile('Vorgänge gesamt')).toHaveText('4');
+  });
+
+  test('points the trend with a triangle, green up and red down', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
+
+    await page.goto('/dashboard');
+
+    // Two today against one yesterday: up, and drawn in the colour styles.css gives that direction.
+    const today = page.locator('p-card').filter({ hasText: 'ggü. gestern' });
+    const trend = today.locator('[data-trend]');
+    await expect(trend).toHaveAttribute('data-trend', 'up');
+    await expect(trend.locator('i')).toHaveClass(/pi-caret-up/);
+    const up = await trend.evaluate((element) => getComputedStyle(element).color);
+    expect(up).toBe('rgb(21, 128, 61)');
+
+    // The other way round: yesterday held two, today holds none.
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    await page.route('**/api/cases', (route) =>
+      route.fulfill({
+        json: mockCases().map((aCase) => ({ ...aCase, receivedAt: yesterday.toISOString() })),
+      }),
+    );
+    await page.reload();
+
+    await expect(trend).toHaveAttribute('data-trend', 'down');
+    await expect(trend.locator('i')).toHaveClass(/pi-caret-down/);
+    expect(await trend.evaluate((element) => getComputedStyle(element).color)).toBe('rgb(185, 28, 28)');
+  });
+
   test('switches the arrivals chart between today, the days and the months', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
 

@@ -27,6 +27,8 @@ const translations = {
     total: 'Cases in total',
     untriaged: 'Not triaged yet',
     needsAnswer: 'Waiting for an answer',
+    archived: 'In the archive',
+    trashed: 'In the trash',
     refresh: 'Refresh',
     today: 'Today',
     week: 'Last 7 days',
@@ -95,11 +97,9 @@ describe('DashboardPage', () => {
         provideZonelessChangeDetection(),
         {
           provide: CasesService,
-          useValue: {
-            cases: { value: cases, error, status, isLoading, reload },
-            // The numbers are about the work, so what somebody threw away is not among them.
-            activeCases: computed(() => (error() ? [] : cases()).filter((row) => row.deletedAt === null)),
-          },
+          // The page reads the whole list once and splits it itself, so every number on it comes
+          // from the same reading.
+          useValue: { cases: { value: cases, error, status, isLoading, reload } },
         },
       ],
     }).compileComponents();
@@ -137,6 +137,58 @@ describe('DashboardPage', () => {
     expect(text).toMatch(/Not triaged yet\s*1/);
     expect(text).toMatch(/Waiting for an answer\s*2/);
     expect(text).toMatch(/Today\s*3/);
+  });
+
+  it('counts what is in the archive and in the trash, and leaves the trash out of the rest', () => {
+    cases.set([
+      aCase({ id: '1', tier: 'manual' }),
+      aCase({ id: '2', tier: 'info', handledAt: new Date() }),
+      aCase({ id: '3', tier: 'info', handledAt: new Date() }),
+      aCase({ id: '4', tier: 'manual', deletedAt: new Date() }),
+      // Thrown away after it was ticked off: it counts as trash, not as archive.
+      aCase({ id: '5', tier: 'info', handledAt: new Date(), deletedAt: new Date() }),
+    ]);
+
+    const text = (createFixture().nativeElement as HTMLElement).textContent;
+
+    expect(text).toMatch(/In the archive\s*2/);
+    expect(text).toMatch(/In the trash\s*2/);
+    // Three left over, and the two in the trash are in none of the numbers about the work.
+    expect(text).toMatch(/Cases in total\s*3/);
+    expect(text).toMatch(/Waiting for an answer\s*1/);
+  });
+
+  it('marks a trend with a triangle that points and carries the colour', () => {
+    const hoursAgo = (hours: number) => {
+      const then = new Date();
+      then.setHours(then.getHours() - hours);
+      return then;
+    };
+    cases.set([
+      aCase({ receivedAt: hoursAgo(1) }),
+      aCase({ id: '2', receivedAt: hoursAgo(2) }),
+      aCase({ id: '3', receivedAt: hoursAgo(25) }),
+    ]);
+
+    const element = createFixture().nativeElement as HTMLElement;
+
+    const trends = Array.from(element.querySelectorAll('[data-trend]')).map((trend) => [
+      trend.getAttribute('data-trend'),
+      trend.querySelector('i')?.className,
+    ]);
+    // All three stretches hold more than the ones before them; styles.css draws "up" green.
+    expect(trends.map(([direction]) => direction)).toEqual(['up', 'up', 'up']);
+    expect(trends.every(([, icon]) => icon?.includes('pi-caret-up'))).toBe(true);
+  });
+
+  it('leaves a stretch that did not move without a direction, and without a colour', () => {
+    cases.set([]);
+
+    const element = createFixture().nativeElement as HTMLElement;
+
+    // Nothing to point at, so there is no attribute for styles.css to colour — only the dash.
+    expect(element.querySelectorAll('[data-trend]')).toHaveLength(0);
+    expect(element.querySelectorAll('i.pi-minus').length).toBe(3);
   });
 
   it('draws the categories, the tiers and the arrivals', () => {

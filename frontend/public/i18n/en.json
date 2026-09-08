@@ -29,6 +29,8 @@
     "total": "Cases in total",
     "untriaged": "Not triaged yet",
     "needsAnswer": "Waiting for an answer",
+    "archived": "In the archive",
+    "trashed": "In the trash",
     "today": "Today",
     "byCategory": "Cases per category",
     "byTier": "Cases per tier",

@@ -156,11 +156,12 @@ describe('CaseReviewDialog', () => {
     expect(document.querySelectorAll('.p-dialog thead .p-datatable-column-resizer')).toHaveLength(3);
   });
 
-  it('stands the actions at the left edge of their column, under their heading', async () => {
+  it('centres the count and stands the actions at the left edge of their column', async () => {
     await openDialog([aCase({ id: '1', ...ads })]);
 
-    const actions = rows()[0].querySelectorAll('td')[3].firstElementChild as HTMLElement;
-    expect(actions.className).not.toContain('justify-end');
+    const cells = rows()[0].querySelectorAll('td');
+    expect(cells[2].className).toContain('text-center');
+    expect((cells[3].firstElementChild as HTMLElement).className).not.toContain('justify-end');
   });
 
   it('says what its buttons do without writing it next to them', async () => {

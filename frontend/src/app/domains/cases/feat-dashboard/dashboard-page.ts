@@ -65,7 +65,13 @@ export class DashboardPage {
    * cases does not change enough in that time to be worth watching. So the dashboard asks once,
    * when it opens, and then stands still until it is opened again.
    */
-  private readonly cases = signal<Case[]>([]);
+  private readonly snapshot = signal<Case[]>([]);
+
+  /**
+   * What the charts and the counts above them are about: the work. Everything that was thrown
+   * away is out of it — the trash has a number of its own, and nothing else.
+   */
+  private readonly cases = computed(() => this.snapshot().filter((aCase) => aCase.deletedAt === null));
 
   constructor() {
     // The theme is a class on <html>, toggled elsewhere in the app; this is the one place that
@@ -93,8 +99,9 @@ export class DashboardPage {
     const reading = effect(
       () => {
         if (this.casesService.cases.status() === 'resolved') {
-          // What somebody threw away is not work, and the numbers are about the work.
-          untracked(() => this.cases.set(this.casesService.activeCases()));
+          // Everything, the trash included: what is counted where is decided below, and both
+          // numbers should come from the same reading rather than from two.
+          untracked(() => this.snapshot.set(this.casesService.cases.value()));
           reading.destroy();
         }
       },
@@ -113,31 +120,37 @@ export class DashboardPage {
     }));
   });
 
-  /** What the inbox holds, and what of it is still on someone's list. */
+  /** What the inbox holds, what of it is still on someone's list, and where the rest went. */
   protected readonly totals = computed(() => {
     const cases = this.cases();
     return {
       all: cases.length,
       untriaged: cases.filter((aCase) => aCase.tier === null).length,
       manual: cases.filter((aCase) => aCase.tier === 'manual' || aCase.tier === 'draft').length,
+      // Worked through and filed, or thrown away and still fetchable. Neither is part of the
+      // three numbers above: those are about what is left to do.
+      archived: cases.filter((aCase) => aCase.handledAt !== null).length,
+      trashed: this.snapshot().filter((aCase) => aCase.deletedAt !== null).length,
     };
   });
 
   /**
    * What came in today, over the last seven days and over the last thirty — each against the
-   * equally long stretch right before it, which is what "ggü. Vorwoche" is short for. The arrow
-   * says which way it went; it is not coloured, because more mail is neither good nor bad news,
-   * only more.
+   * equally long stretch right before it, which is what "ggü. Vorwoche" is short for. A triangle
+   * says which way it went, green for up and red for down; where the two are equal there is no
+   * direction and no colour, only a dash.
    */
   protected readonly windows = computed(() => {
     const cases = this.cases();
     const now = new Date();
     return Object.entries(WINDOW_DAYS).map(([name, days]) => {
       const { count, previous } = countInWindow(cases, days, now);
+      const difference = count - previous;
       return {
         name,
         count,
-        difference: count - previous,
+        difference,
+        trend: difference === 0 ? null : difference > 0 ? 'up' : 'down',
         // Against nothing there is no percentage to give, only the number itself.
         percentage: previous === 0 ? null : Math.round(((count - previous) / previous) * 100),
       };
