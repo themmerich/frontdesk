@@ -129,6 +129,7 @@
     "reviewShow": "Show",
     "reviewShowGroup": "Show {{category}}",
     "reviewEmpty": "Nothing left to review.",
+    "reviewNoMatch": "No group matches the filter.",
     "reviewClose": "Close"
   },
   "caseReview": {

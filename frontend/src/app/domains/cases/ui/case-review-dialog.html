@@ -6,82 +6,153 @@
     [style]="{ width: '60rem' }"
     [breakpoints]="{ '960px': '95vw' }"
   >
-    @if (groups().length === 0) {
+    @if (rows().length === 0) {
       <p class="py-6 text-center text-surface-500 dark:text-surface-400">{{ t('cases.reviewEmpty') }}</p>
     } @else {
-      <table class="w-full text-sm">
-        <caption class="sr-only">
-          {{
-            t('cases.reviewCaption')
-          }}
-        </caption>
-        <thead>
-          <tr class="border-b border-surface-200 text-left text-surface-500 dark:border-surface-700 dark:text-surface-400">
-            <th scope="col" class="py-2 pr-3 font-medium">{{ t('cases.category') }}</th>
-            <th scope="col" class="py-2 pr-3 font-medium">{{ t('cases.tier') }}</th>
-            <th scope="col" class="py-2 pr-3 text-right font-medium">{{ t('cases.reviewCount') }}</th>
-            <th scope="col" class="py-2 text-right font-medium">{{ t('cases.actions') }}</th>
+      <!-- Unsorted it stands in the order the review works through: what needs nobody first, and
+           the biggest pile of a tier before the smaller ones. Sorting comes on top of that. -->
+      <p-table
+        [value]="rows()"
+        dataKey="key"
+        size="small"
+        [resizableColumns]="true"
+        columnResizeMode="fit"
+        [tableStyle]="{ 'min-width': '40rem' }"
+      >
+        <ng-template #caption>
+          <span class="sr-only">{{ t('cases.reviewCaption') }}</span>
+        </ng-template>
+        <ng-template #header>
+          <tr>
+            <th scope="col" pResizableColumn pSortableColumn="categoryLabel">
+              <div class="flex items-center gap-2">
+                {{ t('cases.category') }}
+                <p-sorticon field="categoryLabel" />
+                <!-- The tenant's own wording, and only what this dialog actually holds. -->
+                <p-columnfilter
+                  field="categoryLabel"
+                  matchMode="in"
+                  display="menu"
+                  [showMatchModes]="false"
+                  [showOperator]="false"
+                  [showAddButton]="false"
+                >
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-multiselect
+                      [ngModel]="value"
+                      [options]="categoryOptions()"
+                      [placeholder]="t('cases.categoryAll')"
+                      [showToggleAll]="false"
+                      (onChange)="filter($event.value)"
+                    />
+                  </ng-template>
+                </p-columnfilter>
+              </div>
+            </th>
+            <!-- Sorted by where a tier stands in the review, not by the word it is spelled with. -->
+            <th scope="col" pResizableColumn pSortableColumn="tierRank">
+              <div class="flex items-center gap-2">
+                {{ t('cases.tier') }}
+                <p-sorticon field="tierRank" />
+                <p-columnfilter
+                  field="tier"
+                  matchMode="in"
+                  display="menu"
+                  [showMatchModes]="false"
+                  [showOperator]="false"
+                  [showAddButton]="false"
+                >
+                  <ng-template #filter let-value let-filter="filterCallback">
+                    <p-multiselect
+                      [ngModel]="value"
+                      [options]="tierOptions()"
+                      optionLabel="label"
+                      optionValue="value"
+                      [placeholder]="t('cases.tierAll')"
+                      [showToggleAll]="false"
+                      (onChange)="filter($event.value)"
+                    />
+                  </ng-template>
+                </p-columnfilter>
+              </div>
+            </th>
+            <th scope="col" pResizableColumn pSortableColumn="count" class="w-40">
+              <div class="flex items-center gap-2">
+                {{ t('cases.reviewCount') }}
+                <p-sorticon field="count" />
+                <p-columnfilter type="numeric" field="count" display="menu" [showOperator]="false" [showAddButton]="false" />
+              </div>
+            </th>
+            <th scope="col" class="w-36">{{ t('cases.actions') }}</th>
           </tr>
-        </thead>
-        <tbody>
-          @for (group of groups(); track group.key) {
-            <!-- The category's colour, as in the inbox: the same attribute, resolved by styles.css. -->
-            <tr class="border-b border-surface-200 dark:border-surface-700" [attr.data-category-color]="group.categoryColor">
-              <td class="py-2 pr-3 font-medium">
-                @if (group.categoryName) {
-                  {{ group.categoryName }}
-                } @else {
-                  <span class="text-surface-400 dark:text-surface-500">{{ t('cases.noCategory') }}</span>
+        </ng-template>
+        <ng-template #body let-row>
+          <!-- The category's colour, as in the inbox: the same attribute, resolved by styles.css. -->
+          <tr [attr.data-category-color]="row.categoryColor">
+            <td class="font-medium">
+              @if (row.categoryName) {
+                {{ row.categoryName }}
+              } @else {
+                <span class="text-surface-400 dark:text-surface-500">{{ row.categoryLabel }}</span>
+              }
+            </td>
+            <td>
+              @if (row.tier) {
+                <p-tag [value]="t(tierLabelKey(row.tier))" [severity]="tierSeverity(row.tier)" />
+              } @else {
+                <span class="text-surface-400 dark:text-surface-500">{{ t('cases.notTriaged') }}</span>
+              }
+            </td>
+            <td class="text-right tabular-nums">{{ row.count }}</td>
+            <td>
+              <!-- Icons alone: three words per line, eight lines below each other, read as a wall
+                   of text — and the tooltip says the same to whoever needs it spelled out. -->
+              <div class="flex items-center gap-1">
+                <!-- Every group can be looked at, whatever else is done with it. -->
+                <p-button
+                  icon="pi pi-filter"
+                  variant="text"
+                  size="small"
+                  severity="secondary"
+                  [ariaLabel]="t('cases.reviewShowGroup', { category: row.categoryLabel })"
+                  [pTooltip]="t('cases.reviewShow')"
+                  tooltipPosition="left"
+                  (onClick)="onShow(row)"
+                />
+                @if (row.tier === 'info') {
+                  <p-button
+                    icon="pi pi-align-left"
+                    variant="text"
+                    size="small"
+                    severity="secondary"
+                    [ariaLabel]="t('cases.reviewSummariesGroup', { category: row.categoryLabel })"
+                    [pTooltip]="t('cases.reviewSummaries')"
+                    tooltipPosition="left"
+                    (onClick)="onSummaries(row)"
+                  />
                 }
-              </td>
-              <td class="py-2 pr-3">
-                @if (group.tier) {
-                  <p-tag [value]="t(tierLabelKey(group.tier))" [severity]="tierSeverity(group.tier)" />
-                } @else {
-                  <span class="text-surface-400 dark:text-surface-500">{{ t('cases.notTriaged') }}</span>
+                @if (needsNoAnswer(row)) {
+                  <p-button
+                    icon="pi pi-trash"
+                    variant="text"
+                    size="small"
+                    severity="danger"
+                    [ariaLabel]="t('cases.reviewDelete', { category: row.categoryLabel, count: row.count })"
+                    [pTooltip]="t('cases.delete')"
+                    tooltipPosition="left"
+                    (onClick)="onDelete(row)"
+                  />
                 }
-              </td>
-              <td class="py-2 pr-3 text-right tabular-nums">{{ group.cases.length }}</td>
-              <td class="py-2">
-                <div class="flex flex-wrap items-center justify-end gap-2">
-                  @if (needsNoAnswer(group)) {
-                    @if (group.tier === 'info') {
-                      <p-button
-                        icon="pi pi-align-left"
-                        variant="text"
-                        size="small"
-                        severity="secondary"
-                        [label]="t('cases.reviewSummaries')"
-                        [ariaLabel]="t('cases.reviewSummariesGroup', { category: groupName(group) })"
-                        (onClick)="onSummaries(group)"
-                      />
-                    }
-                    <p-button
-                      icon="pi pi-trash"
-                      variant="text"
-                      size="small"
-                      severity="danger"
-                      [label]="t('cases.delete')"
-                      [ariaLabel]="t('cases.reviewDelete', { category: groupName(group), count: group.cases.length })"
-                      (onClick)="onDelete(group)"
-                    />
-                  } @else {
-                    <p-button
-                      icon="pi pi-filter"
-                      variant="text"
-                      size="small"
-                      severity="secondary"
-                      [label]="t('cases.reviewShow')"
-                      [ariaLabel]="t('cases.reviewShowGroup', { category: groupName(group) })"
-                      (onClick)="onShow(group)"
-                    />
-                  }
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="4" class="text-surface-500 dark:text-surface-400">{{ t('cases.reviewNoMatch') }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
     }
     <ng-template #footer>
       <p-button severity="secondary" [outlined]="true" [label]="t('cases.reviewClose')" (onClick)="visible.set(false)" />

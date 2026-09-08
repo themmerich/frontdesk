@@ -653,6 +653,78 @@ test.describe('Cases page', () => {
     await expect(page.getByRole('row', { name: /Weekly digest/ })).toHaveCount(0);
   });
 
+  test('sorts and filters the review, and shows a group the table can be filtered to', async ({ page }) => {
+    const noise = (id: string, subject: string) => ({
+      ...mockCases[0],
+      id,
+      subject,
+      categoryName: 'Werbung',
+      categoryColor: 'grey',
+      tier: 'ignore',
+      summary: null,
+    });
+    await page.route('**/api/cases', (route) =>
+      route.fulfill({
+        json: [
+          ...mockCases,
+          noise('3', 'Sale endet heute'),
+          noise('4', 'Drucker günstig'),
+          { ...noise('5', 'Wochenrückblick'), categoryName: 'Newsletter', categoryColor: 'teal', tier: 'info' },
+        ],
+      }),
+    );
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Durchsicht' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Durchsicht' });
+    const lines = dialog.locator('tbody tr');
+
+    // Unsorted, the order the review works through: the noise first, the biggest pile before the
+    // smaller ones.
+    await expect(lines).toHaveCount(4);
+    await expect(lines.nth(0)).toContainText(/Werbung\s*Ignorieren\s*2/);
+
+    // Sorted by how many a group holds, the smallest first.
+    await dialog.getByRole('columnheader', { name: 'Anzahl' }).click();
+    await expect(lines.nth(3)).toContainText(/Werbung\s*Ignorieren\s*2/);
+
+    // Filtered down to one category, out of the ones the dialog actually holds.
+    await dialog.getByRole('columnheader', { name: 'Kategorie' }).getByRole('button').click();
+    await page.locator('.p-datatable-filter-overlay p-multiselect').click();
+    const options = page.locator('.p-multiselect-overlay').getByRole('option');
+    await expect(options).toHaveText(['Newsletter', 'Ohne Kategorie', 'Statusanfrage Bestellung', 'Werbung']);
+    await options.filter({ hasText: 'Werbung' }).click();
+    // Picking applies it; both overlays are clicked shut again rather than escaped, which would
+    // take the dialog with them.
+    await page.locator('.p-datatable-filter-overlay p-multiselect').click();
+    await dialog.locator('.p-dialog-title').click();
+
+    await expect(lines).toHaveCount(1);
+    await expect(lines.first()).toContainText('Werbung');
+
+    // A column can be dragged narrower here too, and fit mode hands what it gives to its
+    // neighbour rather than to the width of the dialog.
+    const category = dialog.getByRole('columnheader', { name: 'Kategorie' });
+    const table = dialog.locator('table').first();
+    const tableBefore = (await table.boundingBox())!.width;
+    const categoryBefore = (await category.boundingBox())!.width;
+    const handle = (await category.locator('.p-datatable-column-resizer').boundingBox())!;
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handle.x - 60, handle.y + handle.height / 2, { steps: 10 });
+    await page.mouse.up();
+
+    expect((await category.boundingBox())!.width).toBeLessThan(categoryBefore - 20);
+    expect((await table.boundingBox())!.width).toBeCloseTo(tableBefore, 0);
+
+    // Every group can be looked at now, the noise included: the table behind is filtered to it.
+    await dialog.getByRole('button', { name: 'Werbung anzeigen' }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole('row', { name: /Sale endet heute/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
+  });
+
   test('reads a group on its own page, takes note of one mail and opens another', async ({ page }) => {
     const newsletter = {
       ...mockCases[0],
