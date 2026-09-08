@@ -1,6 +1,8 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { TranslocoTestingModule } from '@jsverse/transloco';
+import { Table } from 'primeng/table';
 
 import { Case } from '../model/case';
 import { ReviewGroup } from '../model/case-review';
@@ -29,7 +31,10 @@ const translations = {
     reviewShow: 'Show',
     reviewShowGroup: 'Show {{category}}',
     reviewEmpty: 'Nothing left to review.',
+    reviewNoMatch: 'No group matches the filter.',
     reviewClose: 'Close',
+    categoryAll: 'All categories',
+    tierAll: 'All tiers',
   },
 };
 
@@ -96,6 +101,11 @@ describe('CaseReviewDialog', () => {
     return Array.from(document.querySelectorAll<HTMLTableRowElement>('.p-dialog tbody tr'));
   }
 
+  /** The categories in the order the table renders them. */
+  function categories(): (string | undefined)[] {
+    return rows().map((row) => row.querySelector('td')?.textContent?.trim());
+  }
+
   function button(name: string): HTMLButtonElement {
     const found = Array.from(document.querySelectorAll<HTMLButtonElement>('.p-dialog button')).find(
       (candidate) => candidate.getAttribute('aria-label') === name || candidate.textContent?.trim() === name,
@@ -121,17 +131,125 @@ describe('CaseReviewDialog', () => {
     expect(rows()[0].querySelector('p-tag')).not.toBeNull();
   });
 
-  it('offers the actions of the tier: delete for ignore, summaries and delete for info, show for the rest', async () => {
+  it('lets every group be looked at, and adds to that what its tier allows', async () => {
     await openDialog([aCase({ id: '1', ...ads }), aCase({ id: '2', ...jobs }), aCase({ id: '3', ...claims }), aCase({ id: '4' })]);
 
     const names = rows().map((row) =>
       Array.from(row.querySelectorAll('button')).map((candidate) => candidate.getAttribute('aria-label') ?? candidate.textContent?.trim()),
     );
     expect(names).toEqual([
-      ['Delete Ads (1)'],
-      ['Summaries: Job offers', 'Delete Job offers (1)'],
+      ['Show Ads', 'Delete Ads (1)'],
+      ['Show Job offers', 'Summaries: Job offers', 'Delete Job offers (1)'],
       ['Show Claims'],
       ['Show Without a category'],
+    ]);
+  });
+
+  it('lets its columns be resized, taking the width off the neighbour', async () => {
+    const fixture = await openDialog([aCase({ id: '1', ...ads })]);
+    const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
+
+    // Fit mode: the table keeps its width and the neighbour gives what a column takes.
+    expect(table.columnResizeMode()).toBe('fit');
+    expect(document.querySelector('.p-datatable-resizable')).not.toBeNull();
+    // One handle per column that can give or take; the actions at the end need none.
+    expect(document.querySelectorAll('.p-dialog thead .p-datatable-column-resizer')).toHaveLength(3);
+  });
+
+  it('stands the actions at the left edge of their column, under their heading', async () => {
+    await openDialog([aCase({ id: '1', ...ads })]);
+
+    const actions = rows()[0].querySelectorAll('td')[3].firstElementChild as HTMLElement;
+    expect(actions.className).not.toContain('justify-end');
+  });
+
+  it('says what its buttons do without writing it next to them', async () => {
+    await openDialog([aCase({ id: '1', ...jobs })]);
+
+    for (const candidate of rows()[0].querySelectorAll('button')) {
+      // An icon and a tooltip; the word itself would be a wall of text down the column.
+      expect(candidate.textContent?.trim()).toBe('');
+      expect(candidate.getAttribute('aria-label')).not.toBeNull();
+      expect(candidate.querySelector('.pi')).not.toBeNull();
+    }
+  });
+
+  it('sorts by the count, and by where a tier stands rather than by its word', async () => {
+    const fixture = await openDialog([
+      aCase({ id: '1', ...claims }),
+      aCase({ id: '2', ...jobs }),
+      aCase({ id: '3', ...jobs }),
+      aCase({ id: '4', ...ads }),
+      aCase({ id: '5', ...ads }),
+      aCase({ id: '6', ...ads }),
+    ]);
+    const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
+
+    // Unsorted, the review order: what needs nobody first, the biggest pile of a tier before the
+    // smaller ones.
+    expect(categories()).toEqual(['Ads', 'Job offers', 'Claims']);
+
+    table.sortField = 'count';
+    table.sortOrder = 1;
+    table.sortSingle();
+    fixture.detectChanges();
+    expect(categories()).toEqual(['Claims', 'Job offers', 'Ads']);
+
+    // By tier, the ladder of the review: ignore, info, manual — not the alphabet, which would
+    // put "manual" between them.
+    table.sortField = 'tierRank';
+    table.sortOrder = 1;
+    table.sortSingle();
+    fixture.detectChanges();
+    expect(categories()).toEqual(['Ads', 'Job offers', 'Claims']);
+  });
+
+  it('filters by category, by tier and by how many a group holds', async () => {
+    const fixture = await openDialog([
+      aCase({ id: '1', ...ads }),
+      aCase({ id: '2', ...ads }),
+      aCase({ id: '3', ...jobs }),
+      aCase({ id: '4', ...claims }),
+      aCase({ id: '5' }),
+    ]);
+    const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
+
+    async function filterBy(value: unknown, field: string, matchMode: string) {
+      table.filter(value, field, matchMode);
+      // The table applies filters after its debounce delay (300 ms by default).
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      fixture.detectChanges();
+    }
+
+    await filterBy(['Ads', 'Claims'], 'categoryLabel', 'in');
+    expect(categories()).toEqual(['Ads', 'Claims']);
+
+    await filterBy(null, 'categoryLabel', 'in');
+    // A tier the triage never gave is a value like any other in the filter.
+    await filterBy([null], 'tier', 'in');
+    expect(categories()).toEqual(['Without a category']);
+
+    await filterBy(null, 'tier', 'in');
+    await filterBy(2, 'count', 'gte');
+    expect(categories()).toEqual(['Ads']);
+
+    await filterBy(9, 'count', 'gte');
+    // The one row left is the table's word for it, not a group.
+    expect(categories()).toEqual(['No group matches the filter.']);
+  });
+
+  it('offers as filter values only the categories and tiers it actually holds', async () => {
+    const fixture = await openDialog([aCase({ id: '1', ...ads }), aCase({ id: '2', ...jobs })]);
+    const dialog = fixture.componentInstance as unknown as {
+      categoryOptions: () => string[];
+      tierOptions: () => { label: string; value: string | null }[];
+    };
+
+    expect(dialog.categoryOptions()).toEqual(['Ads', 'Job offers']);
+    // In the order the review works through them, not in the one they were written in.
+    expect(dialog.tierOptions()).toEqual([
+      { label: 'Ignore', value: 'ignore' },
+      { label: 'Info', value: 'info' },
     ]);
   });
 

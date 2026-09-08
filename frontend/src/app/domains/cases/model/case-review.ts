@@ -28,6 +28,14 @@ export type ReviewGroup = {
 const TIER_REVIEW_ORDER: readonly (CaseTier | null)[] = ['ignore', 'info', 'automatic', 'draft', 'manual', null];
 
 /**
+ * Where a tier stands in that order, as a number to sort by. Sorting by the tier itself would go
+ * by the word it is spelled with, which puts "automatic" above "ignore" and means nothing.
+ */
+export function reviewTierRank(tier: CaseTier | null): number {
+  return TIER_REVIEW_ORDER.indexOf(tier);
+}
+
+/**
  * The cases grouped by category and tier — both, because a category has a usual tier but single
  * cases are overruled, and a mail somebody pulled out of the noise must not vanish with it. Within
  * a tier the largest group comes first, so the biggest pile is the first thing on the table.
@@ -56,7 +64,7 @@ export function reviewGroups(cases: Case[]): ReviewGroup[] {
     }
   }
   return [...groups.values()].sort((one, other) => {
-    const byTier = TIER_REVIEW_ORDER.indexOf(one.tier) - TIER_REVIEW_ORDER.indexOf(other.tier);
+    const byTier = reviewTierRank(one.tier) - reviewTierRank(other.tier);
     if (byTier !== 0) {
       return byTier;
     }
