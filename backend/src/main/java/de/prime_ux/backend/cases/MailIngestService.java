@@ -85,8 +85,8 @@ public class MailIngestService {
 			return;
 		}
 		Case newCase = new Case(tenant, messageId, senderOf(message), recipientOf(message),
-				Objects.requireNonNullElse(message.getSubject(), ""), bodyTextOf(message), receivedAtOf(message),
-				hasAttachments(message), sizeOf(message));
+				Objects.requireNonNullElse(message.getSubject(), ""), bodyTextOf(message), bodyHtmlOf(message),
+				receivedAtOf(message), hasAttachments(message), sizeOf(message));
 		caseRepository.save(newCase);
 		log.info("Ingested mail '{}' from {} as case {}", newCase.getSubject(), newCase.getSender(), newCase.getId());
 	}
@@ -167,9 +167,45 @@ public class MailIngestService {
 		}
 	}
 
+	private String bodyHtmlOf(MimeMessage message) throws MessagingException {
+		try {
+			return extractHtml(message);
+		} catch (IOException e) {
+			throw new MessagingException("Could not read mail body", e);
+		}
+	}
+
+	/**
+	 * The mail as it was written, where it was written in HTML, and null where it was not. The
+	 * first HTML part wins: in a multipart/alternative that is the richer of the two versions of
+	 * the same mail, and in a multipart/mixed the mail itself, which stands before what is
+	 * attached to it.
+	 *
+	 * <p>Attachments are skipped, so an attached web page does not become the body of the mail.
+	 */
+	private String extractHtml(Part part) throws MessagingException, IOException {
+		if (Part.ATTACHMENT.equalsIgnoreCase(part.getDisposition())) {
+			return null;
+		}
+		if (part.isMimeType("text/html")) {
+			return (String) part.getContent();
+		}
+		if (part.isMimeType("multipart/*")) {
+			Multipart parts = (Multipart) part.getContent();
+			for (int i = 0; i < parts.getCount(); i++) {
+				String html = extractHtml(parts.getBodyPart(i));
+				if (html != null) {
+					return html;
+				}
+			}
+		}
+		return null;
+	}
+
 	/**
 	 * Prefers the text/plain alternative; other text parts (e.g. HTML-only mails) are stored raw
-	 * for now. Attachments are ignored.
+	 * for now — the triage reads this, and the person reading the mail is shown
+	 * {@link #extractHtml} instead wherever there is one. Attachments are ignored.
 	 */
 	private String extractText(Part part) throws MessagingException, IOException {
 		if (part.isMimeType("text/*")) {

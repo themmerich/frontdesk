@@ -38,6 +38,9 @@ const translations = {
     confidence: 'Model confidence',
     tier: 'Tier',
     original: 'Original message',
+    htmlMail: 'Message',
+    remoteBlocked: 'Pictures from the internet were not loaded.',
+    showRemote: 'Show pictures',
     unknownRecipient: 'Recipient unknown',
     attachmentsNotStored: 'Attachments are not stored yet.',
     delete: 'Delete',
@@ -52,6 +55,7 @@ const aCase: CaseDetail = {
   recipient: 'rechnung@musterfirma.de',
   subject: 'Rechnung 2026-081',
   bodyText: 'Bitte um eine Kopie.',
+  bodyHtml: null,
   receivedAt: new Date('2026-08-19T08:30:00Z'),
   hasAttachments: true,
   sizeBytes: 2048,
@@ -176,6 +180,61 @@ describe('CaseDetailPage', () => {
     expect(links.every((link) => link.getAttribute('rel') === 'noopener noreferrer')).toBe(true);
     // The rest of the mail stays the text it was, brackets, full stops and line break included.
     expect(element.textContent).toContain('(Sendungsnummer dort).');
+  });
+
+  it('shows a mail written in HTML in a frame that may do nothing', () => {
+    detail.set({ ...aCase, bodyHtml: '<p>Hallo <b>Welt</b></p>' });
+
+    const element = createFixture().nativeElement as HTMLElement;
+
+    const frame = element.querySelector('iframe')!;
+    expect(frame.getAttribute('sandbox')).toBe('allow-popups allow-popups-to-escape-sandbox');
+    expect(frame.getAttribute('referrerpolicy')).toBe('no-referrer');
+    // The mail itself, untouched, inside a document that says what it may do.
+    expect(frame.getAttribute('srcdoc')).toContain('<p>Hallo <b>Welt</b></p>');
+    expect(frame.getAttribute('srcdoc')).toContain("default-src 'none'");
+    // And the plain text box is not there beside it.
+    expect(element.querySelector('.whitespace-pre-wrap')).toBeNull();
+  });
+
+  it('reads a mail without an HTML part as text, as before', () => {
+    detail.set({ ...aCase, bodyHtml: null, bodyText: 'Bitte um eine Kopie.' });
+
+    const element = createFixture().nativeElement as HTMLElement;
+
+    expect(element.querySelector('iframe')).toBeNull();
+    expect(element.textContent).toContain('Bitte um eine Kopie.');
+  });
+
+  it('holds the pictures of a mail back until they are asked for, and asks again for the next mail', async () => {
+    detail.set({ ...aCase, bodyHtml: '<img src="https://tracker.example.com/pixel.gif">' });
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.textContent).toContain('Pictures from the internet were not loaded.');
+    expect(element.querySelector('iframe')!.getAttribute('srcdoc')).toContain('img-src data:');
+
+    Array.from(element.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes('Show pictures'))!
+      .click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('iframe')!.getAttribute('srcdoc')).toContain('img-src data: https:');
+    expect(element.textContent).not.toContain('Pictures from the internet were not loaded.');
+
+    // The next mail asks again: a yes was about that one mail.
+    detail.set({ ...aCase, id: '2', bodyHtml: '<img src="https://tracker.example.com/other.gif">' });
+    fixture.detectChanges();
+
+    expect(element.textContent).toContain('Pictures from the internet were not loaded.');
+  });
+
+  it('says nothing about pictures for a mail that carries everything it shows', () => {
+    detail.set({ ...aCase, bodyHtml: '<p>Hallo</p>' });
+
+    const element = createFixture().nativeElement as HTMLElement;
+
+    expect(element.textContent).not.toContain('Pictures from the internet were not loaded.');
   });
 
   it('saves the category and the tier together, and only when asked to', async () => {

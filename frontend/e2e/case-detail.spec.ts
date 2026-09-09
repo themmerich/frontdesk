@@ -93,6 +93,43 @@ test.describe('Case detail', () => {
     await expect(link).toHaveAttribute('href', 'https://example.com/status/4711');
   });
 
+  test('shows a mail written in HTML as it was written, and holds its pictures back', async ({ page }) => {
+    const html =
+      '<p style="color: rgb(220, 38, 38)">Sehr geehrte Damen und Herren,</p>' +
+      '<p>bitte senden Sie mir eine <b>Kopie</b> zu.</p>' +
+      '<p><img src="https://tracker.example.com/pixel.gif" alt="Zähler"></p>' +
+      '<p><a href="https://example.com/status">Status ansehen</a></p>';
+    await page.route('**/api/cases/1', (route) => route.fulfill({ json: { ...detail, bodyHtml: html } }));
+    // Counted where the picture would actually be fetched: what the policy blocks never gets
+    // this far, so this is the difference between "not shown" and "not loaded".
+    let fetched = 0;
+    await page.route('https://tracker.example.com/**', (route) => {
+      fetched++;
+      return route.fulfill({ contentType: 'image/gif', body: '' });
+    });
+
+    await page.goto('/cases/1');
+
+    // The mail keeps its markup and its own styling, inside a frame of its own.
+    const frame = page.frameLocator('iframe[sandbox]');
+    await expect(frame.locator('b')).toHaveText('Kopie');
+    await expect(frame.locator('p').first()).toHaveCSS('color', 'rgb(220, 38, 38)');
+    // Links leave through a new tab, as they do in a plain text mail.
+    await page.route('https://example.com/**', (route) => route.fulfill({ contentType: 'text/html', body: 'ok' }));
+    const opened = page.waitForEvent('popup');
+    await frame.locator('a').click();
+    expect((await opened).url()).toBe('https://example.com/status');
+
+    // Nothing was fetched from the internet: opening a mail must not tell its sender so.
+    await expect(page.getByText('Bilder aus dem Internet wurden nicht geladen.')).toBeVisible();
+    expect(fetched).toBe(0);
+
+    // Until it is asked for.
+    await page.getByRole('button', { name: 'Bilder anzeigen' }).click();
+    await expect(page.getByText('Bilder aus dem Internet wurden nicht geladen.')).toHaveCount(0);
+    await expect.poll(() => fetched).toBeGreaterThan(0);
+  });
+
   test('pages through the list order and back again', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('row', { name: /Rechnung 2026-081/ }).dblclick();

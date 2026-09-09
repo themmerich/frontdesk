@@ -2,6 +2,7 @@ import { DatePipe, PercentPipe } from '@angular/common';
 import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -16,6 +17,7 @@ import { CaseDetailService } from '../data/case-detail-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
 import { CaseDetail, CaseTier } from '../model/case';
+import { mailDocument, pointsAtRemoteContent } from '../model/mail-html';
 import { mailTextParts } from '../model/mail-text';
 import { FileSizePipe } from '../ui/file-size-pipe';
 
@@ -65,6 +67,7 @@ export class CaseDetailPage {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
+  private readonly sanitizer = inject(DomSanitizer);
   private readonly router = inject(Router);
 
   protected readonly isSaving = signal(false);
@@ -125,6 +128,36 @@ export class CaseDetailPage {
   });
 
   protected readonly bodyParts = computed(() => mailTextParts(this.detailService.detail.value()?.bodyText ?? ''));
+
+  /** The mail as it was written, where that was HTML; null where the mail is plain text. */
+  protected readonly bodyHtml = computed(() => this.detailService.detail.value()?.bodyHtml ?? null);
+
+  /**
+   * Whether the pictures the mail points at may be fetched. Off for every mail: fetching one
+   * tells the sender that this mail was opened, at this minute, from here — which is what a
+   * tracking pixel is for. Re-anchored on the case, so a yes never carries over to the next mail.
+   */
+  protected readonly showRemoteContent = linkedSignal<string | undefined, boolean>({
+    source: () => this.detailService.detail.value()?.id,
+    computation: () => false,
+  });
+
+  protected readonly hasRemoteContent = computed(() => {
+    const html = this.bodyHtml();
+    return html !== null && pointsAtRemoteContent(html);
+  });
+
+  /**
+   * The mail as a document for the frame below. Angular is told to keep its hands off it, which
+   * needs saying twice: what it would do here is sanitize the mail into something else, and what
+   * keeps the page safe is the frame around it instead — sandboxed without scripts and without
+   * an origin of its own, with a policy in the document's own head on top. The mail can neither
+   * run anything nor read anything of this page.
+   */
+  protected readonly mailDocument = computed<SafeHtml | null>(() => {
+    const html = this.bodyHtml();
+    return html === null ? null : this.sanitizer.bypassSecurityTrustHtml(mailDocument(html, this.showRemoteContent()));
+  });
 
   protected tierLabelKey(tier: CaseTier): string {
     return {
