@@ -154,6 +154,8 @@ class CaseControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.subject").value("Rechnung 2026-081"))
 				.andExpect(jsonPath("$.bodyText").value("Bitte um eine Kopie."))
+				// Written in plain text, so there is no HTML version of it to hand over.
+				.andExpect(jsonPath("$.bodyHtml").doesNotExist())
 				.andExpect(jsonPath("$.categoryName").value("Rechnung"));
 
 		// The list would pay for every body on every reload and never shows one.

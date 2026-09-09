@@ -55,6 +55,11 @@ public class Case {
 	@Column(name = "body_text", nullable = false)
 	private String bodyText;
 
+	// The mail as it was written, where it was written in HTML. Null for the ones
+	// that carry no HTML part; the text above is what the triage reads either way.
+	@Column(name = "body_html")
+	private String bodyHtml;
+
 	@Column(name = "received_at", nullable = false)
 	private Instant receivedAt;
 
@@ -101,12 +106,22 @@ public class Case {
 
 	public Case(Tenant tenant, String messageId, String sender, String recipient, String subject, String bodyText,
 			Instant receivedAt, boolean hasAttachments, long sizeBytes) {
+		this(tenant, messageId, sender, recipient, subject, bodyText, null, receivedAt, hasAttachments, sizeBytes);
+	}
+
+	/**
+	 * A mail that was written in HTML as well. Both bodies are kept: the text is what the triage
+	 * reads, the HTML what a person is shown.
+	 */
+	public Case(Tenant tenant, String messageId, String sender, String recipient, String subject, String bodyText,
+			String bodyHtml, Instant receivedAt, boolean hasAttachments, long sizeBytes) {
 		this.tenant = tenant;
 		this.messageId = messageId;
 		this.sender = sender;
 		this.recipient = recipient;
 		this.subject = subject;
 		this.bodyText = bodyText;
+		this.bodyHtml = bodyHtml;
 		this.receivedAt = receivedAt;
 		this.ingestedAt = Instant.now();
 		this.hasAttachments = hasAttachments;

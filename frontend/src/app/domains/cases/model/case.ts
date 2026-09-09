@@ -41,6 +41,11 @@ export type Case = {
  */
 export type CaseDetail = Case & {
   bodyText: string;
+  /**
+   * The mail as it was written, where it was written in HTML. Null for the ones that carry no
+   * HTML part, and for everything ingested before it was kept — those are read as text.
+   */
+  bodyHtml: string | null;
 };
 
 /** A category as a case is filed under it: what it is called, and the colour it is drawn in. */

@@ -194,6 +194,80 @@ class MailIngestServiceTest {
 	}
 
 	@Test
+	void keepsBothVersionsOfAMailThatWasWrittenInHtmlAndInPlainText() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Session session = GreenMailUtil.getSession(greenMail.getImap().getServerSetup());
+		MimeMessage mail = new MimeMessage(session);
+		mail.setFrom("news@example.com");
+		mail.setRecipients(Message.RecipientType.TO, "inbox@frontdesk.local");
+		mail.setSubject("Wochenrückblick");
+		MimeBodyPart text = new MimeBodyPart();
+		text.setText("Branchennews der Woche.");
+		MimeBodyPart html = new MimeBodyPart();
+		html.setContent("<p>Branchennews der <b>Woche</b>.</p>", "text/html; charset=utf-8");
+		MimeMultipart alternative = new MimeMultipart("alternative");
+		alternative.addBodyPart(text);
+		alternative.addBodyPart(html);
+		mail.setContent(alternative);
+		mail.saveChanges();
+		inbox.deliver(mail);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		assertThat(caseRepository.findAll()).singleElement().satisfies(ingested -> {
+			// The text is what the triage reads, the HTML what the reader is shown.
+			assertThat(ingested.getBodyText()).isEqualTo("Branchennews der Woche.");
+			assertThat(ingested.getBodyHtml()).isEqualTo("<p>Branchennews der <b>Woche</b>.</p>");
+		});
+	}
+
+	@Test
+	void keepsTheHtmlOfAMailThatCarriesNothingElse() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Session session = GreenMailUtil.getSession(greenMail.getImap().getServerSetup());
+		MimeMessage mail = new MimeMessage(session);
+		mail.setFrom("shop@example.com");
+		mail.setRecipients(Message.RecipientType.TO, "inbox@frontdesk.local");
+		mail.setSubject("Angebot");
+		mail.setContent("<h1>Angebot</h1>", "text/html; charset=utf-8");
+		mail.saveChanges();
+		inbox.deliver(mail);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		assertThat(caseRepository.findAll()).singleElement()
+				.satisfies(ingested -> assertThat(ingested.getBodyHtml()).isEqualTo("<h1>Angebot</h1>"));
+	}
+
+	@Test
+	void leavesTheHtmlEmptyForAPlainMailAndForAnAttachedWebPage() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Session session = GreenMailUtil.getSession(greenMail.getImap().getServerSetup());
+		MimeMessage mail = new MimeMessage(session);
+		mail.setFrom("kunde@example.com");
+		mail.setRecipients(Message.RecipientType.TO, "inbox@frontdesk.local");
+		mail.setSubject("Anfrage mit Anhang");
+		MimeBodyPart text = new MimeBodyPart();
+		text.setText("Details siehe Anhang.");
+		MimeBodyPart attachment = new MimeBodyPart();
+		attachment.setDataHandler(new DataHandler(new ByteArrayDataSource("<h1>Seite</h1>".getBytes(), "text/html")));
+		attachment.setFileName("seite.html");
+		attachment.setDisposition(Part.ATTACHMENT);
+		MimeMultipart multipart = new MimeMultipart();
+		multipart.addBodyPart(text);
+		multipart.addBodyPart(attachment);
+		mail.setContent(multipart);
+		mail.saveChanges();
+		inbox.deliver(mail);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		// An attached web page is not the mail, so the case has no HTML body at all.
+		assertThat(caseRepository.findAll()).singleElement()
+				.satisfies(ingested -> assertThat(ingested.getBodyHtml()).isNull());
+	}
+
+	@Test
 	void survivesAnUnreachableMailServer() {
 		TenantMailSettings unreachable = new TenantMailSettings(tenant, MailSettingsMode.CUSTOM, "localhost", 1,
 				false, "localhost", 1, false, "inbox@frontdesk.local", "secret", "INBOX", true);
