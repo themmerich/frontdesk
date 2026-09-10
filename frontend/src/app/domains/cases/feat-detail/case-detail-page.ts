@@ -72,6 +72,7 @@ export class CaseDetailPage {
 
   protected readonly isSaving = signal(false);
   protected readonly isDeleting = signal(false);
+  protected readonly isHandling = signal(false);
 
   /**
    * What a person has picked but not saved yet. Both follow the case they belong to: opening
@@ -88,6 +89,13 @@ export class CaseDetailPage {
 
   /** Null when the page was opened through a link: there is no list to page through. */
   protected readonly neighbours = computed(() => this.orderStore.neighboursOf(this.id()));
+
+  /**
+   * Whether somebody has taken note of this case already. One that has offers the way back rather
+   * than the way there; one in the trash offers neither, because the trash has its own two.
+   */
+  protected readonly isHandled = computed(() => (this.detailService.detail.value()?.handledAt ?? null) !== null);
+  protected readonly isTrashed = computed(() => (this.detailService.detail.value()?.deletedAt ?? null) !== null);
 
   constructor() {
     effect(() => this.detailService.id.set(this.id()));
@@ -173,25 +181,54 @@ export class CaseDetailPage {
     return TIER_SEVERITY[tier];
   }
 
+  protected async onSave(): Promise<void> {
+    await this.save();
+  }
+
   /**
    * Both corrections in one request: the category and the tier are saved together, so a case
-   * never ends up half corrected because the second call did not get through.
+   * never ends up half corrected because the second call did not get through. Says whether it
+   * worked, because ticking a case off saves what is pending first and must stop where this does.
    */
-  protected async onSave(): Promise<void> {
-    const tier = this.draftTier();
-    if (tier === null) {
-      return;
-    }
+  private async save(): Promise<boolean> {
     this.isSaving.set(true);
     try {
-      await this.detailService.changeClassification(this.draftCategoryId(), tier);
+      await this.detailService.changeClassification(this.draftCategoryId(), this.draftTier());
       // The inbox shows the tier and draws its rows in the category's colour, one page back.
       this.casesService.cases.reload();
       this.toast('success', 'caseDetail.saved');
+      return true;
     } catch {
       this.toast('error', 'caseDetail.saveError');
+      return false;
     } finally {
       this.isSaving.set(false);
+    }
+  }
+
+  /**
+   * Ticked off, or put back into the inbox — and on to the next case either way, as after
+   * deleting: the case leaves the list it was being worked through, and staying on it would
+   * leave a page nobody came for.
+   *
+   * <p>What was picked above and not yet saved is saved first. "Erledigt" says this case is
+   * settled; dropping a correction on the way there would be a strange reading of that.
+   */
+  protected async onHandled(aCase: CaseDetail): Promise<void> {
+    if (this.isDirty() && !(await this.save())) {
+      return;
+    }
+    const handled = !this.isHandled();
+    const goTo = this.neighbours()?.next ?? this.neighbours()?.previous ?? null;
+    this.isHandling.set(true);
+    try {
+      await this.casesService.markHandled(aCase.id, handled);
+      this.toast('success', handled ? 'cases.markedHandled' : 'cases.reopened');
+      await this.router.navigate(goTo === null ? ['/'] : ['/cases', goTo]);
+    } catch {
+      this.toast('error', handled ? 'cases.markHandledError' : 'cases.reopenError');
+    } finally {
+      this.isHandling.set(false);
     }
   }
 

@@ -160,6 +160,18 @@
           [loading]="isDeleting()"
           (onClick)="onDelete(aCase)"
         />
+        @if (!isTrashed()) {
+          <!-- Out of the inbox and into the archive, or back again. Not offered in the trash:
+               what is thrown away is put back or deleted there, and neither is this. -->
+          <p-button
+            [icon]="isHandled() ? 'pi pi-undo' : 'pi pi-check-circle'"
+            severity="secondary"
+            [outlined]="true"
+            [label]="t(isHandled() ? 'cases.reopen' : 'cases.markHandled')"
+            [loading]="isHandling()"
+            (onClick)="onHandled(aCase)"
+          />
+        }
         <p-button icon="pi pi-check" [label]="t('caseDetail.save')" [disabled]="!isDirty()" [loading]="isSaving()" (onClick)="onSave()" />
       </div>
     }
