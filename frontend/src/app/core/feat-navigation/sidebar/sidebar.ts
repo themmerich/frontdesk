@@ -25,6 +25,9 @@ export class Sidebar {
   private readonly router = inject(Router);
 
   protected async onSignOut(): Promise<void> {
+    // The brand is remembered for the next visit of this browser — but the next person at it may
+    // belong to another company, so signing out takes it with them.
+    this.companyService.forget();
     await this.authStore.logout();
     await this.router.navigate(['/login']);
   }

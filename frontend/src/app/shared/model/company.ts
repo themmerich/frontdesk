@@ -18,5 +18,22 @@ export type Company = {
   hasLogo: boolean;
 };
 
+/**
+ * Whether this is a company as the app knows one. Asked of what a browser remembered from an
+ * earlier visit, which is only ever as trustworthy as the storage it came out of.
+ */
+export function isCompany(value: unknown): value is Company {
+  const company = value as Partial<Company> | null;
+  return (
+    typeof company === 'object' &&
+    company !== null &&
+    typeof company.name === 'string' &&
+    typeof company.hasLogo === 'boolean' &&
+    (company.logoDisplay === 'WITH_NAME' || company.logoDisplay === 'LOGO_ONLY') &&
+    (company.primaryColor === null || typeof company.primaryColor === 'string') &&
+    (company.website === null || typeof company.website === 'string')
+  );
+}
+
 /** The editable fields, as the update endpoint expects them. */
 export type CompanyUpdate = Omit<Company, 'hasLogo'>;

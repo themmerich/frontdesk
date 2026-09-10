@@ -1,6 +1,6 @@
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
 import { CompanyService } from '../../../shared/data/company-service';
@@ -33,9 +33,16 @@ describe('Sidebar', () => {
   const companyName = signal<string | undefined>(undefined);
   const logoUrl = signal<string | null>(null);
   const largeLogoUrl = signal<string | null>(null);
-  const companyServiceStub = { name: companyName, logoUrl, largeLogoUrl } as unknown as CompanyService;
+  let forgotten: number;
+  const companyServiceStub = {
+    name: companyName,
+    logoUrl,
+    largeLogoUrl,
+    forget: () => forgotten++,
+  } as unknown as CompanyService;
 
   beforeEach(async () => {
+    forgotten = 0;
     currentUser.set({
       username: 'admin',
       displayName: 'Anna Admin',
@@ -72,6 +79,18 @@ describe('Sidebar', () => {
     expect(text).toContain('frontdesk');
     expect(text).toContain('Cases');
     expect(text).toContain('Inbox');
+  });
+
+  it('takes the remembered brand along when signing out', async () => {
+    const fixture = TestBed.createComponent(Sidebar);
+    fixture.detectChanges();
+
+    // The login page is not part of this fixture; only the way there matters here.
+    TestBed.inject(Router).navigate = () => Promise.resolve(true);
+    await fixture.componentInstance['onSignOut']();
+
+    // Whoever sits down at this browser next may belong to another company.
+    expect(forgotten).toBe(1);
   });
 
   it('links the archive next to the inbox', () => {
