@@ -40,6 +40,44 @@ test.describe('Company', () => {
     await page.route('**/api/case-categories/selectable', (route) => route.fulfill({ json: [] }));
   });
 
+  test('paints the tenant brand on a reload instead of the app own, and forgets it on sign-out', async ({ page }) => {
+    const branded = { ...company, name: 'Musterfirma AG', primaryColor: '#1d4ed8', logoDisplay: 'WITH_NAME' };
+    // Held back on purpose: this is the stretch in which the sidebar used to show the app's own
+    // brand — the frontdesk name in the preset's green — before swapping to the tenant's.
+    let answer: (() => void) | null = null;
+    await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
+    await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
+    await page.route('**/api/company', async (route) => {
+      if (answer !== null) {
+        await new Promise<void>((resolve) => (answer = resolve));
+      }
+      return route.fulfill({ json: branded });
+    });
+
+    // First visit: the brand arrives with the answer and is remembered from then on.
+    await page.goto('/');
+    // The brand area at the top; the same name stands in the footer under the user.
+    await expect(page.getByText('Musterfirma AG').first()).toBeVisible();
+
+    answer = () => undefined;
+    await page.reload();
+
+    // Before the company answered at all, the sidebar already carries the tenant's name and the
+    // theme its colour — no frontdesk logo in between.
+    await expect(page.getByText('Musterfirma AG').first()).toBeVisible();
+    // #1d4ed8, as the theme writes it: PrimeNG builds its palette in the srgb notation.
+    await expect(page.locator('#app-sidebar')).toHaveCSS('background-color', /rgb\(29, 78, 216\)|srgb 0\.1137/);
+    await expect(page.getByText('frontdesk')).toHaveCount(0);
+    answer?.();
+
+    // Signing out takes it along: the next person here may belong to another company.
+    await page.route('**/api/auth/logout', (route) => route.fulfill({ status: 204, body: '' }));
+    await page.getByText('Anna Admin').click();
+    await page.getByRole('button', { name: 'Abmelden' }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    expect(await page.evaluate(() => localStorage.getItem('frontdesk-company'))).toBeNull();
+  });
+
   test('lets an admin edit the company, and the sidebar picks the name up', async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
