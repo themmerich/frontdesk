@@ -255,7 +255,7 @@ test.describe('Case categories', () => {
         saved = route.request().postDataJSON() as Record<string, unknown>;
         return route.fulfill({ json: saved });
       }
-      return route.fulfill({ json: { extraInstructions: '', confidenceThreshold: 0.8 } });
+      return route.fulfill({ json: { extraInstructions: '', confidenceThreshold: 0.8, replySignature: '', replyInstructions: '' } });
     });
 
     await page.goto('/categories');
@@ -269,12 +269,17 @@ test.describe('Case categories', () => {
 
     await threshold.fill('65');
     await page.getByLabel('Zusätzliche Anweisung').fill('Mails von @lieferant-xy.example sind Bestellbestätigungen.');
+    // What the reply drafts are to be like travels with the same save.
+    await page.getByLabel('Signatur').fill('Mit freundlichen Grüßen\nMusterfirma GmbH');
+    await page.getByLabel('Hinweise für Antworten').fill('Kunden werden gesiezt.');
     await saveButton.click();
 
     await expect(page.getByText('Einstellungen gespeichert.')).toBeVisible();
     expect(saved).toEqual({
       extraInstructions: 'Mails von @lieferant-xy.example sind Bestellbestätigungen.',
       confidenceThreshold: 0.65,
+      replySignature: 'Mit freundlichen Grüßen\nMusterfirma GmbH',
+      replyInstructions: 'Kunden werden gesiezt.',
     });
   });
 

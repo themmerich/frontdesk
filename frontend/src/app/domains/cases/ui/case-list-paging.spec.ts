@@ -31,6 +31,7 @@ function manyCases(count: number): Case[] {
     confidence: null,
     handledAt: null,
     deletedAt: null,
+    hasDraft: false,
   }));
 }
 

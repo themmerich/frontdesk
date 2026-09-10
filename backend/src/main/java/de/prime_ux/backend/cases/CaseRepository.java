@@ -1,5 +1,6 @@
 package de.prime_ux.backend.cases;
 
+import de.prime_ux.backend.triage.CaseTier;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +30,14 @@ public interface CaseRepository extends JpaRepository<Case, UUID> {
 	 * wants an answer to.
 	 */
 	List<Case> findByTenantIdAndTierIsNullAndDeletedAtIsNullOrderByReceivedAtAsc(UUID tenantId, Limit limit);
+
+	/**
+	 * The cases that are to get a reply written without anyone asking, and have none yet: on one of
+	 * the given tiers, still in the inbox, oldest first. What was thrown away or ticked off is
+	 * left alone — nobody answers those.
+	 */
+	List<Case> findByTenantIdAndTierInAndDraftTextIsNullAndDeletedAtIsNullAndHandledAtIsNullOrderByReceivedAtAsc(
+			UUID tenantId, Collection<CaseTier> tiers, Limit limit);
 
 	/** The cases of this tenant among the given ids; ids of another tenant's simply do not match. */
 	List<Case> findAllByTenantIdAndIdIn(UUID tenantId, Collection<UUID> ids);

@@ -5,7 +5,17 @@
  */
 
 export type CaseColumnField =
-  'sender' | 'recipient' | 'subject' | 'summary' | 'categoryName' | 'tier' | 'confidence' | 'hasAttachments' | 'sizeBytes' | 'receivedAt';
+  | 'sender'
+  | 'recipient'
+  | 'subject'
+  | 'summary'
+  | 'categoryName'
+  | 'tier'
+  | 'confidence'
+  | 'hasAttachments'
+  | 'hasDraft'
+  | 'sizeBytes'
+  | 'receivedAt';
 
 export type CaseColumnDefinition = {
   field: CaseColumnField;
@@ -30,6 +40,9 @@ export const CASE_COLUMNS: readonly CaseColumnDefinition[] = [
   // rows keep the raw values, so free text would have to match the untranslated
   // one — confusing.
   { field: 'tier', labelKey: 'cases.tier', sortable: true, filterable: true },
+  // Whether a reply is waiting to be read. The tier says a draft is expected; this says it is
+  // there. Filtered like the attachment column, through a tri-state checkbox.
+  { field: 'hasDraft', labelKey: 'cases.draft', sortable: false, filterable: true },
   // Filtered through PrimeNG's date filter; the list component picks the
   // control per field, this flag only says that a filter exists.
   { field: 'receivedAt', labelKey: 'cases.receivedAt', sortable: true, filterable: true },

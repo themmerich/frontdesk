@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ChildFieldContext, form, FormField, max, min, required, submit } from '@angular/forms/signals';
+import { ChildFieldContext, form, FormField, max, maxLength, min, required, submit } from '@angular/forms/signals';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -45,12 +45,16 @@ type CategoryFormModel = {
 type SettingsFormModel = {
   extraInstructions: string;
   thresholdPercent: number;
+  replySignature: string;
+  replyInstructions: string;
 };
 
 function toSettingsFormModel(settings: TriageSettings | null): SettingsFormModel {
   return {
     extraInstructions: settings?.extraInstructions ?? '',
     thresholdPercent: Math.round((settings?.confidenceThreshold ?? 0.8) * 100),
+    replySignature: settings?.replySignature ?? '',
+    replyInstructions: settings?.replyInstructions ?? '',
   };
 }
 
@@ -134,6 +138,10 @@ export class CategoriesPage {
   protected readonly settingsForm = form(this.settingsModel, (schemaPath) => {
     min(schemaPath.thresholdPercent, 0);
     max(schemaPath.thresholdPercent, 100);
+    // The same ceiling the backend puts on each of the three texts.
+    maxLength(schemaPath.extraInstructions, 2000);
+    maxLength(schemaPath.replySignature, 2000);
+    maxLength(schemaPath.replyInstructions, 2000);
   });
   protected readonly isSavingSettings = signal(false);
 
@@ -234,6 +242,8 @@ export class CategoriesPage {
         await this.settingsService.save({
           extraInstructions: model.extraInstructions.trim(),
           confidenceThreshold: model.thresholdPercent / 100,
+          replySignature: model.replySignature.trim(),
+          replyInstructions: model.replyInstructions.trim(),
         });
         // Back to pristine: the save button stays disabled until the next edit.
         this.settingsForm().reset();

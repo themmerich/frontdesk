@@ -34,6 +34,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     confidence: null,
     handledAt: null,
     deletedAt: null,
+    hasDraft: false,
     ...overrides,
   };
 }
@@ -70,8 +71,8 @@ describe('CaseList remembered state', () => {
   it('remembers a dragged width under the column it belongs to', async () => {
     const fixture = createFixture();
     const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
-    // The eight columns and the row actions, as they stand by default.
-    measureHeadersAs(fixture, [65, 200, 150, 300, 150, 130, 190, 90, 100]);
+    // The nine columns and the row actions, as they stand by default.
+    measureHeadersAs(fixture, [65, 200, 150, 300, 150, 130, 60, 190, 90, 100]);
 
     table.onColResize.emit({ element: document.createElement('th'), delta: -40 });
     await fixture.whenStable();
@@ -84,6 +85,7 @@ describe('CaseList remembered state', () => {
       subject: 300,
       categoryName: 150,
       tier: 130,
+      hasDraft: 60,
       receivedAt: 190,
       sizeBytes: 90,
       __actions: 100,

@@ -138,7 +138,12 @@ describe('CategoriesPage', () => {
     removed = [];
     failure = undefined;
     savedSettings = [];
-    storedSettings.set({ extraInstructions: 'Bestehende Anweisung.', confidenceThreshold: 0.8 });
+    storedSettings.set({
+      extraInstructions: 'Bestehende Anweisung.',
+      confidenceThreshold: 0.8,
+      replySignature: 'Musterfirma GmbH',
+      replyInstructions: '',
+    });
     toasts = [];
     confirmations = [];
     await TestBed.configureTestingModule({
@@ -218,7 +223,9 @@ describe('CategoriesPage', () => {
 
     // The percentage goes back as the fraction it was; typing into PrimeNG's
     // number input needs a real browser, so the e2e covers that conversion.
-    expect(savedSettings).toEqual([{ extraInstructions: 'Eigene Anweisung.', confidenceThreshold: 0.8 }]);
+    expect(savedSettings).toEqual([
+      { extraInstructions: 'Eigene Anweisung.', confidenceThreshold: 0.8, replySignature: 'Musterfirma GmbH', replyInstructions: '' },
+    ]);
     expect(toasts[0].summary).toBe('Settings saved.');
   });
 

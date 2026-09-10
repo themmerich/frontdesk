@@ -1,6 +1,6 @@
 /**
- * The triage knobs that apply to the whole tenant rather than to a single category. Mirrors the
- * backend's TriageSettingsResponse.
+ * The triage knobs that apply to the whole tenant rather than to a single category, and what
+ * the reply drafts are to be like. Mirrors the backend's TriageSettingsResponse.
  */
 export type TriageSettings = {
   /** Free text appended to the system prompt, for a tenant's own peculiarities; may be empty. */
@@ -11,4 +11,8 @@ export type TriageSettings = {
    * probability, so this wants tuning against real mail.
    */
   confidenceThreshold: number;
+  /** Put under every reply draft, verbatim; the model never sees it. May be empty. */
+  replySignature: string;
+  /** What the replies should sound like — form of address, tone, what never to promise. May be empty. */
+  replyInstructions: string;
 };

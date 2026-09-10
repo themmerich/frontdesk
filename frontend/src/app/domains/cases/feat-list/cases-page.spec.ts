@@ -156,6 +156,7 @@ describe('CasesPage', () => {
       confidence: null,
       handledAt: null,
       deletedAt: null,
+      hasDraft: false,
       ...overrides,
     };
   }

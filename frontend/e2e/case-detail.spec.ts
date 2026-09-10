@@ -35,7 +35,14 @@ const listed = [
   },
 ];
 
-const detail = { ...listed[0], categoryId: 'c1', bodyText: 'Sehr geehrte Damen und Herren,\n\nbitte senden Sie mir eine Kopie zu.' };
+const detail = {
+  ...listed[0],
+  categoryId: 'c1',
+  bodyText: 'Sehr geehrte Damen und Herren,\n\nbitte senden Sie mir eine Kopie zu.',
+  draftText: null,
+  draftGeneratedAt: null,
+  draftUpdatedAt: null,
+};
 
 test.describe('Case detail', () => {
   test.beforeEach(async ({ page }) => {
@@ -83,7 +90,7 @@ test.describe('Case detail', () => {
 
     // The mail reads as it was written: cutting the text into linked and unlinked pieces must
     // not leave a space behind where the template broke a line.
-    const shown = await page.locator('main section div').last().textContent();
+    const shown = await page.locator('main section div.whitespace-pre-wrap').textContent();
     expect(shown).toBe('Status unter https://example.com/status/4711 (dort auch die Nummer).');
 
     const link = page.getByRole('link', { name: 'https://example.com/status/4711' });
@@ -165,6 +172,60 @@ test.describe('Case detail', () => {
     await expect(page.getByRole('button', { name: 'Nächster Vorgang' })).toHaveCount(0);
   });
 
+  test('writes a reply on request and shows it beside the mail', async ({ page }) => {
+    let requests = 0;
+    await page.route('**/api/cases/1/draft', async (route) => {
+      requests++;
+      await route.fulfill({
+        json: {
+          ...detail,
+          draftText: 'Guten Tag,\n\ndie Kopie senden wir Ihnen zu.\n\nMusterfirma GmbH',
+          draftGeneratedAt: '2026-08-19T10:00:00Z',
+          draftUpdatedAt: '2026-08-19T10:00:00Z',
+        },
+      });
+    });
+
+    await page.goto('/cases/1');
+    // Nothing written yet: the page says so and offers the button.
+    await expect(page.getByText('Noch kein Entwurf')).toBeVisible();
+    await page.getByRole('button', { name: 'Entwurf erzeugen' }).click();
+
+    expect(requests).toBe(1);
+    await expect(page.getByRole('textbox', { name: 'Antwortentwurf' })).toHaveValue(/die Kopie senden wir Ihnen zu/);
+    await expect(page.getByText(/Erzeugt am/)).toBeVisible();
+    await expect(page.getByText('Entwurf erzeugt.')).toBeVisible();
+  });
+
+  test('saves an edited reply from the same button as the verdict', async ({ page }) => {
+    const drafted = {
+      ...detail,
+      draftText: 'Guten Tag,\n\ndie Kopie senden wir Ihnen zu.',
+      draftGeneratedAt: '2026-08-19T10:00:00Z',
+      draftUpdatedAt: '2026-08-19T10:00:00Z',
+    };
+    let saved: { text: string } | undefined;
+    await page.route('**/api/cases/1', (route) => route.fulfill({ json: drafted }));
+    await page.route('**/api/cases/1/draft', async (route) => {
+      saved = route.request().postDataJSON() as { text: string };
+      await route.fulfill({ json: { ...drafted, draftText: saved.text, draftUpdatedAt: '2026-08-19T10:05:00Z' } });
+    });
+
+    await page.goto('/cases/1');
+    const save = page.getByRole('button', { name: 'Speichern' });
+    await expect(save).toBeDisabled();
+
+    await page.getByRole('textbox', { name: 'Antwortentwurf' }).fill('Guten Tag,\n\ndie Kopie ist unterwegs.');
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    expect(saved).toEqual({ text: 'Guten Tag,\n\ndie Kopie ist unterwegs.' });
+    await expect(page.getByText('Änderungen gespeichert.')).toBeVisible();
+    // Saved is saved: nothing differs from the case any more, and the edit is dated.
+    await expect(save).toBeDisabled();
+    await expect(page.getByText(/Bearbeitet am/)).toBeVisible();
+  });
+
   test('saves category and tier together, and only when the button is pressed', async ({ page }) => {
     let stored = { ...detail };
     let saves = 0;
@@ -205,7 +266,7 @@ test.describe('Case detail', () => {
 
     await save.click();
 
-    await expect(page.getByText('Einordnung gespeichert.')).toBeVisible();
+    await expect(page.getByText('Änderungen gespeichert.')).toBeVisible();
     expect(saves).toBe(1);
     await expect(save).toBeDisabled();
   });

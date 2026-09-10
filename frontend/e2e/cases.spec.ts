@@ -242,6 +242,29 @@ test.describe('Cases page', () => {
     await expect(page.getByRole('row', { name: /Delivery status/ })).toHaveCount(0);
   });
 
+  test('marks the cases with a reply waiting, and filters down to them', async ({ page }) => {
+    await page.route('**/api/cases', (route) =>
+      route.fulfill({
+        json: [
+          { ...mockCases[0], hasDraft: true },
+          { ...mockCases[1], hasDraft: false },
+        ],
+      }),
+    );
+
+    await page.goto('/');
+    // The mark is in the row that has a reply, and only there.
+    await expect(page.getByRole('row', { name: /Delivery status/ }).getByRole('img', { name: 'Antwortentwurf vorhanden' })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Invoice copy/ }).getByRole('img', { name: 'Antwortentwurf vorhanden' })).toHaveCount(0);
+
+    // Filtered like the attachment column, through a tri-state checkbox.
+    await page.getByRole('columnheader', { name: 'Antwortentwurf' }).getByRole('button').click();
+    await page.locator('.p-datatable-filter-overlay').getByRole('checkbox').click();
+
+    await expect(page.getByRole('row', { name: /Delivery status/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Invoice copy/ })).toHaveCount(0);
+  });
+
   test('scrolls the table sideways instead of pushing the page out of view', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
     // Narrow enough that all eight columns cannot possibly fit.

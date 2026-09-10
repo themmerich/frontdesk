@@ -13,7 +13,8 @@ import java.util.UUID;
  */
 public record CaseResponse(UUID id, String sender, String recipient, String subject, Instant receivedAt,
 		boolean hasAttachments, long sizeBytes, String summary, UUID categoryId, String categoryName,
-		String categoryColor, String tier, BigDecimal confidence, Instant handledAt, Instant deletedAt) {
+		String categoryColor, String tier, BigDecimal confidence, Instant handledAt, Instant deletedAt,
+		boolean hasDraft) {
 
 	static CaseResponse from(Case aCase) {
 		CaseCategory category = aCase.getCategory();
@@ -32,6 +33,8 @@ public record CaseResponse(UUID id, String sender, String recipient, String subj
 				aCase.getHandledAt(),
 				// Null unless the case sits in the trash, which is the third pile the pages
 				// split the list into.
-				aCase.getDeletedAt());
+				aCase.getDeletedAt(),
+				// Whether a reply is waiting to be read; the text itself is the detail's.
+				aCase.hasDraft());
 	}
 }
