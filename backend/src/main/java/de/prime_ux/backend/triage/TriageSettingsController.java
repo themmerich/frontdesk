@@ -48,7 +48,8 @@ class TriageSettingsController {
 		Tenant tenant = currentTenant(authentication);
 		TenantTriageSettings settings = tenantTriageSettingsRepository.findByTenantId(tenant.getId())
 				.orElseGet(() -> TenantTriageSettings.defaults(tenant));
-		settings.update(request.normalizedInstructions(), request.confidenceThreshold());
+		settings.update(request.normalizedInstructions(), request.confidenceThreshold(),
+				request.normalizedSignature(), request.normalizedReplyInstructions());
 		return TriageSettingsResponse.from(tenantTriageSettingsRepository.save(settings));
 	}
 

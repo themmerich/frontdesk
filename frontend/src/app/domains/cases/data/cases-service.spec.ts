@@ -48,6 +48,7 @@ describe('CasesService', () => {
         confidence: null,
         handledAt: null,
         deletedAt: null,
+        hasDraft: false,
       },
     ];
     const service = TestBed.inject(CasesService);

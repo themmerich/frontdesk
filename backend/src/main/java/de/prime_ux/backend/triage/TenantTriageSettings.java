@@ -49,6 +49,16 @@ public class TenantTriageSettings {
 	@Column(name = "confidence_threshold", nullable = false)
 	private BigDecimal confidenceThreshold;
 
+	// Put under every reply draft, verbatim; empty means the drafts end with the
+	// text the model wrote.
+	@Column(name = "reply_signature", nullable = false)
+	private String replySignature;
+
+	// What the tenant wants its replies to be like — form of address, tone,
+	// things never to promise; empty means the general rules alone.
+	@Column(name = "reply_instructions", nullable = false)
+	private String replyInstructions;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
@@ -56,16 +66,21 @@ public class TenantTriageSettings {
 		this.tenant = tenant;
 		this.extraInstructions = extraInstructions;
 		this.confidenceThreshold = confidenceThreshold;
+		this.replySignature = "";
+		this.replyInstructions = "";
 		this.createdAt = Instant.now();
 	}
 
-	/** Both knobs are the tenant's to turn; nothing else about the triage lives here. */
-	public void update(String extraInstructions, BigDecimal confidenceThreshold) {
+	/** All four knobs are the tenant's to turn; nothing else about the triage lives here. */
+	public void update(String extraInstructions, BigDecimal confidenceThreshold, String replySignature,
+			String replyInstructions) {
 		this.extraInstructions = extraInstructions;
 		this.confidenceThreshold = confidenceThreshold;
+		this.replySignature = replySignature;
+		this.replyInstructions = replyInstructions;
 	}
 
-	/** What a tenant starts with: no extra instructions, the cautious default threshold. */
+	/** What a tenant starts with: no instructions of any kind, no signature, the cautious default threshold. */
 	public static TenantTriageSettings defaults(Tenant tenant) {
 		return new TenantTriageSettings(tenant, "", DEFAULT_CONFIDENCE_THRESHOLD);
 	}

@@ -142,10 +142,10 @@
             [pSortableColumnDisabled]="!col.sortable"
           >
             <div class="flex items-center gap-2">
-              @if (col.field === 'hasAttachments') {
-                <!-- The paperclip in the cells says it; the word above them only
-                     takes room. Kept for screen readers, and for the column
-                     toggle and the CSV export, which read the same header. -->
+              @if (col.field === 'hasAttachments' || col.field === 'hasDraft') {
+                <!-- The paperclip and the reply mark in the cells say it; the word
+                     above them only takes room. Kept for screen readers, and for the
+                     column toggle and the CSV export, which read the same header. -->
                 <span class="sr-only">{{ col.header }}</span>
               } @else {
                 {{ col.header }}
@@ -201,6 +201,9 @@
                   }
                   @case ('hasAttachments') {
                     <p-columnfilter type="boolean" display="menu" field="hasAttachments" [showOperator]="false" [showAddButton]="false" />
+                  }
+                  @case ('hasDraft') {
+                    <p-columnfilter type="boolean" display="menu" field="hasDraft" [showOperator]="false" [showAddButton]="false" />
                   }
                   @case ('receivedAt') {
                     <p-columnfilter type="date" display="menu" field="receivedAt" [showOperator]="false" [showAddButton]="false" />
@@ -301,6 +304,11 @@
                 @case ('hasAttachments') {
                   @if (row.hasAttachments) {
                     <i class="pi pi-paperclip" role="img" [attr.aria-label]="t('cases.hasAttachment')"></i>
+                  }
+                }
+                @case ('hasDraft') {
+                  @if (row.hasDraft) {
+                    <i class="pi pi-reply" role="img" [attr.aria-label]="t('cases.hasDraft')"></i>
                   }
                 }
                 @case ('recipient') {

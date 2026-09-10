@@ -107,50 +107,108 @@
           </div>
         </aside>
 
-        <section class="flex min-h-0 flex-auto flex-col gap-2">
-          <h2 class="text-sm font-medium">{{ t('caseDetail.original') }}</h2>
-          @if (mailDocument(); as document) {
-            @if (hasRemoteContent() && !showRemoteContent()) {
-              <!-- Fetching a picture tells the sender that this mail was opened just now, which
-                   is what half of them are there for. So it is asked first. -->
-              <div
-                class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-100 px-3 py-2 text-sm dark:bg-surface-800"
-              >
-                <span class="text-surface-600 dark:text-surface-300">{{ t('caseDetail.remoteBlocked') }}</span>
-                <p-button size="small" [text]="true" [label]="t('caseDetail.showRemote')" (onClick)="showRemoteContent.set(true)" />
-              </div>
-            }
-            <!-- The mail is a document of its own, in a frame that may do nothing: no scripts, no
-                 origin of its own, no forms to submit, nothing fetched but what the policy in its
-                 head allows. Links leave through a new tab, as they do in the text below. -->
-            <iframe
-              [srcdoc]="document"
-              sandbox="allow-popups allow-popups-to-escape-sandbox"
-              referrerpolicy="no-referrer"
-              [title]="t('caseDetail.htmlMail')"
-              class="min-h-0 w-full flex-auto rounded-lg border border-surface-200 bg-white dark:border-surface-700"
-            ></iframe>
-          } @else {
-            <!-- Every piece bound as text; only the ones that are addresses get an anchor around
-                 them. Nothing of the mail is ever rendered as markup.
+        <!-- The mail and the reply to it side by side where the screen allows, one under the
+             other where it does not: checking a draft means reading both. -->
+        <div class="flex min-h-0 flex-auto flex-col gap-4 xl:flex-row">
+          <section class="flex min-h-0 flex-auto flex-col gap-2 xl:basis-0">
+            <!-- The same height as the draft heading beside it, which shares its row with a button. -->
+            <div class="flex h-6 items-center">
+              <h2 class="text-sm font-medium">{{ t('caseDetail.original') }}</h2>
+            </div>
+            @if (mailDocument(); as document) {
+              @if (hasRemoteContent() && !showRemoteContent()) {
+                <!-- Fetching a picture tells the sender that this mail was opened just now, which
+                     is what half of them are there for. So it is asked first. -->
+                <div
+                  class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-100 px-3 py-2 text-sm dark:bg-surface-800"
+                >
+                  <span class="text-surface-600 dark:text-surface-300">{{ t('caseDetail.remoteBlocked') }}</span>
+                  <p-button size="small" [text]="true" [label]="t('caseDetail.showRemote')" (onClick)="showRemoteContent.set(true)" />
+                </div>
+              }
+              <!-- The mail is a document of its own, in a frame that may do nothing: no scripts, no
+                   origin of its own, no forms to submit, nothing fetched but what the policy in its
+                   head allows. Links leave through a new tab, as they do in the text below. -->
+              <iframe
+                [srcdoc]="document"
+                sandbox="allow-popups allow-popups-to-escape-sandbox"
+                referrerpolicy="no-referrer"
+                [title]="t('caseDetail.htmlMail')"
+                class="min-h-0 w-full flex-auto rounded-lg border border-surface-200 bg-white dark:border-surface-700"
+              ></iframe>
+            } @else {
+              <!-- Every piece bound as text; only the ones that are addresses get an anchor around
+                   them. Nothing of the mail is ever rendered as markup.
 
-                 Written without a break between the pieces, and kept that way: the box preserves
-                 whitespace, so a newline in the template would land in the mail as a space. -->
-            <!-- prettier-ignore -->
-            <div class="min-h-0 flex-auto overflow-y-auto rounded-lg bg-surface-50 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:bg-surface-800"
-            >@for (part of bodyParts(); track $index) {@if (part.href) {<a [href]="part.href" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2 hover:no-underline">{{ part.text }}</a>} @else {{{ part.text }}}}</div>
-          }
-          @if (aCase.hasAttachments) {
-            <p class="text-sm text-surface-500 dark:text-surface-400">
-              <i class="pi pi-paperclip" aria-hidden="true"></i>
-              {{ t('caseDetail.attachmentsNotStored') }}
-            </p>
-          }
-        </section>
+                   Written without a break between the pieces, and kept that way: the box preserves
+                   whitespace, so a newline in the template would land in the mail as a space. -->
+              <!-- prettier-ignore -->
+              <div class="min-h-0 flex-auto overflow-y-auto rounded-lg bg-surface-50 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:bg-surface-800"
+              >@for (part of bodyParts(); track $index) {@if (part.href) {<a [href]="part.href" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2 hover:no-underline">{{ part.text }}</a>} @else {{{ part.text }}}}</div>
+            }
+            @if (aCase.hasAttachments) {
+              <p class="text-sm text-surface-500 dark:text-surface-400">
+                <i class="pi pi-paperclip" aria-hidden="true"></i>
+                {{ t('caseDetail.attachmentsNotStored') }}
+              </p>
+            }
+          </section>
+
+          <!-- The reply as it stands: what the model wrote, or what a person made of it. Edited
+               here and saved from the button below, together with the verdict. -->
+          <section class="flex min-h-0 flex-auto flex-col gap-2 xl:basis-0">
+            <div class="flex h-6 items-center justify-between gap-2">
+              <h2 id="draft-heading" class="text-sm font-medium">{{ t('caseDetail.draft') }}</h2>
+              @if (aCase.draftText !== null && !isTrashed()) {
+                <!-- A new draft replaces what is there, edits included, so it asks first when
+                     something was edited. -->
+                <p-button
+                  size="small"
+                  [text]="true"
+                  icon="pi pi-refresh"
+                  [label]="t('caseDetail.regenerate')"
+                  [loading]="isGenerating()"
+                  [disabled]="isSaving()"
+                  (onClick)="onRegenerate()"
+                />
+              }
+            </div>
+            @if (aCase.draftText === null) {
+              <div
+                class="flex flex-auto flex-col items-center justify-center gap-3 rounded-lg bg-surface-50 p-4 text-center text-sm text-surface-500 dark:bg-surface-800 dark:text-surface-400"
+              >
+                <p>{{ t(isTrashed() ? 'caseDetail.draftNoneTrashed' : 'caseDetail.draftNone') }}</p>
+                @if (!isTrashed()) {
+                  <p-button icon="pi pi-sparkles" [label]="t('caseDetail.generate')" [loading]="isGenerating()" (onClick)="onGenerate()" />
+                }
+              </div>
+            } @else {
+              <!-- Read-only in the trash: what was thrown away is put back or deleted there, not
+                   answered. -->
+              <textarea
+                pTextarea
+                id="draft"
+                class="min-h-0 w-full flex-auto resize-none text-sm leading-relaxed"
+                aria-labelledby="draft-heading"
+                [(ngModel)]="draftText"
+                [readonly]="isTrashed()"
+                [disabled]="isGenerating()"
+              ></textarea>
+              <p class="flex flex-wrap gap-x-2 text-sm text-surface-500 dark:text-surface-400">
+                @if (aCase.draftGeneratedAt) {
+                  <span>{{ t('caseDetail.draftGeneratedAt', { date: (aCase.draftGeneratedAt | date: 'short') ?? '' }) }}</span>
+                }
+                @if (isDraftEdited()) {
+                  <span>{{ t('caseDetail.draftEditedAt', { date: (aCase.draftUpdatedAt | date: 'short') ?? '' }) }}</span>
+                }
+              </p>
+            }
+          </section>
+        </div>
       </div>
 
-      <!-- What was picked above is saved from here, beside the one other thing that can be done
-           with a case today. Nothing to save until something differs from what the case says. -->
+      <!-- What was picked and written above is saved from here, beside the one other thing that
+           can be done with a case today. Nothing to save until something differs from the case. -->
       <div class="flex justify-end gap-2 border-t border-surface-200 pt-3 dark:border-surface-700">
         <p-button
           icon="pi pi-trash"

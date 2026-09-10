@@ -83,7 +83,26 @@ class TriageSettingsControllerTest {
 		mockMvc.perform(get("/api/triage-settings"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.extraInstructions").value(""))
-				.andExpect(jsonPath("$.confidenceThreshold").value(0.80));
+				.andExpect(jsonPath("$.confidenceThreshold").value(0.80))
+				.andExpect(jsonPath("$.replySignature").value(""))
+				.andExpect(jsonPath("$.replyInstructions").value(""));
+	}
+
+	@Test
+	@WithMockUser(username = "anna", roles = "ADMIN")
+	void savesWhatTheRepliesAreToBeLike() throws Exception {
+		mockMvc.perform(put("/api/triage-settings").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"extraInstructions": "", "confidenceThreshold": 0.8,
+						 "replySignature": "  Mit freundlichen Grüßen\\nMusterfirma GmbH  ",
+						 "replyInstructions": "Kunden werden gesiezt."}"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.replySignature").value("Mit freundlichen Grüßen\nMusterfirma GmbH"))
+				.andExpect(jsonPath("$.replyInstructions").value("Kunden werden gesiezt."));
+
+		TenantTriageSettings stored = tenantTriageSettingsRepository.findByTenantId(tenant.getId()).orElseThrow();
+		assertThat(stored.getReplySignature()).isEqualTo("Mit freundlichen Grüßen\nMusterfirma GmbH");
 	}
 
 	@Test
@@ -111,7 +130,10 @@ class TriageSettingsControllerTest {
 				.content("""
 						{"confidenceThreshold": 0.5}"""))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.extraInstructions").value(""));
+				.andExpect(jsonPath("$.extraInstructions").value(""))
+				// The reply fields left out mean the same as left empty.
+				.andExpect(jsonPath("$.replySignature").value(""))
+				.andExpect(jsonPath("$.replyInstructions").value(""));
 	}
 
 	@Test

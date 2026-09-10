@@ -73,6 +73,9 @@ const aCase: CaseDetail = {
   confidence: 0.72,
   handledAt: null,
   deletedAt: null,
+  draftText: null,
+  draftGeneratedAt: null,
+  draftUpdatedAt: null,
 };
 
 describe('CaseDetailPage', () => {

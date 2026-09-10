@@ -60,6 +60,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     confidence: null,
     handledAt: null,
     deletedAt: null,
+    hasDraft: false,
     ...overrides,
   };
 }
@@ -142,7 +143,7 @@ describe('CaseList', () => {
 
     expect(element.querySelector('.p-datatable-resizable')).not.toBeNull();
     // A handle per column; the inbox has no action column beside them.
-    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(8);
+    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(9);
   });
 
   it('keeps the attachment header out of sight but not out of reach', () => {
@@ -165,6 +166,7 @@ describe('CaseList', () => {
         confidence: 0.95,
         handledAt: null,
         deletedAt: null,
+        hasDraft: false,
       }),
       aCase({ id: '2', sender: 'ben@example.com', subject: 'Noch unbewertet', receivedAt: new Date('2026-08-19T09:15:00Z') }),
     ]).nativeElement as HTMLElement;
@@ -345,7 +347,7 @@ describe('CaseList', () => {
     const fixture = createFixture([aCase()]);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelectorAll('th')).toHaveLength(9);
+    expect(element.querySelectorAll('th')).toHaveLength(10);
 
     const columnsButton = element.querySelector('p-button button') as HTMLButtonElement;
     columnsButton.click();
@@ -356,7 +358,7 @@ describe('CaseList', () => {
     subjectCheckbox.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(8);
+    expect(element.querySelectorAll('th')).toHaveLength(9);
     expect(element.textContent).not.toContain('Delivery status');
 
     const resetButton = Array.from(document.querySelectorAll('button')).find((button) =>
@@ -366,7 +368,7 @@ describe('CaseList', () => {
     resetButton.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(9);
+    expect(element.querySelectorAll('th')).toHaveLength(10);
     expect(element.textContent).toContain('Delivery status');
   });
 
@@ -386,6 +388,7 @@ describe('CaseList', () => {
       'recipient',
       'categoryName',
       'tier',
+      'hasDraft',
       'receivedAt',
       'sizeBytes',
     ]);
@@ -395,15 +398,15 @@ describe('CaseList', () => {
     const fixture = createFixture([]);
 
     const element = fixture.nativeElement as HTMLElement;
-    // The attachment column filters without sorting, the size column does the opposite.
-    // Sortable: sender, recipient, subject, category, tier, received at, size.
+    // The attachment and the draft column filter without sorting, the size column does the
+    // opposite. Sortable: sender, recipient, subject, category, tier, received at, size.
     // Filterable: everything but the size.
     expect(element.querySelectorAll('p-sorticon')).toHaveLength(7);
-    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(7);
+    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(8);
   });
 
   // Filter toggle order matches the column order: attachment, sender, recipient,
-  // subject, category, tier, received at. The size has no filter.
+  // subject, category, tier, draft, received at. The size has no filter.
   async function openFilterMenu(fixture: ReturnType<typeof createFixture>, index: number): Promise<void> {
     const filterToggles = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('p-columnfilter button');
     filterToggles[index].click();
@@ -421,7 +424,7 @@ describe('CaseList', () => {
   it('offers a date filter for the received-at column', async () => {
     const fixture = createFixture([]);
 
-    await openFilterMenu(fixture, 6);
+    await openFilterMenu(fixture, 7);
 
     expect(document.querySelector('p-datepicker')).not.toBeNull();
   });

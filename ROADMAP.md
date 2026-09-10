@@ -39,9 +39,11 @@ SMTP) in Docker Compose as the dev/demo mail infrastructure; the core entity is 
 - [x] **10. Dashboard** — totals per pile, arrivals today / 7 days / 30 days against the stretch
       before, cases per category, per tier, and over time. _(Moved up from the expansion list;
       the automation rate and hours-saved estimate still wait for step 5.)_
-- [ ] **4. Answer drafts** — AI-generated reply drafts for automatic and draft-tier cases,
-      generated in the triage run or on demand, editable in the detail view. Needs a signature
-      and a tone of voice per tenant, kept with the triage settings.
+- [x] **4. Answer drafts** — AI-generated reply drafts for automatic and draft-tier cases,
+      written by a pass of their own after the triage, or on demand for any case from the detail
+      page; edited there and saved together with the verdict. What the model wrote is kept beside
+      the edit. Signature and reply instructions per tenant, kept with the triage settings; the
+      inbox marks the cases with a reply waiting.
 - [ ] **5. Approval and send** — approve a draft, send it via SMTP with proper threading
       (In-Reply-To, References), store the sent reply on the case, and add an **audit trail**
       per case: ingested, triaged (model, confidence), corrected by whom, handled, sent.

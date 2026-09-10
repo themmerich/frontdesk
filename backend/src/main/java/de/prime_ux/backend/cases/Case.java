@@ -104,6 +104,24 @@ public class Case {
 	@Column
 	private String summary;
 
+	// The reply as the model wrote it, kept so it can be measured later how much
+	// people had to change. Null when nobody asked the model, or a person wrote
+	// the draft from scratch.
+	@Column(name = "draft_generated_text")
+	private String draftGeneratedText;
+
+	// The reply as it stands: what a person edits, and what step 5 will send.
+	// Null means the case has no draft, which is how the runner finds the cases
+	// still waiting for one.
+	@Column(name = "draft_text")
+	private String draftText;
+
+	@Column(name = "draft_generated_at")
+	private Instant draftGeneratedAt;
+
+	@Column(name = "draft_updated_at")
+	private Instant draftUpdatedAt;
+
 	public Case(Tenant tenant, String messageId, String sender, String recipient, String subject, String bodyText,
 			Instant receivedAt, boolean hasAttachments, long sizeBytes) {
 		this(tenant, messageId, sender, recipient, subject, bodyText, null, receivedAt, hasAttachments, sizeBytes);
@@ -189,5 +207,42 @@ public class Case {
 		this.confidence = confidence;
 		this.summary = summary;
 		this.triagedAt = Instant.now();
+	}
+
+	/** Whether there is a reply to read: the current text, however it came to be. */
+	public boolean hasDraft() {
+		return this.draftText != null;
+	}
+
+	/**
+	 * What the model wrote, replacing whatever draft there was — edits included. Both texts start
+	 * out the same; they part ways with the first edit.
+	 *
+	 * <p>Refused for a case in the trash: nobody answers a mail that was thrown away, and the
+	 * runner never asks for one, so this only guards the button.
+	 */
+	public void applyDraft(String text) {
+		requireNotTrashed();
+		Instant now = Instant.now();
+		this.draftGeneratedText = text;
+		this.draftText = text;
+		this.draftGeneratedAt = now;
+		this.draftUpdatedAt = now;
+	}
+
+	/**
+	 * A person's version of the reply. What the model wrote stays where it is — that is the point
+	 * of keeping it — and a person may write a draft where the model never did.
+	 */
+	public void editDraft(String text) {
+		requireNotTrashed();
+		this.draftText = text;
+		this.draftUpdatedAt = Instant.now();
+	}
+
+	private void requireNotTrashed() {
+		if (this.deletedAt != null) {
+			throw new IllegalStateException("A case in the trash gets no draft");
+		}
 	}
 }

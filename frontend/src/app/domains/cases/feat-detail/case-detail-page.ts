@@ -10,6 +10,7 @@ import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
+import { TextareaModule } from 'primeng/textarea';
 import { TooltipModule } from 'primeng/tooltip';
 
 import { CaseCategoriesService } from '../data/case-categories-service';
@@ -36,8 +37,8 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
 };
 
 /**
- * One case in full: the mail as it arrived, what the triage made of it, and the one decision a
- * person can take on it today — which tier it belongs in.
+ * One case in full: the mail as it arrived, what the triage made of it, the reply the model wrote
+ * to it, and what a person can do about both — correct the verdict, and edit the reply.
  */
 @Component({
   selector: 'app-case-detail-page',
@@ -52,6 +53,7 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
     MessageModule,
     SelectModule,
     TagModule,
+    TextareaModule,
     TooltipModule,
   ],
   templateUrl: './case-detail-page.html',
@@ -73,6 +75,7 @@ export class CaseDetailPage {
   protected readonly isSaving = signal(false);
   protected readonly isDeleting = signal(false);
   protected readonly isHandling = signal(false);
+  protected readonly isGenerating = signal(false);
 
   /**
    * What a person has picked but not saved yet. Both follow the case they belong to: opening
@@ -81,10 +84,35 @@ export class CaseDetailPage {
   protected readonly draftCategoryId = linkedSignal(() => this.detailService.detail.value()?.categoryId ?? null);
   protected readonly draftTier = linkedSignal(() => this.detailService.detail.value()?.tier ?? null);
 
-  /** Nothing to save until something differs from what the case says today. */
-  protected readonly isDirty = computed(() => {
+  /**
+   * The reply as it stands in the box. Re-anchored on the case like the two above, and on a new
+   * draft from the model, which replaces whatever was typed.
+   */
+  protected readonly draftText = linkedSignal(() => this.detailService.detail.value()?.draftText ?? null);
+
+  private readonly isClassificationDirty = computed(() => {
     const aCase = this.detailService.detail.value();
     return aCase !== undefined && (this.draftCategoryId() !== aCase.categoryId || this.draftTier() !== aCase.tier);
+  });
+
+  private readonly isDraftDirty = computed(() => {
+    const aCase = this.detailService.detail.value();
+    return aCase !== undefined && this.draftText() !== aCase.draftText;
+  });
+
+  /** Nothing to save until something differs from what the case says today — the verdict or the reply. */
+  protected readonly isDirty = computed(() => this.isClassificationDirty() || this.isDraftDirty());
+
+  /**
+   * Whether a person has changed the saved draft since the model wrote it. A draft the model never
+   * wrote counts as edited: everything in it is a person's.
+   */
+  protected readonly isDraftEdited = computed(() => {
+    const aCase = this.detailService.detail.value();
+    if (aCase === undefined || aCase.draftUpdatedAt === null) {
+      return false;
+    }
+    return aCase.draftGeneratedAt === null || aCase.draftUpdatedAt.getTime() !== aCase.draftGeneratedAt.getTime();
   });
 
   /** Null when the page was opened through a link: there is no list to page through. */
@@ -111,10 +139,6 @@ export class CaseDetailPage {
   });
 
   /**
-   * The mail as it is shown: its text cut into the pieces that are addresses and the pieces that
-   * are not. Bound as text either way — a mail body comes from a stranger and is never markup.
-   */
-  /**
    * What the category picker offers: the categories the tenant keeps, and the choice of none at
    * all. A case that sits in a category which has since been retired keeps it in the list, so
    * opening the case does not quietly file it somewhere else.
@@ -135,6 +159,10 @@ export class CaseDetailPage {
     ];
   });
 
+  /**
+   * The mail as it is shown: its text cut into the pieces that are addresses and the pieces that
+   * are not. Bound as text either way — a mail body comes from a stranger and is never markup.
+   */
   protected readonly bodyParts = computed(() => mailTextParts(this.detailService.detail.value()?.bodyText ?? ''));
 
   /** The mail as it was written, where that was HTML; null where the mail is plain text. */
@@ -186,15 +214,23 @@ export class CaseDetailPage {
   }
 
   /**
-   * Both corrections in one request: the category and the tier are saved together, so a case
-   * never ends up half corrected because the second call did not get through. Says whether it
-   * worked, because ticking a case off saves what is pending first and must stop where this does.
+   * Everything that differs from the case, in one go: the verdict in one request — the category
+   * and the tier together, so a case never ends up half corrected — and the reply in another,
+   * each only when it changed. Says whether it worked, because ticking a case off saves what is
+   * pending first and must stop where this does.
    */
   private async save(): Promise<boolean> {
     this.isSaving.set(true);
     try {
-      await this.detailService.changeClassification(this.draftCategoryId(), this.draftTier());
-      // The inbox shows the tier and draws its rows in the category's colour, one page back.
+      if (this.isClassificationDirty()) {
+        await this.detailService.changeClassification(this.draftCategoryId(), this.draftTier());
+      }
+      const draft = this.draftText();
+      if (this.isDraftDirty() && draft !== null) {
+        await this.detailService.saveDraft(draft);
+      }
+      // The inbox shows the tier, draws its rows in the category's colour, and says whether a
+      // reply is waiting — one page back.
       this.casesService.cases.reload();
       this.toast('success', 'caseDetail.saved');
       return true;
@@ -206,13 +242,52 @@ export class CaseDetailPage {
     }
   }
 
+  /** The model writes a reply now — for a case that has none, whatever its tier. */
+  protected async onGenerate(): Promise<void> {
+    await this.generate();
+  }
+
+  /**
+   * A new reply in place of the one there is. Asked first when a person's work would go with it:
+   * text typed and not saved, or a saved draft that was edited since the model wrote it.
+   */
+  protected onRegenerate(): void {
+    if (!this.isDraftDirty() && !this.isDraftEdited()) {
+      void this.generate();
+      return;
+    }
+    this.confirmationService.confirm({
+      header: this.transloco.translate('caseDetail.regenerateHeader'),
+      message: this.transloco.translate('caseDetail.regenerateMessage'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: this.transloco.translate('caseDetail.regenerate'),
+      rejectLabel: this.transloco.translate('cases.deleteCancel'),
+      rejectButtonProps: { severity: 'secondary', outlined: true },
+      accept: () => void this.generate(),
+    });
+  }
+
+  private async generate(): Promise<void> {
+    this.isGenerating.set(true);
+    try {
+      await this.detailService.generateDraft();
+      // The inbox says which cases have a reply waiting.
+      this.casesService.cases.reload();
+      this.toast('success', 'caseDetail.draftGenerated');
+    } catch {
+      this.toast('error', 'caseDetail.draftError');
+    } finally {
+      this.isGenerating.set(false);
+    }
+  }
+
   /**
    * Ticked off, or put back into the inbox — and on to the next case either way, as after
    * deleting: the case leaves the list it was being worked through, and staying on it would
    * leave a page nobody came for.
    *
-   * <p>What was picked above and not yet saved is saved first. "Erledigt" says this case is
-   * settled; dropping a correction on the way there would be a strange reading of that.
+   * <p>What was picked or written above and not yet saved is saved first. "Erledigt" says this
+   * case is settled; dropping a correction on the way there would be a strange reading of that.
    */
   protected async onHandled(aCase: CaseDetail): Promise<void> {
     if (this.isDirty() && !(await this.save())) {

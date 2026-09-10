@@ -11,12 +11,12 @@ import java.util.UUID;
  * body: sending the full text of every mail just to fill a table would be paid for on every
  * reload, and the list never shows it.
  */
-record CaseDetailResponse(UUID id, String sender, String recipient, String subject, String bodyText,
+public record CaseDetailResponse(UUID id, String sender, String recipient, String subject, String bodyText,
 		String bodyHtml, Instant receivedAt, boolean hasAttachments, long sizeBytes, String summary, UUID categoryId,
 		String categoryName, String categoryColor, String tier, BigDecimal confidence, Instant handledAt,
-		Instant deletedAt) {
+		Instant deletedAt, String draftText, Instant draftGeneratedAt, Instant draftUpdatedAt) {
 
-	static CaseDetailResponse from(Case aCase) {
+	public static CaseDetailResponse from(Case aCase) {
 		CaseCategory category = aCase.getCategory();
 		return new CaseDetailResponse(aCase.getId(), aCase.getSender(), aCase.getRecipient(), aCase.getSubject(),
 				aCase.getBodyText(), aCase.getBodyHtml(), aCase.getReceivedAt(), aCase.isHasAttachments(), aCase.getSizeBytes(),
@@ -25,6 +25,9 @@ record CaseDetailResponse(UUID id, String sender, String recipient, String subje
 				category == null || category.getColor() == null ? null
 						: category.getColor().name().toLowerCase(Locale.ROOT),
 				aCase.getTier() == null ? null : aCase.getTier().name().toLowerCase(Locale.ROOT),
-				aCase.getConfidence(), aCase.getHandledAt(), aCase.getDeletedAt());
+				aCase.getConfidence(), aCase.getHandledAt(), aCase.getDeletedAt(),
+				// The reply as it stands, and when the model wrote it and a person last touched
+				// it. What the model wrote stays in the database; the page has no use for it.
+				aCase.getDraftText(), aCase.getDraftGeneratedAt(), aCase.getDraftUpdatedAt());
 	}
 }

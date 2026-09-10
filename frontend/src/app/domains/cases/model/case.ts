@@ -33,19 +33,31 @@ export type Case = {
    * archive, until it is deleted for good or fetched back.
    */
   deletedAt: Date | null;
+  /** Whether a reply is waiting to be read. The text itself is the detail's. */
+  hasDraft: boolean;
 };
 
 /**
  * One case with everything the detail view shows. The body is deliberately not part of {@link
  * Case}: the list would pay for the full text of every mail on every reload and never shows one.
+ * The draft flag goes the other way: the detail carries the draft itself, so the flag would say
+ * nothing the text does not.
  */
-export type CaseDetail = Case & {
+export type CaseDetail = Omit<Case, 'hasDraft'> & {
   bodyText: string;
   /**
    * The mail as it was written, where it was written in HTML. Null for the ones that carry no
    * HTML part, and for everything ingested before it was kept — those are read as text.
    */
   bodyHtml: string | null;
+  /**
+   * The reply as it stands: what the model wrote, or what a person made of it. Null while the
+   * case has none. The two moments say when the model wrote it and when it last changed; a draft
+   * a person wrote from scratch has no first moment.
+   */
+  draftText: string | null;
+  draftGeneratedAt: Date | null;
+  draftUpdatedAt: Date | null;
 };
 
 /** A category as a case is filed under it: what it is called, and the colour it is drawn in. */
