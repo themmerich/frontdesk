@@ -188,6 +188,32 @@ describe('CasesService', () => {
     httpTesting.verify();
   });
 
+  it('keeps the list it has while a reload brings back the same cases, and takes a changed one', async () => {
+    const service = TestBed.inject(CasesService);
+    const httpTesting = TestBed.inject(HttpTestingController);
+    TestBed.tick();
+    httpTesting.expectOne('/api/cases').flush([{ ...onTheWire, id: '1' }]);
+    await TestBed.inject(ApplicationRef).whenStable();
+    const before = service.cases.value();
+
+    // Most polls: nothing has happened. The list stays the very same, so nothing built on it —
+    // the rows of the inbox, the page one stands on — is touched.
+    service.cases.reload();
+    TestBed.tick();
+    httpTesting.expectOne('/api/cases').flush([{ ...onTheWire, id: '1' }]);
+    await TestBed.inject(ApplicationRef).whenStable();
+    expect(service.cases.value()).toBe(before);
+
+    // The triage has looked at the case since: that is news, and gets through.
+    service.cases.reload();
+    TestBed.tick();
+    httpTesting.expectOne('/api/cases').flush([{ ...onTheWire, id: '1', tier: 'manual' }]);
+    await TestBed.inject(ApplicationRef).whenStable();
+    expect(service.cases.value()).not.toBe(before);
+    expect(service.cases.value()[0].tier).toBe('manual');
+    httpTesting.verify();
+  });
+
   it('holds both piles empty while the list could not be loaded', async () => {
     const service = TestBed.inject(CasesService);
     const httpTesting = TestBed.inject(HttpTestingController);

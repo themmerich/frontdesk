@@ -25,7 +25,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { PopoverModule } from 'primeng/popover';
 import { SelectModule } from 'primeng/select';
-import { Table, TableModule } from 'primeng/table';
+import { Table, TableModule, TablePageEvent } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 
@@ -199,6 +199,21 @@ export class CaseList {
 
   protected readonly defaultRows = DEFAULT_ROWS;
 
+  /**
+   * Where the page one stands on begins, as an offset into the rows. PrimeNG turns back to the
+   * first page whenever it is handed new rows while a filter is on — and a column filter counts
+   * as on from the moment it exists, value or no value. Every reload of the list would so throw
+   * the reader back to the top; this is what is put back after each one.
+   */
+  private pageStart = 0;
+
+  /**
+   * The rows the table has drawn. What arrives before they are drawn again is a reload of the
+   * list; what arrives while they stand is a person sorting or filtering. The two are told apart
+   * by that, and only that.
+   */
+  private renderedRows: GroupedCase[] | null = null;
+
   /** The name the row actions are remembered under; the others go by their field. */
   protected readonly actionsColumn = ACTIONS_COLUMN;
 
@@ -206,6 +221,10 @@ export class CaseList {
     // The widths as PrimeNG wants them: one per rendered column, in the order they stand. It
     // applies them itself on load, and from here on they are handed over again for whatever
     // arrangement is on screen — after a column was hidden, shown, or moved.
+    afterRenderEffect(() => {
+      this.renderedRows = this.rows();
+    });
+
     afterRenderEffect(() => {
       const widths = this.renderedWidths();
       const table = this.table();
@@ -259,7 +278,8 @@ export class CaseList {
   /**
    * The rows as the table sees them: every case with the stretch of time it belongs to. Read off
    * the clock of the moment they are built, which is what makes "today" today even when the page
-   * has been open since yesterday — the list reloads every ten seconds and this is built with it.
+   * has been open since yesterday — the list reloads every ten seconds and this is built again
+   * whenever it brings something new.
    */
   protected readonly rows = computed<GroupedCase[]>(() => {
     this.translation();
@@ -293,6 +313,34 @@ export class CaseList {
 
   protected onSortChanged(): void {
     this.sortedBy.set(this.table().sortField ?? null);
+    this.keepPage();
+  }
+
+  protected onFilterChanged(): void {
+    this.keepPage();
+  }
+
+  protected onPageChanged(event: TablePageEvent): void {
+    this.pageStart = event.first;
+  }
+
+  /**
+   * A person sorting or filtering starts over on the first page, which is where the table has
+   * just put itself. A reload of the list does not: the page is put back where it was, or onto
+   * the last one there still is when the list has grown shorter. Done here, while the table is
+   * still about to draw itself, rather than after it has — so the first page is never shown in
+   * between.
+   */
+  private keepPage(): void {
+    const table = this.table();
+    if (this.rows() === this.renderedRows) {
+      this.pageStart = 0;
+      return;
+    }
+    const rows = table.rows() ?? DEFAULT_ROWS;
+    const lastPageStart = Math.max(0, Math.ceil(table.totalRecords() / rows) - 1) * rows;
+    this.pageStart = Math.min(this.pageStart, lastPageStart);
+    table.first.set(this.pageStart);
   }
 
   // What the header and the body render, and what the CSV export is handed.

@@ -484,6 +484,35 @@ test.describe('Cases page', () => {
     await expect(page.locator('tbody tr[data-p-selectable-row]')).toHaveCount(5);
   });
 
+  test('stays on the page one is on while new mail comes in', async ({ page }) => {
+    const many = Array.from({ length: 30 }, (_, index) => ({
+      ...mockCases[0],
+      id: String(index),
+      subject: `Vorgang ${index}`,
+      receivedAt: new Date(Date.UTC(2026, 7, 19, 8, index)).toISOString(),
+    }));
+    // The first answer is the list as the page opens on it; every one after it carries a mail
+    // that came in since, at the top.
+    const arrived = { ...mockCases[0], id: 'new', subject: 'Neu eingetroffen', receivedAt: '2026-08-19T09:00:00Z' };
+    let reads = 0;
+    await page.route('**/api/cases', (route) => {
+      reads += 1;
+      return route.fulfill({ json: reads === 1 ? many : [arrived, ...many] });
+    });
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Nächste Seite' }).click();
+    await expect(page.getByText('26 – 30 von 30 Vorgängen')).toBeVisible();
+
+    // Coming back to the tab reloads the list at once, the same way the poll does every ten
+    // seconds — without the wait.
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+
+    // The new mail is counted, and the page is still the second one.
+    await expect(page.getByText('26 – 31 von 31 Vorgängen')).toBeVisible();
+    await expect(page.locator('tbody tr[data-p-selectable-row]')).toHaveCount(6);
+  });
+
   test('fills a page where the stored state predates the paginator', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
     // What the storage holds for everyone who used the inbox before it had a paginator: a state
