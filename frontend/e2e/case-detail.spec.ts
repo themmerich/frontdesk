@@ -210,6 +210,40 @@ test.describe('Case detail', () => {
     await expect(save).toBeDisabled();
   });
 
+  test('ticks a case off from the detail view and moves on to the next one', async ({ page }) => {
+    const handled: { id: string; handled: boolean }[] = [];
+    await page.route('**/api/cases/*/handled', (route) => {
+      const id = new URL(route.request().url()).pathname.split('/').at(-2)!;
+      handled.push({ id, handled: (route.request().postDataJSON() as { handled: boolean }).handled });
+      return route.fulfill({ json: {} });
+    });
+    await page.route('**/api/cases', (route) =>
+      route.fulfill({
+        json: listed.map((aCase) =>
+          handled.some((entry) => entry.id === aCase.id) ? { ...aCase, handledAt: '2026-08-20T09:00:00Z' } : aCase,
+        ),
+      }),
+    );
+
+    await page.goto('/');
+    await page.getByRole('row', { name: /Rechnung 2026-081/ }).dblclick();
+    await expect(page.getByRole('heading', { name: 'Rechnung 2026-081' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Erledigt' }).click();
+
+    await expect(page.getByText('Vorgang ins Archiv verschoben.')).toBeVisible();
+    expect(handled).toEqual([{ id: '1', handled: true }]);
+    // On to the next case of the list that was being worked through.
+    await expect(page).toHaveURL(/\/cases\/2$/);
+
+    // And out of the inbox, into the archive.
+    // The back link on the page; the sidebar carries the same word.
+    await page.getByRole('main').getByRole('link', { name: 'Posteingang' }).click();
+    await expect(page.getByRole('row', { name: /Rechnung 2026-081/ })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Archiv' }).click();
+    await expect(page.getByRole('row', { name: /Rechnung 2026-081/ })).toBeVisible();
+  });
+
   test('deletes a case and moves on to the next one', async ({ page }) => {
     await page.route('**/api/cases', (route) => {
       if (route.request().method() === 'DELETE') {

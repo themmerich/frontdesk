@@ -1,5 +1,5 @@
 import { provideZonelessChangeDetection, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { Confirmation, ConfirmationService, MessageService, ToastMessageOptions } from 'primeng/api';
@@ -24,6 +24,12 @@ const translations = {
     deleteCancel: 'Cancel',
     deletedOne: 'Case deleted.',
     deleteError: 'Deleting failed.',
+    markHandled: 'Done',
+    markedHandled: 'Case moved to the archive.',
+    markHandledError: 'The case could not be moved to the archive.',
+    reopen: 'Reopen',
+    reopened: 'The case is back in the inbox.',
+    reopenError: 'The case could not be reopened.',
   },
   caseDetail: {
     backToInbox: 'Inbox',
@@ -72,8 +78,11 @@ const aCase: CaseDetail = {
 describe('CaseDetailPage', () => {
   const detail = signal<CaseDetail | undefined>(aCase);
   const detailError = signal<Error | undefined>(undefined);
-  let saved: { categoryId: string | null; tier: string }[];
+  let saved: { categoryId: string | null; tier: string | null }[];
   let removed: string[][];
+  let handled: { id: string; handled: boolean }[];
+  let saveFails: boolean;
+  let handlingFails: boolean;
   const detailServiceStub = {
     id: signal<string | null>(null),
     detail: {
@@ -82,9 +91,9 @@ describe('CaseDetailPage', () => {
       isLoading: signal(false),
       hasValue: () => detail() !== undefined,
     },
-    changeClassification: (categoryId: string | null, tier: string) => {
+    changeClassification: (categoryId: string | null, tier: string | null) => {
       saved.push({ categoryId, tier });
-      return Promise.resolve();
+      return saveFails ? Promise.reject(new Error('nope')) : Promise.resolve();
     },
   } as unknown as CaseDetailService;
   const categories = signal([
@@ -101,6 +110,10 @@ describe('CaseDetailPage', () => {
       removed.push(ids);
       return Promise.resolve();
     },
+    markHandled: (id: string, isHandled: boolean) => {
+      handled.push({ id, handled: isHandled });
+      return handlingFails ? Promise.reject(new Error('nope')) : Promise.resolve();
+    },
   } as unknown as CasesService;
 
   let toasts: ToastMessageOptions[];
@@ -113,6 +126,9 @@ describe('CaseDetailPage', () => {
     saved = [];
     categoriesError.set(undefined);
     removed = [];
+    handled = [];
+    saveFails = false;
+    handlingFails = false;
     toasts = [];
     confirmations = [];
     navigated = [];
@@ -143,6 +159,15 @@ describe('CaseDetailPage', () => {
       return Promise.resolve(true);
     };
   });
+
+  /** A footer button by the word on it. */
+  function button(fixture: ComponentFixture<CaseDetailPage>, label: string): HTMLButtonElement {
+    const found = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find(
+      (candidate) => candidate.textContent?.trim() === label,
+    );
+    expect(found, `button "${label}"`).toBeDefined();
+    return found!;
+  }
 
   function createFixture() {
     const fixture = TestBed.createComponent(CaseDetailPage);
@@ -215,7 +240,7 @@ describe('CaseDetailPage', () => {
     expect(element.querySelector('iframe')!.getAttribute('srcdoc')).toContain('img-src data:');
 
     Array.from(element.querySelectorAll('button'))
-      .find((button) => button.textContent?.includes('Show pictures'))!
+      .find((candidate) => candidate.textContent?.includes('Show pictures'))!
       .click();
     fixture.detectChanges();
 
@@ -316,6 +341,88 @@ describe('CaseDetailPage', () => {
     await fixture.whenStable();
 
     expect(navigated).toEqual([['/cases', 'c']]);
+  });
+
+  it('ticks a case off and moves on to the next one, as after deleting', async () => {
+    TestBed.inject(CaseOrderStore).set(['a', 'b', 'c']);
+    const fixture = createFixture();
+
+    button(fixture, 'Done').click();
+    await fixture.whenStable();
+
+    expect(handled).toEqual([{ id: 'b', handled: true }]);
+    expect(toasts.map((toast) => [toast.severity, toast.summary])).toEqual([['success', 'Case moved to the archive.']]);
+    // The case has left the list that was being worked through; staying on it would be a page
+    // nobody came for.
+    expect(navigated).toEqual([['/cases', 'c']]);
+  });
+
+  it('goes back to the inbox when the case it ticks off was the last one', async () => {
+    const fixture = createFixture();
+
+    button(fixture, 'Done').click();
+    await fixture.whenStable();
+
+    expect(navigated).toEqual([['/']]);
+  });
+
+  it('saves what was picked before it ticks the case off', async () => {
+    const fixture = createFixture();
+    fixture.componentInstance['draftCategoryId'].set('c2');
+    fixture.detectChanges();
+
+    button(fixture, 'Done').click();
+    await fixture.whenStable();
+
+    // "Erledigt" says the case is settled, so the correction goes with it rather than being lost.
+    expect(saved).toEqual([{ categoryId: 'c2', tier: 'draft' }]);
+    expect(handled).toEqual([{ id: 'b', handled: true }]);
+  });
+
+  it('stops where saving stops, and leaves the case where it is', async () => {
+    saveFails = true;
+    const fixture = createFixture();
+    fixture.componentInstance['draftCategoryId'].set('c2');
+    fixture.detectChanges();
+
+    button(fixture, 'Done').click();
+    await fixture.whenStable();
+
+    expect(handled).toEqual([]);
+    expect(navigated).toEqual([]);
+    expect(toasts.map((toast) => toast.summary)).toEqual(['The classification could not be saved.']);
+  });
+
+  it('says so when the case could not be moved to the archive', async () => {
+    handlingFails = true;
+    const fixture = createFixture();
+
+    button(fixture, 'Done').click();
+    await fixture.whenStable();
+
+    expect(toasts.map((toast) => [toast.severity, toast.summary])).toEqual([['error', 'The case could not be moved to the archive.']]);
+    expect(navigated).toEqual([]);
+  });
+
+  it('offers the way back for a case that was ticked off already', async () => {
+    detail.set({ ...aCase, handledAt: new Date('2026-08-20T09:00:00Z') });
+    const fixture = createFixture();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Done');
+    button(fixture, 'Reopen').click();
+    await fixture.whenStable();
+
+    expect(handled).toEqual([{ id: 'b', handled: false }]);
+    expect(toasts.map((toast) => toast.summary)).toEqual(['The case is back in the inbox.']);
+  });
+
+  it('offers neither for a case in the trash, which is put back or deleted there', () => {
+    detail.set({ ...aCase, deletedAt: new Date('2026-08-21T09:00:00Z') });
+
+    const text = (createFixture().nativeElement as HTMLElement).textContent;
+
+    expect(text).not.toContain('Done');
+    expect(text).not.toContain('Reopen');
   });
 
   it('asks before deleting and moves on to the next case', async () => {

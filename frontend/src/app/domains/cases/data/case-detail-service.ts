@@ -4,8 +4,22 @@ import { firstValueFrom } from 'rxjs';
 
 import { CaseDetail, CaseTier } from '../model/case';
 
-/** The wire shape: receivedAt is an ISO string until it is parsed into a Date. */
-type CaseDetailResponse = Omit<CaseDetail, 'receivedAt'> & { receivedAt: string };
+/** The wire shape: the moments are ISO strings until they are parsed into Dates. */
+type CaseDetailResponse = Omit<CaseDetail, 'receivedAt' | 'handledAt' | 'deletedAt'> & {
+  receivedAt: string;
+  handledAt?: string | null;
+  deletedAt?: string | null;
+};
+
+/** The three moments a case carries, as Dates. Anything but a moment means it never happened. */
+function parseMoments(response: CaseDetailResponse): CaseDetail {
+  return {
+    ...response,
+    receivedAt: new Date(response.receivedAt),
+    handledAt: response.handledAt ? new Date(response.handledAt) : null,
+    deletedAt: response.deletedAt ? new Date(response.deletedAt) : null,
+  };
+}
 
 @Service()
 export class CaseDetailService {
@@ -15,10 +29,7 @@ export class CaseDetailService {
   readonly id = signal<string | null>(null);
 
   readonly detail = httpResource<CaseDetail>(() => (this.id() === null ? undefined : `/api/cases/${this.id()}`), {
-    parse: (aCase) => {
-      const response = aCase as CaseDetailResponse;
-      return { ...response, receivedAt: new Date(response.receivedAt) };
-    },
+    parse: (aCase) => parseMoments(aCase as CaseDetailResponse),
   });
 
   /**
@@ -26,8 +37,8 @@ export class CaseDetailService {
    * saves them together and half a correction is worse than none. The answer carries the case as
    * it now stands.
    */
-  async changeClassification(categoryId: string | null, tier: CaseTier): Promise<void> {
+  async changeClassification(categoryId: string | null, tier: CaseTier | null): Promise<void> {
     const changed = await firstValueFrom(this.http.put<CaseDetailResponse>(`/api/cases/${this.id()}/classification`, { categoryId, tier }));
-    this.detail.set({ ...changed, receivedAt: new Date(changed.receivedAt) });
+    this.detail.set(parseMoments(changed));
   }
 }
