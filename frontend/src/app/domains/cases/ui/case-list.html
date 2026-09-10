@@ -30,6 +30,8 @@
     [groupRowsBy]="groupField()"
     [groupRowsByOrder]="-1"
     (onSort)="onSortChanged()"
+    (onFilter)="onFilterChanged()"
+    (onPage)="onPageChanged($event)"
     (onColResize)="onColumnResized()"
     (onStateSave)="onStateSave($event)"
     (onStateRestore)="onStateRestore($event)"

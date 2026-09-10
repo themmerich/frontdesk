@@ -18,6 +18,25 @@ type CaseResponse = Omit<Case, 'receivedAt' | 'handledAt' | 'deletedAt'> & {
  */
 const RELOAD_INTERVAL_MS = 10_000;
 
+/**
+ * Whether two readings of the list say the same thing. Most polls come back with exactly the
+ * cases the last one brought, and a list that has not changed is not news: the resource keeps
+ * the value it has, and nothing built on it — the rows of the inbox, the page one stands on in
+ * them — is touched. Only a reading that differs somewhere gets through.
+ */
+function sameCases(previous: Case[], next: Case[]): boolean {
+  return previous.length === next.length && previous.every((aCase, index) => sameCase(aCase, next[index]));
+}
+
+function sameCase(previous: Case, next: Case): boolean {
+  return (Object.keys(previous) as (keyof Case)[]).every((key) => sameValue(previous[key], next[key]));
+}
+
+/** Two moments are the same moment, whatever Date objects carry them. */
+function sameValue(previous: unknown, next: unknown): boolean {
+  return previous instanceof Date && next instanceof Date ? previous.getTime() === next.getTime() : previous === next;
+}
+
 @Service()
 export class CasesService {
   private readonly document = inject(DOCUMENT);
@@ -25,6 +44,7 @@ export class CasesService {
 
   readonly cases = httpResource<Case[]>(() => '/api/cases', {
     defaultValue: [],
+    equal: sameCases,
     parse: (cases) =>
       (cases as CaseResponse[]).map((item) => ({
         ...item,
