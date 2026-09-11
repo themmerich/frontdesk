@@ -9,6 +9,7 @@ import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { map } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { SplitterModule } from 'primeng/splitter';
@@ -53,6 +54,7 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
     RouterLink,
     TranslocoDirective,
     ButtonModule,
+    InputTextModule,
     MessageModule,
     SelectModule,
     SplitterModule,
@@ -96,6 +98,16 @@ export class CaseDetailPage {
    */
   protected readonly draftText = linkedSignal(() => this.detailService.detail.value()?.draftText ?? null);
 
+  /**
+   * A line for the model: what the reply should do — "decline, and name our availability this
+   * year" — or, with a draft there, what to change about it. Handed over with the request and
+   * not kept; starts empty for every case.
+   */
+  protected readonly draftInstruction = linkedSignal<string | undefined, string>({
+    source: () => this.detailService.detail.value()?.id,
+    computation: () => '',
+  });
+
   private readonly isClassificationDirty = computed(() => {
     const aCase = this.detailService.detail.value();
     return aCase !== undefined && (this.draftCategoryId() !== aCase.categoryId || this.draftTier() !== aCase.tier);
@@ -108,6 +120,16 @@ export class CaseDetailPage {
 
   /** Nothing to save until something differs from what the case says today — the verdict or the reply. */
   protected readonly isDirty = computed(() => this.isClassificationDirty() || this.isDraftDirty());
+
+  /**
+   * A reply a person started to write and left empty. Not a draft, and not worth a request: the
+   * button waits until there is something in the box.
+   */
+  private readonly isDraftBlank = computed(() => {
+    const text = this.draftText();
+    return text !== null && text.trim() === '';
+  });
+  protected readonly canSave = computed(() => this.isDirty() && !this.isDraftBlank());
 
   /**
    * Whether a person has changed the saved draft since the model wrote it. A draft the model never
@@ -250,7 +272,7 @@ export class CaseDetailPage {
         await this.detailService.changeClassification(this.draftCategoryId(), this.draftTier());
       }
       const draft = this.draftText();
-      if (this.isDraftDirty() && draft !== null) {
+      if (this.isDraftDirty() && draft !== null && draft.trim() !== '') {
         await this.detailService.saveDraft(draft);
       }
       // The inbox shows the tier, draws its rows in the category's colour, and says whether a
@@ -269,6 +291,14 @@ export class CaseDetailPage {
   /** The model writes a reply now — for a case that has none, whatever its tier. */
   protected async onGenerate(): Promise<void> {
     await this.generate();
+  }
+
+  /**
+   * The third way: no model, a person writes the reply. An empty box to type into, saved from
+   * the button below once something is in it; until then there is nothing to save.
+   */
+  protected onWriteYourself(): void {
+    this.draftText.set('');
   }
 
   /**
@@ -292,9 +322,12 @@ export class CaseDetailPage {
   }
 
   private async generate(): Promise<void> {
+    const instruction = this.draftInstruction().trim();
     this.isGenerating.set(true);
     try {
-      await this.detailService.generateDraft();
+      await this.detailService.generateDraft(instruction === '' ? null : instruction);
+      // Said and done: the line was about this one draft, and the box is clear for the next one.
+      this.draftInstruction.set('');
       // The inbox says which cases have a reply waiting.
       this.casesService.cases.reload();
       this.toast('success', 'caseDetail.draftGenerated');

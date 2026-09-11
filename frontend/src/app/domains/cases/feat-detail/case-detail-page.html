@@ -169,41 +169,52 @@
 
           <ng-template #panel>
             <!-- The reply as it stands: what the model wrote, or what a person made of it. Edited
-               here and saved from the button below, together with the verdict. -->
+                 here and saved from the button below, together with the verdict. -->
             <section class="flex min-h-0 flex-auto flex-col gap-2">
-              <div class="flex h-6 items-center justify-between gap-2">
+              <div class="flex h-6 items-center">
                 <h2 id="draft-heading" class="text-sm font-medium">{{ t('caseDetail.draft') }}</h2>
-                @if (aCase.draftText !== null && !isTrashed()) {
-                  <!-- A new draft replaces what is there, edits included, so it asks first when
-                     something was edited. -->
-                  <p-button
-                    size="small"
-                    [text]="true"
-                    icon="pi pi-refresh"
-                    [label]="t('caseDetail.regenerate')"
-                    [loading]="isGenerating()"
-                    [disabled]="isSaving()"
-                    (onClick)="onRegenerate()"
-                  />
-                }
               </div>
-              @if (aCase.draftText === null) {
+              @if (draftText() === null) {
+                <!-- Three ways to a reply: the model writes it, the model writes it along a line
+                     the person gives — "decline, and name our availability" — or the person
+                     writes it. -->
                 <div
                   class="flex flex-auto flex-col items-center justify-center gap-3 rounded-lg bg-surface-50 p-4 text-center text-sm text-surface-500 dark:bg-surface-800 dark:text-surface-400"
                 >
                   <p>{{ t(isTrashed() ? 'caseDetail.draftNoneTrashed' : 'caseDetail.draftNone') }}</p>
                   @if (!isTrashed()) {
+                    <div class="flex w-full max-w-xl flex-col gap-2 sm:flex-row">
+                      <input
+                        pInputText
+                        id="draft-instruction"
+                        class="w-full"
+                        [placeholder]="t('caseDetail.instructionPlaceholder')"
+                        [attr.aria-label]="t('caseDetail.instruction')"
+                        [(ngModel)]="draftInstruction"
+                        [disabled]="isGenerating()"
+                        (keydown.enter)="onGenerate()"
+                      />
+                      <p-button
+                        styleClass="whitespace-nowrap"
+                        icon="pi pi-sparkles"
+                        [label]="t('caseDetail.generate')"
+                        [loading]="isGenerating()"
+                        (onClick)="onGenerate()"
+                      />
+                    </div>
                     <p-button
-                      icon="pi pi-sparkles"
-                      [label]="t('caseDetail.generate')"
-                      [loading]="isGenerating()"
-                      (onClick)="onGenerate()"
+                      size="small"
+                      [text]="true"
+                      icon="pi pi-pencil"
+                      [label]="t('caseDetail.writeYourself')"
+                      [disabled]="isGenerating()"
+                      (onClick)="onWriteYourself()"
                     />
                   }
                 </div>
               } @else {
                 <!-- Read-only in the trash: what was thrown away is put back or deleted there, not
-                   answered. -->
+                     answered. -->
                 <textarea
                   pTextarea
                   id="draft"
@@ -221,6 +232,33 @@
                     <span>{{ t('caseDetail.draftEditedAt', { date: (aCase.draftUpdatedAt | date: 'short') ?? '' }) }}</span>
                   }
                 </p>
+                @if (!isTrashed()) {
+                  <!-- The same line as above, now about the draft there is: "shorter", "without
+                       the price". Without one the model starts over. A new draft replaces what is
+                       there, edits included, so it asks first when something was edited. -->
+                  <div class="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      pInputText
+                      id="draft-instruction"
+                      class="w-full"
+                      [placeholder]="t('caseDetail.revisePlaceholder')"
+                      [attr.aria-label]="t('caseDetail.instruction')"
+                      [(ngModel)]="draftInstruction"
+                      [disabled]="isGenerating()"
+                      (keydown.enter)="onRegenerate()"
+                    />
+                    <p-button
+                      severity="secondary"
+                      [outlined]="true"
+                      styleClass="whitespace-nowrap"
+                      icon="pi pi-refresh"
+                      [label]="t('caseDetail.regenerate')"
+                      [loading]="isGenerating()"
+                      [disabled]="isSaving()"
+                      (onClick)="onRegenerate()"
+                    />
+                  </div>
+                }
               }
             </section>
           </ng-template>
@@ -250,7 +288,7 @@
             (onClick)="onHandled(aCase)"
           />
         }
-        <p-button icon="pi pi-check" [label]="t('caseDetail.save')" [disabled]="!isDirty()" [loading]="isSaving()" (onClick)="onSave()" />
+        <p-button icon="pi pi-check" [label]="t('caseDetail.save')" [disabled]="!canSave()" [loading]="isSaving()" (onClick)="onSave()" />
       </div>
     }
   </main>

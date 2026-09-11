@@ -8,6 +8,7 @@ import de.prime_ux.backend.users.AppUserRepository;
 
 import jakarta.validation.Valid;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @RestController
 @RequestMapping("/api/cases/{id}/draft")
+@Slf4j
 class ReplyDraftController {
 
 	private final CaseRepository caseRepository;
@@ -40,16 +42,23 @@ class ReplyDraftController {
 	}
 
 	/**
-	 * Writes the draft now, whatever the tier, and in place of one that is already there. The
-	 * model answering nothing is the upstream's failure, not the request's, and is said so.
+	 * Writes the draft now, whatever the tier, and in place of one that is already there — along
+	 * the line the person gives, if they give one: what the reply should do, or what to change
+	 * about the draft there is. The line is handed to the model and not kept. The model answering
+	 * nothing is the upstream's failure, not the request's, and is said so.
 	 */
 	@PostMapping
 	@Transactional
-	CaseDetailResponse generate(@PathVariable UUID id, Authentication authentication) {
+	CaseDetailResponse generate(@PathVariable UUID id, @Valid @RequestBody(required = false) GenerateDraftRequest request,
+			Authentication authentication) {
 		Case aCase = ownDraftableCase(id, authentication);
 		try {
-			return CaseDetailResponse.from(replyDraftProcessor.draftNow(aCase));
+			return CaseDetailResponse.from(
+					replyDraftProcessor.draftNow(aCase, request == null ? null : request.instruction()));
 		} catch (ReplyDraftException e) {
+			// Said in the log with its cause: the page only shows that it did not work, and the
+			// scheduler's warning never sees a request that was asked for by hand.
+			log.warn("Could not draft a reply to case {} on request: {}", id, e.getMessage(), e);
 			throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "the model gave no draft", e);
 		}
 	}

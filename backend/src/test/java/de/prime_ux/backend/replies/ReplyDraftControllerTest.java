@@ -106,6 +106,37 @@ class ReplyDraftControllerTest {
 				.andExpect(jsonPath("$.draftUpdatedAt").exists());
 
 		assertThat(reload(aCase).getDraftGeneratedText()).isEqualTo("Guten Tag, wir prüfen das.");
+		// Asked without a word: the model gets none.
+		assertThat(stubReplyDraftService.lastInstruction).isNull();
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void passesThePersonsLineOnToTheModelAndKeepsNothingOfIt() throws Exception {
+		Case aCase = caseOf(tenant, "Stellenangebot");
+
+		mockMvc.perform(post("/api/cases/{id}/draft", aCase.getId()).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"instruction": "Lehne ab und nenne unsere Verfügbarkeit dieses Jahr."}"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.draftText").exists())
+				.andExpect(jsonPath("$.instruction").doesNotExist());
+
+		assertThat(stubReplyDraftService.lastInstruction).isEqualTo("Lehne ab und nenne unsere Verfügbarkeit dieses Jahr.");
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void refusesALineThatIsALetter() throws Exception {
+		Case aCase = caseOf(tenant, "Zu viel");
+
+		mockMvc.perform(post("/api/cases/{id}/draft", aCase.getId()).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"instruction\": \"" + "x".repeat(1001) + "\"}"))
+				.andExpect(status().isBadRequest());
+
+		assertThat(reload(aCase).hasDraft()).isFalse();
 	}
 
 	@Test
