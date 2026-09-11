@@ -143,6 +143,14 @@
                 <label for="fax">{{ t('profile.fax') }}</label>
               </p-floatlabel>
             </p-inputgroup>
+            <!-- The job title, as the company's e-mail signature names it under the person. -->
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-id-card" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <input pInputText id="position" type="text" [formField]="profileForm.position" />
+                <label for="position">{{ t('profile.position') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
           </div>
         </p-fieldset>
 

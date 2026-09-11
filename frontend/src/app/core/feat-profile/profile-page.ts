@@ -36,6 +36,7 @@ type ProfileFormModel = {
   email: string;
   phone: string;
   fax: string;
+  position: string;
 };
 
 type PasswordChange = {
@@ -73,6 +74,7 @@ function toFormModel(profile: Profile | null): ProfileFormModel {
     email: profile?.email ?? '',
     phone: profile?.phone ?? '',
     fax: profile?.fax ?? '',
+    position: profile?.position ?? '',
   };
 }
 
@@ -208,6 +210,7 @@ export class ProfilePage {
           email: model.email,
           phone: model.phone,
           fax: model.fax,
+          position: model.position,
         });
         this.hasSubmitAttempted.set(false);
         // Back to pristine: the save button stays disabled until the next edit.

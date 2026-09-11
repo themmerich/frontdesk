@@ -237,7 +237,8 @@
     "editTitle": "Edit user",
     "saved": "User saved.",
     "saveError": "The user could not be saved. Please try again.",
-    "selfChange": "You cannot deactivate your own account or take away your own admin role."
+    "selfChange": "You cannot deactivate your own account or take away your own admin role.",
+    "position": "Position"
   },
   "categories": {
     "title": "Categories",
@@ -291,8 +292,6 @@
     "thresholdHint": "Below this the case drops one tier — rather one draft too many than a wrong automatic answer.",
     "instructions": "Extra instruction",
     "instructionsHint": "Appended to the prompt, for this company’s peculiarities. For example: \"mail from @supplier-xy.example is always an order confirmation\".",
-    "replySignature": "Signature",
-    "replySignatureHint": "Put under every reply draft, verbatim. The AI never sees it.",
     "replyInstructions": "Hints for replies",
     "replyInstructionsHint": "What the replies should sound like: form of address, tone, what never to promise. For example: \"address customers formally; never promise delivery dates\".",
     "settingsSaved": "Settings saved.",
@@ -341,7 +340,15 @@
     "branchesEmpty": "No branches yet.",
     "cancel": "Cancel",
     "error": "Saving failed. Please try again.",
-    "loadError": "Could not load the company data. Is the backend running?"
+    "loadError": "Could not load the company data. Is the backend running?",
+    "signature": "Email signature",
+    "signatureTemplate": "Signature",
+    "signatureHint": "Put under every reply draft. The placeholders are filled in with the person's, their branch's and the company's data when a draft is written. Lines whose placeholders stay empty are left out.",
+    "signaturePlaceholders": "Available placeholders",
+    "signatureUser": "Signature for automatic drafts",
+    "signatureUserHint": "Drafts frontdesk writes without a person involved carry this user's data. Without a choice the person lines are left out.",
+    "signaturePreview": "Preview",
+    "signaturePreviewHint": "How the signature reads under a draft you generate yourself."
   },
   "settings": {
     "title": "Email settings",
@@ -433,7 +440,8 @@
     "passwordChanged": "Password changed.",
     "passwordWrong": "The current password is wrong.",
     "error": "Saving failed. Please try again.",
-    "loadError": "Could not load the profile. Is the backend running?"
+    "loadError": "Could not load the profile. Is the backend running?",
+    "position": "Position"
   },
   "login": {
     "title": "Sign in",

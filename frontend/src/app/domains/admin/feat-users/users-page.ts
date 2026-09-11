@@ -32,6 +32,7 @@ type UserFormModel = {
   branchId: string | null;
   role: User['role'];
   active: boolean;
+  position: string;
 };
 
 /** Without the look-alikes 0/O and 1/l/I, so a dictated password arrives intact. */
@@ -40,7 +41,7 @@ const GENERATED_PASSWORD_LENGTH = 12;
 
 /** A fresh, empty form: an ordinary user who may sign in right away. */
 function emptyFormModel(): UserFormModel {
-  return { username: '', firstName: '', lastName: '', password: '', branchId: null, role: 'user', active: true };
+  return { username: '', firstName: '', lastName: '', password: '', branchId: null, role: 'user', active: true, position: '' };
 }
 
 /** The stored user, ready to be edited; the password field stays out of the dialog. */
@@ -53,6 +54,7 @@ function toFormModel(user: User): UserFormModel {
     branchId: user.branchId,
     role: user.role,
     active: user.active,
+    position: user.position ?? '',
   };
 }
 
@@ -173,6 +175,7 @@ export class UsersPage {
           branchId: model.branchId,
           role: model.role,
           active: model.active,
+          position: model.position.trim() === '' ? null : model.position.trim(),
         };
         if (editingUserId === null) {
           await this.usersService.create({ ...update, password: model.password });

@@ -28,16 +28,16 @@ class AnthropicReplyDraftServiceTest {
 				Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 	}
 
-	private static TenantTriageSettings settings(String signature, String instructions) {
+	private static TenantTriageSettings settings(String instructions) {
 		TenantTriageSettings settings = TenantTriageSettings.defaults(TENANT);
-		settings.update("", TenantTriageSettings.DEFAULT_CONFIDENCE_THRESHOLD, signature, instructions);
+		settings.update("", TenantTriageSettings.DEFAULT_CONFIDENCE_THRESHOLD, instructions);
 		return settings;
 	}
 
 	@Test
 	void writesInTheTenantsName() {
 		String prompt = AnthropicReplyDraftService.systemPrompt(aCase("Wann kommt die Lieferung?"),
-				TenantTriageSettings.defaults(TENANT), null);
+				TenantTriageSettings.defaults(TENANT), null, "");
 
 		assertThat(prompt).contains("„Musterfirma GmbH\"");
 		// Nothing about the case, nothing from the tenant and nothing from the desk while there
@@ -49,7 +49,7 @@ class AnthropicReplyDraftServiceTest {
 	@Test
 	void putsThePersonsLineLastOfAll() {
 		String prompt = AnthropicReplyDraftService.systemPrompt(aCase("Stellenangebot"),
-				settings("", "Kunden werden gesiezt."), "  Lehne ab und nenne unsere Verfügbarkeit dieses Jahr. ");
+				settings("Kunden werden gesiezt."), "  Lehne ab und nenne unsere Verfügbarkeit dieses Jahr. ", "");
 
 		// Behind the tenant's wishes, which are behind the general rules: the closer to the one
 		// reply, the more it weighs.
@@ -64,8 +64,8 @@ class AnthropicReplyDraftServiceTest {
 		Case drafted = aCase("Wann kommt die Lieferung?");
 		drafted.applyDraft("Guten Tag,\n\nwir prüfen das.\n\nMit freundlichen Grüßen\nMusterfirma GmbH");
 
-		String prompt = AnthropicReplyDraftService.systemPrompt(drafted,
-				settings("Mit freundlichen Grüßen\nMusterfirma GmbH", ""), "kürzer");
+		String prompt = AnthropicReplyDraftService.systemPrompt(drafted, settings(""), "kürzer",
+				"Mit freundlichen Grüßen\nMusterfirma GmbH");
 
 		assertThat(prompt).contains("Überarbeite ihn")
 				.contains("Bisheriger Entwurf:\nGuten Tag,\n\nwir prüfen das.\n")
@@ -80,7 +80,7 @@ class AnthropicReplyDraftServiceTest {
 		drafted.applyDraft("Guten Tag, wir prüfen das.");
 
 		// Without a line the model starts over, whatever draft there is.
-		String prompt = AnthropicReplyDraftService.systemPrompt(drafted, TenantTriageSettings.defaults(TENANT), "   ");
+		String prompt = AnthropicReplyDraftService.systemPrompt(drafted, TenantTriageSettings.defaults(TENANT), "   ", "");
 
 		assertThat(prompt).doesNotContain("Bisheriger Entwurf").doesNotContain("Vorgabe der Sachbearbeitung");
 	}
@@ -99,7 +99,7 @@ class AnthropicReplyDraftServiceTest {
 				"Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0), CaseTier.AUTOMATIC, new BigDecimal("0.95"),
 				"Kunde fragt nach dem Liefertermin zu Bestellung 4711.");
 
-		String prompt = AnthropicReplyDraftService.systemPrompt(triaged, TenantTriageSettings.defaults(TENANT), null);
+		String prompt = AnthropicReplyDraftService.systemPrompt(triaged, TenantTriageSettings.defaults(TENANT), null, "");
 
 		assertThat(prompt).contains("Kategorie: Statusanfrage Bestellung")
 				.contains("Anliegen: Kunde fragt nach dem Liefertermin zu Bestellung 4711.");
@@ -108,15 +108,15 @@ class AnthropicReplyDraftServiceTest {
 	@Test
 	void putsTheTenantsWishesAfterTheRules() {
 		String prompt = AnthropicReplyDraftService.systemPrompt(aCase("Hallo"),
-				settings("", "Kunden werden gesiezt. Keine Lieferzusagen."), null);
+				settings("Kunden werden gesiezt. Keine Lieferzusagen."), null, "");
 
 		assertThat(prompt).endsWith("Vorgaben dieses Betriebs:\nKunden werden gesiezt. Keine Lieferzusagen.");
 	}
 
 	@Test
 	void keepsTheSignatureAwayFromTheModel() {
-		String prompt = AnthropicReplyDraftService.systemPrompt(aCase("Hallo"),
-				settings("Mit freundlichen Grüßen\nMusterfirma GmbH", ""), null);
+		String prompt = AnthropicReplyDraftService.systemPrompt(aCase("Hallo"), settings(""), null,
+				"Mit freundlichen Grüßen\nMusterfirma GmbH");
 
 		// A signature is not something to paraphrase; it is put under the answer afterwards.
 		assertThat(prompt).doesNotContain("Mit freundlichen Grüßen");

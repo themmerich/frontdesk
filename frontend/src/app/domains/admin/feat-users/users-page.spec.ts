@@ -108,6 +108,7 @@ describe('UsersPage', () => {
     active: true,
     branchId: 'b1',
     createdAt: new Date('2026-08-01T10:00:00Z'),
+    position: null,
   };
 
   beforeEach(async () => {
@@ -255,7 +256,16 @@ describe('UsersPage', () => {
     await fixture.whenStable();
 
     expect(createdUsers).toEqual([
-      { username: 'clara', password: 'geheim1234', firstName: 'Clara', lastName: 'Neu', branchId: null, role: 'user', active: true },
+      {
+        username: 'clara',
+        password: 'geheim1234',
+        firstName: 'Clara',
+        lastName: 'Neu',
+        branchId: null,
+        role: 'user',
+        active: true,
+        position: null,
+      },
     ]);
     expect(toasts[0].summary).toBe('User created.');
   });
@@ -317,7 +327,7 @@ describe('UsersPage', () => {
     expect(updatedUsers).toEqual([
       {
         id: '1',
-        update: { username: 'anna', firstName: 'Anna', lastName: 'Adler', branchId: 'b1', role: 'admin', active: true },
+        update: { username: 'anna', firstName: 'Anna', lastName: 'Adler', branchId: 'b1', role: 'admin', active: true, position: null },
       },
     ]);
     expect(toasts[0].summary).toBe('User saved.');

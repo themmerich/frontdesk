@@ -141,7 +141,6 @@ describe('CategoriesPage', () => {
     storedSettings.set({
       extraInstructions: 'Bestehende Anweisung.',
       confidenceThreshold: 0.8,
-      replySignature: 'Musterfirma GmbH',
       replyInstructions: '',
     });
     toasts = [];
@@ -223,9 +222,7 @@ describe('CategoriesPage', () => {
 
     // The percentage goes back as the fraction it was; typing into PrimeNG's
     // number input needs a real browser, so the e2e covers that conversion.
-    expect(savedSettings).toEqual([
-      { extraInstructions: 'Eigene Anweisung.', confidenceThreshold: 0.8, replySignature: 'Musterfirma GmbH', replyInstructions: '' },
-    ]);
+    expect(savedSettings).toEqual([{ extraInstructions: 'Eigene Anweisung.', confidenceThreshold: 0.8, replyInstructions: '' }]);
     expect(toasts[0].summary).toBe('Settings saved.');
   });
 

@@ -57,13 +57,13 @@ class AnthropicReplyDraftService implements ReplyDraftService {
 	}
 
 	@Override
-	public String draft(Case mailCase, TenantTriageSettings settings, String instruction) {
+	public String draft(Case mailCase, TenantTriageSettings settings, String instruction, String signature) {
 		try {
 			// Whose Anthropic account this is billed to is the tenant's own decision.
 			ChatClient chatClient = this.tenantChatClients.forTenant(mailCase.getTenant());
 			ChatResponse response = chatClient.prompt()
 					.options(AnthropicChatOptions.builder().maxTokens(MAX_TOKENS))
-					.system(systemPrompt(mailCase, settings, instruction))
+					.system(systemPrompt(mailCase, settings, instruction, signature))
 					.user(userPrompt(mailCase))
 					.call()
 					.chatResponse();
@@ -79,7 +79,7 @@ class AnthropicReplyDraftService implements ReplyDraftService {
 						response == null ? "none" : response.getMetadata());
 				throw new ReplyDraftException("The model returned no usable answer", null);
 			}
-			return withSignature(answer, settings.getReplySignature());
+			return withSignature(answer, signature);
 		} catch (ReplyDraftException e) {
 			throw e;
 		} catch (RuntimeException e) {
@@ -109,7 +109,7 @@ class AnthropicReplyDraftService implements ReplyDraftService {
 	 * Static and package-private so a test can read the prompt the model is actually handed;
 	 * nothing here depends on the service's state.
 	 */
-	static String systemPrompt(Case mailCase, TenantTriageSettings settings, String instruction) {
+	static String systemPrompt(Case mailCase, TenantTriageSettings settings, String instruction, String signature) {
 		StringBuilder prompt = new StringBuilder(SYSTEM_PROMPT.formatted(mailCase.getTenant().getName()));
 		// What the triage made of the mail, so the reply and the filing agree.
 		CaseCategory category = mailCase.getCategory();
@@ -135,7 +135,7 @@ class AnthropicReplyDraftService implements ReplyDraftService {
 				prompt.append("\nEs gibt bereits einen Entwurf der Antwort. Überarbeite ihn nach der folgenden Vorgabe,")
 						.append(" statt neu zu beginnen; was die Vorgabe nicht betrifft, bleibt wie es ist.\n")
 						.append("\nBisheriger Entwurf:\n")
-						.append(withoutSignature(mailCase.getDraftText(), settings.getReplySignature()))
+						.append(withoutSignature(mailCase.getDraftText(), signature))
 						.append('\n');
 			}
 			prompt.append("\nVorgabe der Sachbearbeitung für diese Antwort:\n").append(instruction.strip());

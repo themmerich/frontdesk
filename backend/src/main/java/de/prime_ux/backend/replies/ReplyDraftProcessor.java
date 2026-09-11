@@ -1,8 +1,13 @@
 package de.prime_ux.backend.replies;
 
+import de.prime_ux.backend.branches.Branch;
+import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.tenants.Tenant;
+import de.prime_ux.backend.tenants.TenantRepository;
+import de.prime_ux.backend.users.AppUser;
+import de.prime_ux.backend.users.AppUserRepository;
 import de.prime_ux.backend.triage.CaseTier;
 import de.prime_ux.backend.triage.TenantTriageSettings;
 import de.prime_ux.backend.triage.TenantTriageSettingsRepository;
@@ -31,12 +36,19 @@ public class ReplyDraftProcessor {
 
 	private final CaseRepository caseRepository;
 	private final TenantTriageSettingsRepository tenantTriageSettingsRepository;
+	private final TenantRepository tenantRepository;
+	private final AppUserRepository appUserRepository;
+	private final BranchRepository branchRepository;
 	private final ReplyDraftService replyDraftService;
 
 	ReplyDraftProcessor(CaseRepository caseRepository, TenantTriageSettingsRepository tenantTriageSettingsRepository,
+			TenantRepository tenantRepository, AppUserRepository appUserRepository, BranchRepository branchRepository,
 			ReplyDraftService replyDraftService) {
 		this.caseRepository = caseRepository;
 		this.tenantTriageSettingsRepository = tenantTriageSettingsRepository;
+		this.tenantRepository = tenantRepository;
+		this.appUserRepository = appUserRepository;
+		this.branchRepository = branchRepository;
 		this.replyDraftService = replyDraftService;
 	}
 
@@ -55,12 +67,19 @@ public class ReplyDraftProcessor {
 			return 0;
 		}
 		TenantTriageSettings settings = settingsOf(tenant);
+		// Nobody is at the desk: the drafts are signed with the stand-in the company chose, or
+		// with the company alone. The tenant came in from outside the transaction, so both are
+		// fetched here, where the stand-in's branch can still be read.
+		Tenant company = attached(tenant);
+		AppUser standIn = company.getSignatureUser() == null ? null
+				: appUserRepository.findById(company.getSignatureUser().getId()).orElse(null);
+		String signature = signatureFor(company, standIn);
 
 		int drafted = 0;
 		for (Case mailCase : waiting) {
 			try {
 				// Nobody stands beside the scheduler to say what the reply should do.
-				draft(mailCase, settings, null);
+				draft(mailCase, settings, null, signature);
 				drafted++;
 			} catch (ReplyDraftException e) {
 				// The case stays without a draft and comes up again on the next run;
@@ -77,15 +96,31 @@ public class ReplyDraftProcessor {
 	 * they say what the reply should do, or what to change about the draft there is.
 	 *
 	 * @param instruction the person's line for the model; null or blank for none
+	 * @param person who asks, and whose name goes under the reply
 	 * @throws ReplyDraftException when the model gave no draft
 	 */
 	@Transactional
-	public Case draftNow(Case mailCase, String instruction) {
-		return draft(mailCase, settingsOf(mailCase.getTenant()), instruction);
+	public Case draftNow(Case mailCase, String instruction, AppUser person) {
+		Tenant tenant = attached(mailCase.getTenant());
+		return draft(mailCase, settingsOf(tenant), instruction, signatureFor(tenant, person));
 	}
 
-	private Case draft(Case mailCase, TenantTriageSettings settings, String instruction) {
-		String text = replyDraftService.draft(mailCase, settings, instruction);
+	/**
+	 * The tenant as this transaction sees it. What comes in may be a proxy off a case loaded
+	 * elsewhere, which gives up nothing but its id without a session.
+	 */
+	private Tenant attached(Tenant tenant) {
+		return tenantRepository.findById(tenant.getId()).orElseThrow();
+	}
+
+	/** The company's signature template, filled in for this person — or for nobody. */
+	private String signatureFor(Tenant tenant, AppUser person) {
+		Branch headquarters = branchRepository.findByTenantIdAndHeadquartersTrue(tenant.getId()).orElse(null);
+		return SignatureRenderer.render(tenant.getReplySignature(), tenant, person, headquarters);
+	}
+
+	private Case draft(Case mailCase, TenantTriageSettings settings, String instruction, String signature) {
+		String text = replyDraftService.draft(mailCase, settings, instruction, signature);
 		mailCase.applyDraft(text);
 		Case saved = caseRepository.save(mailCase);
 		log.info("Drafted a reply to case {}", mailCase.getId());

@@ -74,6 +74,7 @@ describe('UserList', () => {
     role: 'admin',
     active: true,
     createdAt: new Date('2026-08-01T10:00:00Z'),
+    position: null,
   };
   const ben: User = {
     id: '2',
@@ -84,6 +85,7 @@ describe('UserList', () => {
     role: 'user',
     active: false,
     createdAt: new Date('2026-08-02T10:00:00Z'),
+    position: null,
   };
 
   it('renders one row per user', () => {

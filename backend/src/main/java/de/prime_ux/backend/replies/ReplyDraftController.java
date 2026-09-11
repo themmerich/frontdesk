@@ -51,10 +51,11 @@ class ReplyDraftController {
 	@Transactional
 	CaseDetailResponse generate(@PathVariable UUID id, @Valid @RequestBody(required = false) GenerateDraftRequest request,
 			Authentication authentication) {
-		Case aCase = ownDraftableCase(id, authentication);
+		AppUser person = currentUser(authentication);
+		Case aCase = ownDraftableCase(id, person);
 		try {
 			return CaseDetailResponse.from(
-					replyDraftProcessor.draftNow(aCase, request == null ? null : request.instruction()));
+					replyDraftProcessor.draftNow(aCase, request == null ? null : request.instruction(), person));
 		} catch (ReplyDraftException e) {
 			// Said in the log with its cause: the page only shows that it did not work, and the
 			// scheduler's warning never sees a request that was asked for by hand.
@@ -71,7 +72,7 @@ class ReplyDraftController {
 	@Transactional
 	CaseDetailResponse edit(@PathVariable UUID id, @Valid @RequestBody EditDraftRequest request,
 			Authentication authentication) {
-		Case aCase = ownDraftableCase(id, authentication);
+		Case aCase = ownDraftableCase(id, currentUser(authentication));
 		aCase.editDraft(request.text());
 		return CaseDetailResponse.from(caseRepository.save(aCase));
 	}
@@ -80,8 +81,8 @@ class ReplyDraftController {
 	 * A case of another tenant is not found rather than forbidden — the answer must not say that
 	 * it exists. A case in the trash is found, but nobody answers a mail that was thrown away.
 	 */
-	private Case ownDraftableCase(UUID id, Authentication authentication) {
-		UUID tenantId = currentTenantId(authentication);
+	private Case ownDraftableCase(UUID id, AppUser person) {
+		UUID tenantId = person.getTenant().getId();
 		Case aCase = caseRepository.findWithCategoryById(id)
 				.filter(candidate -> candidate.getTenant().getId().equals(tenantId))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
@@ -91,10 +92,9 @@ class ReplyDraftController {
 		return aCase;
 	}
 
-	private UUID currentTenantId(Authentication authentication) {
+	/** Who is asking — the reply is signed in their name. */
+	private AppUser currentUser(Authentication authentication) {
 		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.map(AppUser::getTenant)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED))
-				.getId();
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 	}
 }

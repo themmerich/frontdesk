@@ -221,7 +221,7 @@ class BranchControllerTest {
 	@WithMockUser(username = "anna", roles = "ADMIN")
 	void deletingABranchOnlyUnsetsTheUsersAssignment() throws Exception {
 		AppUser ben = appUserRepository.findUniqueByUsernameIgnoreCase("ben").orElseThrow();
-		ben.updateProfile(ben.getFirstName(), ben.getLastName(), null, null, filiale, null, null, null);
+		ben.updateProfile(ben.getFirstName(), ben.getLastName(), null, null, filiale, null, null, null, null);
 		// The assignment survives until the branch itself goes away.
 		appUserRepository.save(ben);
 

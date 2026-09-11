@@ -12,6 +12,8 @@ const company: Company = {
   logoDisplay: 'WITH_NAME',
   primaryColor: null,
   hasLogo: false,
+  replySignature: '',
+  signatureUserId: null,
 };
 
 /** An in-memory stand-in for localStorage; see COMPANY_STORAGE for why it is injected. */

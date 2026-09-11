@@ -8,6 +8,8 @@ import { BranchService } from '../../../shared/data/branch-service';
 import { CompanyService } from '../../../shared/data/company-service';
 import { Branch, BranchUpdate } from '../../../shared/model/branch';
 import { Company, CompanyUpdate } from '../../../shared/model/company';
+import { OwnProfileService } from '../data/own-profile-service';
+import { UsersService } from '../data/users-service';
 import { CompanyPage } from './company-page';
 
 const translations = {
@@ -74,6 +76,8 @@ const storedCompany: Company = {
   logoDisplay: 'WITH_NAME',
   primaryColor: null,
   hasLogo: false,
+  replySignature: '',
+  signatureUserId: null,
 };
 
 describe('CompanyPage', () => {
@@ -151,6 +155,10 @@ describe('CompanyPage', () => {
         provideZonelessChangeDetection(),
         { provide: BranchService, useValue: branchServiceStub },
         { provide: CompanyService, useValue: companyServiceStub },
+        // The signature section lists the users and reads the admin's own profile; both are the
+        // signature spec's business, and stand empty here.
+        { provide: UsersService, useValue: { users: { value: signal([]), error: signal(undefined) } } as unknown as UsersService },
+        { provide: OwnProfileService, useValue: { person: signal(null) } as unknown as OwnProfileService },
         { provide: MessageService, useValue: { add: (toast: ToastMessageOptions) => toasts.push(toast) } },
       ],
     }).compileComponents();
@@ -290,7 +298,8 @@ describe('CompanyPage', () => {
     const element = fixture.nativeElement as HTMLElement;
     await openBranchDialog(fixture, 'New branch');
 
-    (element.querySelector('p-select') as HTMLElement).click();
+    // The dialog's country select, not the signature's stand-in select above it on the page.
+    (element.querySelector('p-select[inputid="branchCountry"]') as HTMLElement).click();
     await fixture.whenStable();
 
     const options = Array.from(document.querySelectorAll('li[role="option"]'));

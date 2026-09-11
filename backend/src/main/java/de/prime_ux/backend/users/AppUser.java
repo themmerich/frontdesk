@@ -70,6 +70,10 @@ public class AppUser {
 	@Column
 	private String fax;
 
+	// The job title a signature names under the person: "Projektleiterin".
+	@Column
+	private String position;
+
 	@Column(name = "password_hash", nullable = false)
 	private String passwordHash;
 
@@ -101,7 +105,7 @@ public class AppUser {
 	}
 
 	public void updateProfile(String firstName, String lastName, LocalDate birthDate, LocalDate joinedAt,
-			Branch branch, String email, String phone, String fax) {
+			Branch branch, String email, String phone, String fax, String position) {
 		this.firstName = firstName;
 		this.lastName = lastName;
 		this.birthDate = birthDate;
@@ -110,6 +114,7 @@ public class AppUser {
 		this.email = email;
 		this.phone = phone;
 		this.fax = fax;
+		this.position = position;
 	}
 
 	/** The site the user works at; null unassigns them. */
@@ -119,12 +124,13 @@ public class AppUser {
 
 	/** What an admin manages about a user; the password stays the user's own. */
 	public void updateAccount(String username, String firstName, String lastName, UserRole role,
-			Branch branch) {
+			Branch branch, String position) {
 		this.username = username;
 		this.firstName = firstName;
 		this.lastName = lastName;
 		this.role = role;
 		this.branch = branch;
+		this.position = position;
 	}
 
 	public void changePassword(String passwordHash) {

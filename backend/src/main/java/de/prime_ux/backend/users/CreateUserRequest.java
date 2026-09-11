@@ -13,7 +13,7 @@ import java.util.UUID;
  */
 record CreateUserRequest(@NotBlank String username, @NotBlank String firstName, @NotBlank String lastName,
 		@NotBlank @Size(min = 8) String password, @NotBlank @Pattern(regexp = "(?i)admin|user") String role,
-		boolean active, UUID branchId) {
+		boolean active, UUID branchId, @Size(max = 200) String position) {
 
 	UserRole toRole() {
 		return UserRole.valueOf(role.toUpperCase(Locale.ROOT));

@@ -16,6 +16,46 @@ const company = {
   logoDisplay: 'WITH_NAME',
   primaryColor: null,
   hasLogo: false,
+  replySignature: '',
+  signatureUserId: null,
+};
+
+// Who may sign the scheduler's drafts, and who the admin at the desk is for the preview.
+const users = [
+  {
+    id: 'u1',
+    username: 'admin',
+    firstName: 'Anna',
+    lastName: 'Admin',
+    role: 'admin',
+    active: true,
+    branchId: 'b2',
+    createdAt: '2026-08-01T10:00:00Z',
+    position: 'Geschäftsführerin',
+  },
+  {
+    id: 'u2',
+    username: 'ben',
+    firstName: 'Ben',
+    lastName: 'Benutzer',
+    role: 'user',
+    active: true,
+    branchId: null,
+    createdAt: '2026-08-02T10:00:00Z',
+    position: null,
+  },
+];
+const ownProfile = {
+  username: 'admin',
+  firstName: 'Anna',
+  lastName: 'Admin',
+  birthDate: null,
+  joinedAt: null,
+  branchId: 'b2',
+  email: 'anna@musterfirma.example',
+  phone: '030 123',
+  fax: null,
+  position: 'Geschäftsführerin',
 };
 
 const headquarters = {
@@ -38,6 +78,10 @@ test.describe('Company', () => {
     // The inbox offers the categories for picking in its rows; unanswered, the request comes
     // back 401 from the real backend and the interceptor sends the browser to the login.
     await page.route('**/api/case-categories/selectable', (route) => route.fulfill({ json: [] }));
+    // The company page lists the users for the signature's stand-in and reads the admin's own
+    // profile for the preview.
+    await page.route('**/api/users', (route) => route.fulfill({ json: users }));
+    await page.route('**/api/profile', (route) => route.fulfill({ json: ownProfile }));
   });
 
   test('paints the tenant brand on a reload instead of the app own, and forgets it on sign-out', async ({ page }) => {
@@ -109,6 +153,18 @@ test.describe('Company', () => {
     // The text field beside the color swatch takes the hex code directly (the
     // swatch itself is also labeled "Firmenfarbe", so the id disambiguates).
     await page.locator('#primaryColor').fill('#10b981');
+
+    // The signature, with placeholders — and the preview shows it filled in for Anna, with her
+    // branch and the company name as it now stands in the form.
+    await page
+      .getByLabel('Signatur', { exact: true })
+      .fill('Mit freundlichen Grüßen\n{{vorname}} {{nachname}}, {{position}}\n{{firma}} · {{filiale}}');
+    await expect(page.locator('pre')).toHaveText(
+      'Mit freundlichen Grüßen\nAnna Admin, Geschäftsführerin\nMusterfirma AG · Filiale Hamburg',
+    );
+    // Ben signs what the scheduler writes.
+    await page.locator('p-select[inputid="signatureUser"]').click();
+    await page.getByRole('option', { name: 'Ben Benutzer' }).click();
     await saveButton.click();
 
     await expect(page.getByText('Firmendaten gespeichert.')).toBeVisible();
@@ -116,6 +172,8 @@ test.describe('Company', () => {
       name: 'Musterfirma AG',
       website: 'https://musterfirma.example',
       primaryColor: '#10b981',
+      replySignature: 'Mit freundlichen Grüßen\n{{vorname}} {{nachname}}, {{position}}\n{{firma}} · {{filiale}}',
+      signatureUserId: 'u2',
     });
     // The sidebar reflects the rename immediately, without a reload. The branch
     // list keeps its own names — a site is not renamed along with the company.

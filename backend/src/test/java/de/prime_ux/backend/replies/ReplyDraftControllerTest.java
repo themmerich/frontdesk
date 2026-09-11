@@ -141,6 +141,20 @@ class ReplyDraftControllerTest {
 
 	@Test
 	@WithMockUser(username = "anna")
+	void signsTheReplyInTheNameOfWhoeverAsked() throws Exception {
+		tenant.updateCompany(tenant.getName(), null, tenant.getLogoDisplay(), null,
+				"Mit freundlichen Grüßen\n{{vorname}} {{nachname}}\n{{firma}}", null);
+		tenantRepository.save(tenant);
+		Case aCase = caseOf(tenant, "Lieferung 4711");
+
+		mockMvc.perform(post("/api/cases/{id}/draft", aCase.getId()).with(csrf()))
+				.andExpect(status().isOk());
+
+		assertThat(stubReplyDraftService.lastSignature).isEqualTo("Mit freundlichen Grüßen\nAnna Muster\nMusterfirma GmbH");
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
 	void savesAPersonsVersionAndKeepsTheModelsBesideIt() throws Exception {
 		Case aCase = caseOf(tenant, "Lieferung 4711");
 		aCase.applyDraft("Die Antwort des Modells.");

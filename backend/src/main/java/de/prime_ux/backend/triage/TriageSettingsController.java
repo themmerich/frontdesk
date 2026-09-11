@@ -49,7 +49,7 @@ class TriageSettingsController {
 		TenantTriageSettings settings = tenantTriageSettingsRepository.findByTenantId(tenant.getId())
 				.orElseGet(() -> TenantTriageSettings.defaults(tenant));
 		settings.update(request.normalizedInstructions(), request.confidenceThreshold(),
-				request.normalizedSignature(), request.normalizedReplyInstructions());
+				request.normalizedReplyInstructions());
 		return TriageSettingsResponse.from(tenantTriageSettingsRepository.save(settings));
 	}
 

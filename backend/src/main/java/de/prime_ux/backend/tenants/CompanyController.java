@@ -57,8 +57,13 @@ class CompanyController {
 	@Transactional
 	CompanyResponse updateCompany(@Valid @RequestBody UpdateCompanyRequest request, Authentication authentication) {
 		Tenant tenant = currentTenant(authentication);
+		// The stand-in signs the scheduler's drafts; one of another tenant is not found rather than
+		// forbidden, so the answer does not say that they exist.
+		AppUser signatureUser = request.signatureUserId() == null ? null
+				: appUserRepository.findByIdAndTenantId(request.signatureUserId(), tenant.getId())
+						.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 		tenant.updateCompany(request.name().trim(), blankToNull(request.website()), request.logoDisplay(),
-				request.primaryColor());
+				request.primaryColor(), request.normalizedSignature(), signatureUser);
 		tenantRepository.save(tenant);
 		return CompanyResponse.from(tenant, tenantLogoRepository.existsByTenantId(tenant.getId()));
 	}

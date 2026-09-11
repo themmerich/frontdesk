@@ -16,6 +16,13 @@ export type Company = {
   /** Brand color as hex (#RRGGBB); the app's default primary color for this tenant's users. */
   primaryColor: string | null;
   hasLogo: boolean;
+  /**
+   * The e-mail signature under every reply draft, as a template: `{{vorname}}`, `{{firma}}`,
+   * `{{ort}}` and the like are filled in when a draft is written. Empty means none.
+   */
+  replySignature: string;
+  /** Whose data the scheduler's drafts are signed with; null leaves the person lines out. */
+  signatureUserId: string | null;
 };
 
 /**
@@ -31,7 +38,10 @@ export function isCompany(value: unknown): value is Company {
     typeof company.hasLogo === 'boolean' &&
     (company.logoDisplay === 'WITH_NAME' || company.logoDisplay === 'LOGO_ONLY') &&
     (company.primaryColor === null || typeof company.primaryColor === 'string') &&
-    (company.website === null || typeof company.website === 'string')
+    (company.website === null || typeof company.website === 'string') &&
+    // Remembered before the signature existed: still a company, only without one.
+    (company.replySignature === undefined || typeof company.replySignature === 'string') &&
+    (company.signatureUserId === undefined || company.signatureUserId === null || typeof company.signatureUserId === 'string')
   );
 }
 

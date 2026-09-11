@@ -104,10 +104,12 @@ class ProfileControllerTest {
 				.content("""
 						{"firstName": "Anna", "lastName": "Andere", "birthDate": "1990-04-23",
 						 "joinedAt": "2020-01-01", "branchId": "%s",
-						 "email": "anna@musterfirma.example", "phone": "0123 456789", "fax": ""}"""
+						 "email": "anna@musterfirma.example", "phone": "0123 456789", "fax": "",
+						 "position": "Projektleiterin"}"""
 						.formatted(filiale.getId())))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.lastName").value("Andere"))
+				.andExpect(jsonPath("$.position").value("Projektleiterin"))
 				.andExpect(jsonPath("$.birthDate").value("1990-04-23"))
 				.andExpect(jsonPath("$.branchId").value(filiale.getId().toString()))
 				// Whitespace-only optional fields are stored as "not set".

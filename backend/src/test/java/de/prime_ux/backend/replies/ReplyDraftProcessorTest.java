@@ -3,6 +3,7 @@ package de.prime_ux.backend.replies;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import de.prime_ux.backend.TestcontainersConfiguration;
+import de.prime_ux.backend.branches.Branch;
 import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseRepository;
@@ -13,7 +14,9 @@ import de.prime_ux.backend.tenants.TenantRepository;
 import de.prime_ux.backend.triage.CaseTier;
 import de.prime_ux.backend.triage.TenantTriageSettings;
 import de.prime_ux.backend.triage.TenantTriageSettingsRepository;
+import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
+import de.prime_ux.backend.users.UserRole;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -43,13 +46,13 @@ class ReplyDraftProcessorTest {
 		private boolean failing;
 		// Read by the controller test too, which shares this stand-in.
 		final List<String> draftedSubjects = new ArrayList<>();
-		private String lastSignature;
+		String lastSignature;
 		String lastInstruction;
 
 		@Override
-		public String draft(Case mailCase, TenantTriageSettings settings, String instruction) {
+		public String draft(Case mailCase, TenantTriageSettings settings, String instruction, String signature) {
 			draftedSubjects.add(mailCase.getSubject());
-			lastSignature = settings.getReplySignature();
+			lastSignature = signature;
 			lastInstruction = instruction;
 			if (failing) {
 				throw new ReplyDraftException("no answer", null);
@@ -216,14 +219,33 @@ class ReplyDraftProcessorTest {
 	}
 
 	@Test
-	void handsTheTenantsOwnSettingsToTheModel() {
-		TenantTriageSettings settings = TenantTriageSettings.defaults(tenant);
-		settings.update("", TenantTriageSettings.DEFAULT_CONFIDENCE_THRESHOLD, "Musterfirma GmbH", "");
-		tenantTriageSettingsRepository.save(settings);
+	void signsTheSchedulersDraftsWithTheStandInAndTheHeadquarters() {
+		Branch headquarters = branchRepository.save(new Branch(tenant, "Zentrale", true));
+		AppUser standIn = new AppUser(tenant, "kundenservice", "Kunden", "Service", "{noop}irrelevant",
+				UserRole.USER);
+		standIn.updateProfile("Kunden", "Service", null, null, null, "service@musterfirma.example", null, null, null);
+		standIn = appUserRepository.save(standIn);
+		tenant.updateCompany(tenant.getName(), null, tenant.getLogoDisplay(), null,
+				"{{vorname}} {{nachname}}\n{{email}}\n{{firma}}, {{filiale}}", standIn);
+		tenant = tenantRepository.save(tenant);
 		triaged("Mit Signatur", CaseTier.AUTOMATIC);
 
 		replyDraftProcessor.draftOnce(tenant, 10);
 
+		assertThat(stubReplyDraftService.lastSignature)
+				.isEqualTo("Kunden Service\nservice@musterfirma.example\nMusterfirma GmbH, " + headquarters.getName());
+	}
+
+	@Test
+	void signsWithTheCompanyAloneWhenNoStandInIsChosen() {
+		tenant.updateCompany(tenant.getName(), null, tenant.getLogoDisplay(), null,
+				"{{vorname}} {{nachname}}\n{{firma}}", null);
+		tenant = tenantRepository.save(tenant);
+		triaged("Ohne Stellvertreter", CaseTier.AUTOMATIC);
+
+		replyDraftProcessor.draftOnce(tenant, 10);
+
+		// The person line is gone; what is left is the company.
 		assertThat(stubReplyDraftService.lastSignature).isEqualTo("Musterfirma GmbH");
 	}
 
@@ -234,13 +256,20 @@ class ReplyDraftProcessorTest {
 		caseRepository.save(manual);
 		stubReplyDraftService.answer("Die Antwort des Modells.");
 
-		Case drafted = replyDraftProcessor.draftNow(reload(manual), "Lehne ab.");
+		AppUser anna = appUserRepository.save(
+				new AppUser(tenant, "anna", "Anna", "Admin", "{noop}irrelevant", UserRole.ADMIN));
+		tenant.updateCompany(tenant.getName(), null, tenant.getLogoDisplay(), null, "{{vorname}} {{nachname}}", null);
+		tenant = tenantRepository.save(tenant);
+
+		Case drafted = replyDraftProcessor.draftNow(reload(manual), "Lehne ab.", anna);
 
 		// The button does not care about the tier, and the model's text replaces the edit.
 		assertThat(drafted.getDraftText()).isEqualTo("Die Antwort des Modells.");
 		assertThat(reload(manual).getDraftGeneratedText()).isEqualTo("Die Antwort des Modells.");
 		// What the person said travels to the model; the scheduler never says anything.
 		assertThat(stubReplyDraftService.lastInstruction).isEqualTo("Lehne ab.");
+		// And the reply is signed in their name.
+		assertThat(stubReplyDraftService.lastSignature).isEqualTo("Anna Admin");
 	}
 
 	@Test

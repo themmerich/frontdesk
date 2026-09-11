@@ -14,17 +14,13 @@ import java.math.BigDecimal;
  */
 record TriageSettingsRequest(@Size(max = 2000) String extraInstructions,
 		@NotNull @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal confidenceThreshold,
-		@Size(max = 2000) String replySignature, @Size(max = 2000) String replyInstructions) {
+		@Size(max = 2000) String replyInstructions) {
 
 	/** An absent addendum and an empty one mean the same thing: leave the prompt as it is. */
 	String normalizedInstructions() {
 		return normalized(extraInstructions);
 	}
 
-	/** Absent and empty mean the same here too: the drafts end with what the model wrote. */
-	String normalizedSignature() {
-		return normalized(replySignature);
-	}
 
 	String normalizedReplyInstructions() {
 		return normalized(replyInstructions);

@@ -1,10 +1,14 @@
 package de.prime_ux.backend.tenants;
 
+import de.prime_ux.backend.users.AppUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
@@ -42,20 +46,35 @@ public class Tenant {
 	@Column(name = "primary_color")
 	private String primaryColor;
 
+	// Under every reply draft, once its placeholders — {{vorname}}, {{firma}}, {{ort}} — are
+	// filled in for whoever writes the reply. Empty means the drafts end with the model's text.
+	@Column(name = "reply_signature", nullable = false)
+	private String replySignature;
+
+	// Whose data the scheduler's drafts are signed with; it writes with nobody at the desk.
+	// Null leaves the person lines out of those signatures.
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "signature_user_id")
+	private AppUser signatureUser;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
 	public Tenant(String name) {
 		this.name = name;
 		this.logoDisplay = LogoDisplay.WITH_NAME;
+		this.replySignature = "";
 		this.createdAt = Instant.now();
 	}
 
 	/** The name is the tenant's name everywhere — renaming here renames the tenant. */
-	public void updateCompany(String name, String website, LogoDisplay logoDisplay, String primaryColor) {
+	public void updateCompany(String name, String website, LogoDisplay logoDisplay, String primaryColor,
+			String replySignature, AppUser signatureUser) {
 		this.name = name;
 		this.website = website;
 		this.logoDisplay = logoDisplay;
 		this.primaryColor = primaryColor;
+		this.replySignature = replySignature;
+		this.signatureUser = signatureUser;
 	}
 }
