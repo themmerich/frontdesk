@@ -1,8 +1,10 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { Confirmation, ConfirmationService, MessageService, ToastMessageOptions } from 'primeng/api';
+import { of } from 'rxjs';
 
 import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseDetailService } from '../data/case-detail-service';
@@ -122,6 +124,12 @@ describe('CaseDetailPage', () => {
   let toasts: ToastMessageOptions[];
   let confirmations: Confirmation[];
   let navigated: unknown[][];
+  /** What the screen is like; read when the page is created, so a test sets it before that. */
+  let isWide: boolean;
+  const breakpointsStub = {
+    observe: () => of({ matches: isWide, breakpoints: {} }),
+    isMatched: () => isWide,
+  } as unknown as BreakpointObserver;
 
   beforeEach(async () => {
     detail.set(aCase);
@@ -135,6 +143,7 @@ describe('CaseDetailPage', () => {
     toasts = [];
     confirmations = [];
     navigated = [];
+    isWide = false;
     await TestBed.configureTestingModule({
       imports: [
         CaseDetailPage,
@@ -150,6 +159,7 @@ describe('CaseDetailPage', () => {
         { provide: CaseDetailService, useValue: detailServiceStub },
         { provide: CaseCategoriesService, useValue: categoriesServiceStub },
         { provide: CasesService, useValue: casesServiceStub },
+        { provide: BreakpointObserver, useValue: breakpointsStub },
         {
           provide: ConfirmationService,
           useValue: { confirm: (confirmation: Confirmation) => confirmations.push(confirmation) },
@@ -178,6 +188,24 @@ describe('CaseDetailPage', () => {
     fixture.detectChanges();
     return fixture;
   }
+
+  it('puts the mail and the reply beside each other on a wide screen, and remembers that split on its own', () => {
+    isWide = true;
+    const element = createFixture().nativeElement as HTMLElement;
+
+    const splitter = element.querySelector('p-splitter')!;
+    expect(splitter.getAttribute('data-orientation')).toBe('horizontal');
+    expect(element.querySelector('[role="separator"]')?.getAttribute('aria-orientation')).toBe('horizontal');
+    expect(createFixture().componentInstance['splitterStateKey']()).toBe('frontdesk-case-detail-splitter-wide');
+  });
+
+  it('puts the reply under the mail on a narrow screen, with a split of its own', () => {
+    const fixture = createFixture();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('p-splitter')!.getAttribute('data-orientation')).toBe('vertical');
+    expect(fixture.componentInstance['splitterStateKey']()).toBe('frontdesk-case-detail-splitter-stacked');
+  });
 
   it('shows the mail, the assessment and that attachments are missing', () => {
     const element = createFixture().nativeElement as HTMLElement;
