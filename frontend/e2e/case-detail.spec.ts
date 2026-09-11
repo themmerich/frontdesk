@@ -189,16 +189,21 @@ test.describe('Case detail', () => {
     });
 
     await page.goto('/cases/1');
-    // Nothing written yet: the page says so and offers the button, with a line for the model.
-    await expect(page.getByText('Noch kein Entwurf')).toBeVisible();
+    // Nothing written yet: the box is open and empty, with a line for the model beside the button.
+    await expect(page.getByRole('textbox', { name: 'Antwortentwurf' })).toHaveValue('');
     await page.getByRole('textbox', { name: 'Anweisung an die KI' }).fill('Lehne ab und nenne unsere Verfügbarkeit dieses Jahr.');
-    await page.getByRole('button', { name: 'Entwurf erzeugen' }).click();
+    // The icon's glyph goes in front of the label in the button's name, so it is matched by its
+    // end; case-sensitive, so that "Neu erzeugen" later on is not the same button.
+    await page.getByRole('button', { name: /Erzeugen$/ }).click();
 
     expect(requests).toBe(1);
     expect(asked).toEqual({ instruction: 'Lehne ab und nenne unsere Verfügbarkeit dieses Jahr.' });
     await expect(page.getByRole('textbox', { name: 'Antwortentwurf' })).toHaveValue(/die Kopie senden wir Ihnen zu/);
     await expect(page.getByText(/Erzeugt am/)).toBeVisible();
     await expect(page.getByText('Entwurf erzeugt.')).toBeVisible();
+    // With a draft there, the button changes its word and steps back from the primary colour.
+    await expect(page.getByRole('button', { name: /Erzeugen$/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Neu erzeugen' })).toHaveClass(/p-button-outlined/);
   });
 
   test('lets a person write the reply themselves', async ({ page }) => {
@@ -209,9 +214,8 @@ test.describe('Case detail', () => {
     });
 
     await page.goto('/cases/1');
-    await page.getByRole('button', { name: 'Selbst schreiben' }).click();
 
-    // An empty box to write into; nothing to save until something is in it.
+    // An empty box to write into, straight away; nothing to save until something is in it.
     const box = page.getByRole('textbox', { name: 'Antwortentwurf' });
     await expect(box).toHaveValue('');
     const save = page.getByRole('button', { name: 'Speichern' });

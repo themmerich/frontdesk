@@ -18,7 +18,6 @@ const translations = {
   cases: { deleteCancel: 'Cancel' },
   caseDetail: {
     draft: 'Reply draft',
-    draftNone: 'No draft yet.',
     draftNoneTrashed: 'No draft.',
     generate: 'Write a draft',
     regenerate: 'Write again',
@@ -31,7 +30,6 @@ const translations = {
     instruction: 'Instruction for the AI',
     instructionPlaceholder: 'Instruction (optional)',
     revisePlaceholder: 'What to change? (optional)',
-    writeYourself: 'Write it yourself',
     save: 'Save',
     saved: 'Changes saved.',
     saveError: 'The changes could not be saved.',
@@ -173,16 +171,21 @@ describe('CaseDetailPage reply draft', () => {
     return (fixture.nativeElement as HTMLElement).querySelector('textarea#draft');
   }
 
-  it('says that there is no draft yet, and writes one at the press of the button', async () => {
+  it('opens on an empty box, and writes a draft into it at the press of the button', async () => {
     const fixture = createFixture();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('No draft yet.');
-    expect(textarea(fixture)).toBeNull();
+    // Nothing written yet: the box is there all the same, and the button is the one thing in colour.
+    expect(textarea(fixture)!.value).toBe('');
+    const write = button(fixture, 'Write a draft')!;
+    expect(write.className).not.toContain('p-button-outlined');
 
-    button(fixture, 'Write a draft')!.click();
+    write.click();
     await fixture.whenStable();
 
     expect(generations).toBe(1);
     expect(textarea(fixture)!.value).toBe('Guten Tag,\n\ndie Lieferung ist unterwegs.');
+    // With a draft there, writing again is the second thing to do, and the button says so.
+    expect(button(fixture, 'Write a draft')).toBeUndefined();
+    expect(button(fixture, 'Write again')!.className).toContain('p-button-outlined');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Written on');
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Edited on');
     // The inbox says which cases have a reply waiting, one page back.
@@ -226,11 +229,8 @@ describe('CaseDetailPage reply draft', () => {
     const fixture = createFixture();
     const page = fixture.componentInstance;
 
-    button(fixture, 'Write it yourself')!.click();
-    await fixture.whenStable();
-
-    // An empty box: something to type into, nothing to save yet.
-    expect(textarea(fixture)).not.toBeNull();
+    // An empty box to type into straight away; nothing to save until something is in it.
+    expect(textarea(fixture)!.value).toBe('');
     expect(page['canSave']()).toBe(false);
 
     page['draftText'].set('Guten Tag,\n\nvielen Dank für Ihre Nachricht.');
@@ -242,6 +242,29 @@ describe('CaseDetailPage reply draft', () => {
     expect(generations).toBe(0);
   });
 
+  it('saves the verdict on its own while the box stands empty', async () => {
+    const fixture = createFixture();
+    const page = fixture.componentInstance;
+
+    page['draftTier'].set('manual');
+    await fixture.whenStable();
+    expect(page['canSave']()).toBe(true);
+
+    await page['onSave']();
+    expect(savedDrafts).toEqual([]);
+  });
+
+  it('asks before writing over what a person typed into the empty box', async () => {
+    const fixture = createFixture();
+    fixture.componentInstance['draftText'].set('Eigene Worte.');
+    await fixture.whenStable();
+
+    button(fixture, 'Write a draft')!.click();
+
+    expect(confirmations).toHaveLength(1);
+    expect(generations).toBe(0);
+  });
+
   it('says so when the model gave no draft, and leaves the page as it was', async () => {
     generationFails = true;
     const fixture = createFixture();
@@ -249,7 +272,7 @@ describe('CaseDetailPage reply draft', () => {
     button(fixture, 'Write a draft')!.click();
     await fixture.whenStable();
 
-    expect(textarea(fixture)).toBeNull();
+    expect(textarea(fixture)!.value).toBe('');
     expect(toasts.map((toast) => toast.summary)).toEqual(['No draft could be written.']);
   });
 
@@ -325,7 +348,7 @@ describe('CaseDetailPage reply draft', () => {
     expect(generations).toBe(0);
 
     // Saved, and edited since the model wrote it.
-    page['draftText'].set(drafted.draftText);
+    page['draftText'].set(drafted.draftText ?? '');
     detail.set({ ...drafted, draftUpdatedAt: new Date('2026-08-19T11:00:00Z') });
     await fixture.whenStable();
     button(fixture, 'Write again')!.click();

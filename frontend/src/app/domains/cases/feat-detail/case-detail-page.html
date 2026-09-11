@@ -174,47 +174,18 @@
               <div class="flex h-6 items-center">
                 <h2 id="draft-heading" class="text-sm font-medium">{{ t('caseDetail.draft') }}</h2>
               </div>
-              @if (draftText() === null) {
-                <!-- Three ways to a reply: the model writes it, the model writes it along a line
-                     the person gives — "decline, and name our availability" — or the person
-                     writes it. -->
+              @if (isTrashed() && !hasSavedDraft()) {
+                <!-- Nothing was written, and nothing will be: what is thrown away is put back or
+                     deleted in the trash, not answered. -->
                 <div
                   class="flex flex-auto flex-col items-center justify-center gap-3 rounded-lg bg-surface-50 p-4 text-center text-sm text-surface-500 dark:bg-surface-800 dark:text-surface-400"
                 >
-                  <p>{{ t(isTrashed() ? 'caseDetail.draftNoneTrashed' : 'caseDetail.draftNone') }}</p>
-                  @if (!isTrashed()) {
-                    <div class="flex w-full max-w-xl flex-col gap-2 sm:flex-row">
-                      <input
-                        pInputText
-                        id="draft-instruction"
-                        class="w-full"
-                        [placeholder]="t('caseDetail.instructionPlaceholder')"
-                        [attr.aria-label]="t('caseDetail.instruction')"
-                        [(ngModel)]="draftInstruction"
-                        [disabled]="isGenerating()"
-                        (keydown.enter)="onGenerate()"
-                      />
-                      <p-button
-                        styleClass="whitespace-nowrap"
-                        icon="pi pi-sparkles"
-                        [label]="t('caseDetail.generate')"
-                        [loading]="isGenerating()"
-                        (onClick)="onGenerate()"
-                      />
-                    </div>
-                    <p-button
-                      size="small"
-                      [text]="true"
-                      icon="pi pi-pencil"
-                      [label]="t('caseDetail.writeYourself')"
-                      [disabled]="isGenerating()"
-                      (onClick)="onWriteYourself()"
-                    />
-                  }
+                  <p>{{ t('caseDetail.draftNoneTrashed') }}</p>
                 </div>
               } @else {
-                <!-- Read-only in the trash: what was thrown away is put back or deleted there, not
-                     answered. -->
+                <!-- The box is open from the start, empty when nobody has written into it yet:
+                     typing is one way to a reply and needs no button first. Read-only in the trash,
+                     where a draft is looked at but not worked on. -->
                 <textarea
                   pTextarea
                   id="draft"
@@ -233,29 +204,32 @@
                   }
                 </p>
                 @if (!isTrashed()) {
-                  <!-- The same line as above, now about the draft there is: "shorter", "without
-                       the price". Without one the model starts over. A new draft replaces what is
-                       there, edits included, so it asks first when something was edited. -->
+                  <!-- The other two ways: the model writes the reply, plain or along a line the
+                       person gives — "decline, and name our availability". With a draft saved the
+                       line is about that draft — "shorter", "without the price" — and the button
+                       steps back to a second colour: writing again is not the first thing to do
+                       any more. A new draft replaces what is in the box, so it asks first when
+                       something of a person is there. -->
                   <div class="flex flex-col gap-2 sm:flex-row">
                     <input
                       pInputText
                       id="draft-instruction"
                       class="w-full"
-                      [placeholder]="t('caseDetail.revisePlaceholder')"
+                      [placeholder]="t(hasSavedDraft() ? 'caseDetail.revisePlaceholder' : 'caseDetail.instructionPlaceholder')"
                       [attr.aria-label]="t('caseDetail.instruction')"
                       [(ngModel)]="draftInstruction"
                       [disabled]="isGenerating()"
-                      (keydown.enter)="onRegenerate()"
+                      (keydown.enter)="onGenerate()"
                     />
                     <p-button
-                      severity="secondary"
-                      [outlined]="true"
                       styleClass="whitespace-nowrap"
-                      icon="pi pi-refresh"
-                      [label]="t('caseDetail.regenerate')"
+                      [severity]="hasSavedDraft() ? 'secondary' : 'primary'"
+                      [outlined]="hasSavedDraft()"
+                      [icon]="hasSavedDraft() ? 'pi pi-refresh' : 'pi pi-sparkles'"
+                      [label]="t(hasSavedDraft() ? 'caseDetail.regenerate' : 'caseDetail.generate')"
                       [loading]="isGenerating()"
                       [disabled]="isSaving()"
-                      (onClick)="onRegenerate()"
+                      (onClick)="onGenerate()"
                     />
                   </div>
                 }
