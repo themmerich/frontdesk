@@ -3,224 +3,238 @@
     <h1 class="text-2xl font-semibold">{{ t('categories.title') }}</h1>
     <p class="text-surface-500 dark:text-surface-400">{{ t('categories.intro') }}</p>
 
-    <!-- The knobs that apply to the whole triage rather than to one category. -->
-    <form novalidate (submit)="onSaveSettings($event)">
-      <p-fieldset [legend]="t('categories.settings')">
-        <div class="flex flex-col gap-4 p-2">
-          <div class="flex flex-col gap-2">
-            <p-floatlabel variant="on" class="w-56">
-              <p-inputnumber
-                inputId="threshold"
-                class="w-full"
-                suffix=" %"
-                [min]="0"
-                [max]="100"
-                [showButtons]="true"
-                [formField]="settingsForm.thresholdPercent"
-              />
-              <label for="threshold">{{ t('categories.threshold') }}</label>
-            </p-floatlabel>
-            <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('categories.thresholdHint') }}</p>
-          </div>
-          <div class="flex flex-col gap-2">
-            <p-floatlabel variant="on">
-              <textarea pTextarea id="extraInstructions" rows="3" class="w-full" [formField]="settingsForm.extraInstructions"> </textarea>
-              <label for="extraInstructions">{{ t('categories.instructions') }}</label>
-            </p-floatlabel>
-            <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('categories.instructionsHint') }}</p>
-          </div>
-          <!-- What the reply drafts are to be like; the signature under them is the company's,
+    <!-- Two things live here, one tab each: the categories themselves, which is what the page
+         is named after and opens on, and the knobs that apply to the whole triage. The settings
+         panel comes first in the markup all the same, so the settings form stays the first form
+         on the page and the dialog's form the second. -->
+    <p-tabs value="categories">
+      <p-tablist>
+        <p-tab value="categories">{{ t('categories.title') }}</p-tab>
+        <p-tab value="settings">{{ t('categories.settings') }}</p-tab>
+      </p-tablist>
+      <p-tabpanels>
+        <p-tabpanel value="settings">
+          <form novalidate (submit)="onSaveSettings($event)">
+            <div class="flex flex-col gap-4 p-2">
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on" class="w-56">
+                  <p-inputnumber
+                    inputId="threshold"
+                    class="w-full"
+                    suffix=" %"
+                    [min]="0"
+                    [max]="100"
+                    [showButtons]="true"
+                    [formField]="settingsForm.thresholdPercent"
+                  />
+                  <label for="threshold">{{ t('categories.threshold') }}</label>
+                </p-floatlabel>
+                <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('categories.thresholdHint') }}</p>
+              </div>
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on">
+                  <textarea pTextarea id="extraInstructions" rows="3" class="w-full" [formField]="settingsForm.extraInstructions">
+                  </textarea>
+                  <label for="extraInstructions">{{ t('categories.instructions') }}</label>
+                </p-floatlabel>
+                <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('categories.instructionsHint') }}</p>
+              </div>
+              <!-- What the reply drafts are to be like; the signature under them is the company's,
                on the company page. -->
-          <div class="flex flex-col gap-2">
-            <p-floatlabel variant="on">
-              <textarea pTextarea id="replyInstructions" rows="3" class="w-full" [formField]="settingsForm.replyInstructions"> </textarea>
-              <label for="replyInstructions">{{ t('categories.replyInstructions') }}</label>
-            </p-floatlabel>
-            <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('categories.replyInstructionsHint') }}</p>
-          </div>
-          <div class="flex justify-end">
-            <p-button
-              type="submit"
-              icon="pi pi-check"
-              [label]="t('categories.save')"
-              [loading]="isSavingSettings()"
-              [disabled]="settingsForm().invalid() || !settingsForm().dirty()"
-            />
-          </div>
-        </div>
-      </p-fieldset>
-    </form>
-
-    <!-- value() throws while the resource is in the error state, so the table only renders in the else branch. -->
-    @if (categoriesService.categories.error()) {
-      <p class="text-red-600 dark:text-red-400">{{ t('categories.loadError') }}</p>
-    } @else {
-      <p-table [value]="categoriesService.categories.value()" dataKey="id">
-        <ng-template #caption>
-          <div class="flex justify-end">
-            <p-button icon="pi pi-plus" [label]="t('categories.add')" (onClick)="onAdd()" />
-          </div>
-        </ng-template>
-        <ng-template #header>
-          <tr>
-            <th scope="col">{{ t('categories.name') }}</th>
-            <th scope="col">{{ t('categories.description') }}</th>
-            <th scope="col" class="w-32">{{ t('categories.tier') }}</th>
-            <!-- Says in advance why the delete button will refuse. -->
-            <th scope="col" class="w-28">{{ t('categories.caseCount') }}</th>
-            <th scope="col" class="w-28">{{ t('categories.state') }}</th>
-            <th scope="col" class="w-24">
-              <span class="sr-only">{{ t('categories.actions') }}</span>
-            </th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-category>
-          <tr>
-            <td [attr.data-category-color]="category.color">{{ category.name }}</td>
-            <td class="text-surface-500 dark:text-surface-400">{{ category.description }}</td>
-            <td>
-              <p-tag [value]="t(tierLabelKey(category.tier))" [severity]="tierSeverity(category.tier)" />
-            </td>
-            <td class="text-surface-500 dark:text-surface-400">{{ category.caseCount }}</td>
-            <td>
-              @if (category.active) {
-                <p-tag severity="success" [value]="t('categories.active')" />
-              } @else {
-                <p-tag severity="danger" [value]="t('categories.inactive')" />
-              }
-            </td>
-            <td>
-              <div class="flex items-center">
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on">
+                  <textarea pTextarea id="replyInstructions" rows="3" class="w-full" [formField]="settingsForm.replyInstructions">
+                  </textarea>
+                  <label for="replyInstructions">{{ t('categories.replyInstructions') }}</label>
+                </p-floatlabel>
+                <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('categories.replyInstructionsHint') }}</p>
+              </div>
+              <div class="flex justify-end">
                 <p-button
-                  icon="pi pi-pencil"
-                  variant="text"
-                  severity="secondary"
-                  [ariaLabel]="t('categories.edit')"
-                  [pTooltip]="t('categories.edit')"
-                  tooltipPosition="left"
-                  (onClick)="onEdit(category)"
-                />
-                <p-button
-                  icon="pi pi-trash"
-                  variant="text"
-                  severity="danger"
-                  [ariaLabel]="t('categories.delete')"
-                  [pTooltip]="t('categories.delete')"
-                  tooltipPosition="left"
-                  (onClick)="onDelete(category)"
+                  type="submit"
+                  icon="pi pi-check"
+                  [label]="t('categories.save')"
+                  [loading]="isSavingSettings()"
+                  [disabled]="settingsForm().invalid() || !settingsForm().dirty()"
                 />
               </div>
-            </td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr>
-            <td colspan="6">{{ t('categories.empty') }}</td>
-          </tr>
-        </ng-template>
-      </p-table>
+            </div>
+          </form>
+        </p-tabpanel>
+        <p-tabpanel value="categories">
+          <!-- value() throws while the resource is in the error state, so the table only renders in the else branch. -->
+          @if (categoriesService.categories.error()) {
+            <p class="text-red-600 dark:text-red-400">{{ t('categories.loadError') }}</p>
+          } @else {
+            <p-table [value]="categoriesService.categories.value()" dataKey="id">
+              <ng-template #caption>
+                <div class="flex justify-end">
+                  <p-button icon="pi pi-plus" [label]="t('categories.add')" (onClick)="onAdd()" />
+                </div>
+              </ng-template>
+              <ng-template #header>
+                <tr>
+                  <th scope="col">{{ t('categories.name') }}</th>
+                  <th scope="col">{{ t('categories.description') }}</th>
+                  <th scope="col" class="w-32">{{ t('categories.tier') }}</th>
+                  <!-- Says in advance why the delete button will refuse. -->
+                  <th scope="col" class="w-28">{{ t('categories.caseCount') }}</th>
+                  <th scope="col" class="w-28">{{ t('categories.state') }}</th>
+                  <th scope="col" class="w-24">
+                    <span class="sr-only">{{ t('categories.actions') }}</span>
+                  </th>
+                </tr>
+              </ng-template>
+              <ng-template #body let-category>
+                <tr>
+                  <td [attr.data-category-color]="category.color">{{ category.name }}</td>
+                  <td class="text-surface-500 dark:text-surface-400">{{ category.description }}</td>
+                  <td>
+                    <p-tag [value]="t(tierLabelKey(category.tier))" [severity]="tierSeverity(category.tier)" />
+                  </td>
+                  <td class="text-surface-500 dark:text-surface-400">{{ category.caseCount }}</td>
+                  <td>
+                    @if (category.active) {
+                      <p-tag severity="success" [value]="t('categories.active')" />
+                    } @else {
+                      <p-tag severity="danger" [value]="t('categories.inactive')" />
+                    }
+                  </td>
+                  <td>
+                    <div class="flex items-center">
+                      <p-button
+                        icon="pi pi-pencil"
+                        variant="text"
+                        severity="secondary"
+                        [ariaLabel]="t('categories.edit')"
+                        [pTooltip]="t('categories.edit')"
+                        tooltipPosition="left"
+                        (onClick)="onEdit(category)"
+                      />
+                      <p-button
+                        icon="pi pi-trash"
+                        variant="text"
+                        severity="danger"
+                        [ariaLabel]="t('categories.delete')"
+                        [pTooltip]="t('categories.delete')"
+                        tooltipPosition="left"
+                        (onClick)="onDelete(category)"
+                      />
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template #emptymessage>
+                <tr>
+                  <td colspan="6">{{ t('categories.empty') }}</td>
+                </tr>
+              </ng-template>
+            </p-table>
 
-      <p-dialog
-        [header]="t(editingCategory() === null ? 'categories.addTitle' : 'categories.editTitle')"
-        [modal]="true"
-        [(visible)]="isDialogVisible"
-        [style]="{ width: '32rem' }"
-      >
-        <form novalidate class="flex flex-col gap-4 pt-2" (submit)="onSave($event)">
-          <div class="flex flex-col gap-2">
-            <p-floatlabel variant="on">
-              <input pInputText id="name" type="text" class="w-full" [formField]="categoryForm.name" />
-              <label for="name">{{ t('categories.name') }}</label>
-            </p-floatlabel>
-            @if (categoryForm.name().invalid()) {
-              <p-message severity="error" variant="simple" size="small">{{ t('categories.nameRequired') }}</p-message>
-            }
-          </div>
-          <div class="flex flex-col gap-2">
-            <p-floatlabel variant="on">
-              <textarea pTextarea id="description" rows="4" class="w-full" [formField]="categoryForm.description"></textarea>
-              <label for="description">{{ t('categories.description') }}</label>
-            </p-floatlabel>
-            @if (categoryForm.description().invalid()) {
-              <p-message severity="error" variant="simple" size="small">{{ t('categories.descriptionRequired') }}</p-message>
-            } @else {
-              <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('categories.descriptionHint') }}</p>
-            }
-          </div>
-          <p-floatlabel variant="on">
-            <p-select
-              inputId="tier"
-              class="w-full"
-              appendTo="body"
-              [options]="tierOptions()"
-              optionLabel="label"
-              optionValue="value"
-              [formField]="categoryForm.tier"
-            />
-            <label for="tier">{{ t('categories.tier') }}</label>
-          </p-floatlabel>
-          <!-- A select rather than a row of swatches: it keeps the keyboard and screen-reader
+            <p-dialog
+              [header]="t(editingCategory() === null ? 'categories.addTitle' : 'categories.editTitle')"
+              [modal]="true"
+              [(visible)]="isDialogVisible"
+              [style]="{ width: '32rem' }"
+            >
+              <form novalidate class="flex flex-col gap-4 pt-2" (submit)="onSave($event)">
+                <div class="flex flex-col gap-2">
+                  <p-floatlabel variant="on">
+                    <input pInputText id="name" type="text" class="w-full" [formField]="categoryForm.name" />
+                    <label for="name">{{ t('categories.name') }}</label>
+                  </p-floatlabel>
+                  @if (categoryForm.name().invalid()) {
+                    <p-message severity="error" variant="simple" size="small">{{ t('categories.nameRequired') }}</p-message>
+                  }
+                </div>
+                <div class="flex flex-col gap-2">
+                  <p-floatlabel variant="on">
+                    <textarea pTextarea id="description" rows="4" class="w-full" [formField]="categoryForm.description"></textarea>
+                    <label for="description">{{ t('categories.description') }}</label>
+                  </p-floatlabel>
+                  @if (categoryForm.description().invalid()) {
+                    <p-message severity="error" variant="simple" size="small">{{ t('categories.descriptionRequired') }}</p-message>
+                  } @else {
+                    <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('categories.descriptionHint') }}</p>
+                  }
+                </div>
+                <p-floatlabel variant="on">
+                  <p-select
+                    inputId="tier"
+                    class="w-full"
+                    appendTo="body"
+                    [options]="tierOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [formField]="categoryForm.tier"
+                  />
+                  <label for="tier">{{ t('categories.tier') }}</label>
+                </p-floatlabel>
+                <!-- A select rather than a row of swatches: it keeps the keyboard and screen-reader
                behaviour of the tier field above, and the dot carries the colour that the name
                alone cannot. -->
-          <p-floatlabel variant="on">
-            <p-select
-              inputId="color"
-              class="w-full"
-              appendTo="body"
-              [options]="colorOptions()"
-              optionLabel="label"
-              optionValue="value"
-              [formField]="categoryForm.color"
-            >
-              <!-- The dot takes its fill from the text colour the attribute sets, so the
+                <p-floatlabel variant="on">
+                  <p-select
+                    inputId="color"
+                    class="w-full"
+                    appendTo="body"
+                    [options]="colorOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [formField]="categoryForm.color"
+                  >
+                    <!-- The dot takes its fill from the text colour the attribute sets, so the
                    palette is defined in one place. "No colour" gets an empty ring. -->
-              <ng-template #selectedItem let-selected>
-                <span class="flex items-center gap-2">
-                  <span
-                    class="size-3 rounded-full border border-surface-300 dark:border-surface-600"
-                    [class.bg-current]="selected.value !== 'none'"
-                    [attr.data-category-color]="selected.value === 'none' ? null : selected.value"
-                  ></span>
-                  {{ selected.label }}
-                </span>
-              </ng-template>
-              <ng-template #item let-option>
-                <span class="flex items-center gap-2">
-                  <span
-                    class="size-3 rounded-full border border-surface-300 dark:border-surface-600"
-                    [class.bg-current]="option.value !== 'none'"
-                    [attr.data-category-color]="option.value === 'none' ? null : option.value"
-                  ></span>
-                  {{ option.label }}
-                </span>
-              </ng-template>
-            </p-select>
-            <label for="color">{{ t('categories.color') }}</label>
-          </p-floatlabel>
-          <div class="flex items-center gap-2">
-            <p-checkbox inputId="active" [binary]="true" [formField]="categoryForm.active" />
-            <label for="active" class="cursor-pointer">{{ t('categories.active') }}</label>
-          </div>
-          <!-- The code exists for the model, not for the people editing here; shown so a rename
+                    <ng-template #selectedItem let-selected>
+                      <span class="flex items-center gap-2">
+                        <span
+                          class="size-3 rounded-full border border-surface-300 dark:border-surface-600"
+                          [class.bg-current]="selected.value !== 'none'"
+                          [attr.data-category-color]="selected.value === 'none' ? null : selected.value"
+                        ></span>
+                        {{ selected.label }}
+                      </span>
+                    </ng-template>
+                    <ng-template #item let-option>
+                      <span class="flex items-center gap-2">
+                        <span
+                          class="size-3 rounded-full border border-surface-300 dark:border-surface-600"
+                          [class.bg-current]="option.value !== 'none'"
+                          [attr.data-category-color]="option.value === 'none' ? null : option.value"
+                        ></span>
+                        {{ option.label }}
+                      </span>
+                    </ng-template>
+                  </p-select>
+                  <label for="color">{{ t('categories.color') }}</label>
+                </p-floatlabel>
+                <div class="flex items-center gap-2">
+                  <p-checkbox inputId="active" [binary]="true" [formField]="categoryForm.active" />
+                  <label for="active" class="cursor-pointer">{{ t('categories.active') }}</label>
+                </div>
+                <!-- The code exists for the model, not for the people editing here; shown so a rename
                is visibly harmless. -->
-          @if (editingCategory(); as editing) {
-            <p-floatlabel variant="on">
-              <input pInputText id="code" type="text" class="w-full" disabled [value]="editing.code" />
-              <label for="code">{{ t('categories.code') }}</label>
-            </p-floatlabel>
+                @if (editingCategory(); as editing) {
+                  <p-floatlabel variant="on">
+                    <input pInputText id="code" type="text" class="w-full" disabled [value]="editing.code" />
+                    <label for="code">{{ t('categories.code') }}</label>
+                  </p-floatlabel>
+                }
+                <div class="flex justify-end gap-2">
+                  <p-button
+                    type="button"
+                    severity="secondary"
+                    [outlined]="true"
+                    [label]="t('categories.cancel')"
+                    (onClick)="isDialogVisible.set(false)"
+                  />
+                  <p-button type="submit" icon="pi pi-check" [label]="t('categories.save')" [loading]="isSaving()" />
+                </div>
+              </form>
+            </p-dialog>
           }
-          <div class="flex justify-end gap-2">
-            <p-button
-              type="button"
-              severity="secondary"
-              [outlined]="true"
-              [label]="t('categories.cancel')"
-              (onClick)="isDialogVisible.set(false)"
-            />
-            <p-button type="submit" icon="pi pi-check" [label]="t('categories.save')" [loading]="isSaving()" />
-          </div>
-        </form>
-      </p-dialog>
-    }
+        </p-tabpanel>
+      </p-tabpanels>
+    </p-tabs>
   </main>
 </ng-container>

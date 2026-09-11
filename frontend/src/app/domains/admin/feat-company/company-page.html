@@ -5,218 +5,244 @@
     @if (companyService.company.error()) {
       <p class="text-red-600 dark:text-red-400">{{ t('company.loadError') }}</p>
     } @else {
-      <form novalidate class="grid gap-6 md:grid-cols-2" (submit)="onSave($event)">
-        <!-- brand: logo beside the company name -->
-        <p-fieldset [legend]="t('company.data')" class="md:col-span-2">
-          <div class="flex flex-col gap-6 p-2 sm:flex-row sm:items-start">
-            <div class="flex w-full flex-1 flex-col gap-4">
-              <div class="flex flex-col gap-2">
-                <p-floatlabel variant="on">
-                  <input pInputText id="name" type="text" class="w-full" [formField]="companyForm.name" />
-                  <label for="name">{{ t('company.name') }}</label>
-                </p-floatlabel>
-                @if ((companyForm.name().touched() || hasSubmitAttempted()) && companyForm.name().invalid()) {
-                  <p-message severity="error" variant="simple" size="small">{{ t('company.nameRequired') }}</p-message>
-                }
-              </div>
-              <div class="flex flex-col gap-2">
-                <p-inputgroup>
-                  <p-inputgroup-addon>
-                    <!-- Swatch and picker in one; it edits the same field as the hex input beside it. -->
-                    <input
-                      type="color"
-                      class="h-7 w-9 cursor-pointer rounded border-0 bg-transparent"
-                      [attr.aria-label]="t('company.color')"
-                      [formField]="companyForm.primaryColor"
-                    />
-                  </p-inputgroup-addon>
-                  <p-floatlabel variant="on">
-                    <input pInputText id="primaryColor" type="text" [formField]="companyForm.primaryColor" />
-                    <label for="primaryColor">{{ t('company.color') }}</label>
-                  </p-floatlabel>
-                </p-inputgroup>
-                @if ((companyForm.primaryColor().touched() || hasSubmitAttempted()) && companyForm.primaryColor().invalid()) {
-                  <p-message severity="error" variant="simple" size="small">{{ t('company.colorInvalid') }}</p-message>
-                }
-              </div>
-              <!-- The website belongs to the company itself, not to any of its sites. -->
-              <p-inputgroup>
-                <p-inputgroup-addon><i class="pi pi-globe" aria-hidden="true"></i></p-inputgroup-addon>
-                <p-floatlabel variant="on">
-                  <input pInputText id="website" type="url" [formField]="companyForm.website" />
-                  <label for="website">{{ t('company.website') }}</label>
-                </p-floatlabel>
-              </p-inputgroup>
-            </div>
-            <div class="flex shrink-0 flex-col items-center gap-3 self-center sm:self-start">
-              <div
-                class="flex h-24 w-40 items-center justify-center overflow-hidden rounded-lg border border-dashed border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-900"
-              >
-                @if (companyService.logoUrl(); as logoUrl) {
-                  <img [src]="logoUrl" [alt]="t('company.logo')" class="max-h-24 max-w-40 object-contain p-1" />
-                } @else {
-                  <div class="flex flex-col items-center gap-1 text-surface-400 dark:text-surface-500">
-                    <i class="pi pi-building text-3xl" aria-hidden="true"></i>
-                    <span class="text-xs">{{ t('company.logo') }}</span>
+      <!-- Three things live here, one tab each: the company's own data, the signature under its
+           replies, and its sites. The one form spans the first two — they are one record, saved
+           together from a button in either tab — and reaches around the sites as well, whose
+           own form lives in the dialog below, outside it. -->
+      <form novalidate (submit)="onSave($event)">
+        <p-tabs value="data">
+          <p-tablist>
+            <p-tab value="data">{{ t('company.data') }}</p-tab>
+            <p-tab value="signature">{{ t('company.signature') }}</p-tab>
+            <p-tab value="branches">{{ t('company.branches') }}</p-tab>
+          </p-tablist>
+          <p-tabpanels>
+            <p-tabpanel value="data">
+              <!-- brand: logo beside the company name -->
+              <div class="flex flex-col gap-6 p-2 sm:flex-row sm:items-start">
+                <div class="flex w-full flex-1 flex-col gap-4">
+                  <div class="flex flex-col gap-2">
+                    <p-floatlabel variant="on">
+                      <input pInputText id="name" type="text" class="w-full" [formField]="companyForm.name" />
+                      <label for="name">{{ t('company.name') }}</label>
+                    </p-floatlabel>
+                    @if ((companyForm.name().touched() || hasSubmitAttempted()) && companyForm.name().invalid()) {
+                      <p-message severity="error" variant="simple" size="small">{{ t('company.nameRequired') }}</p-message>
+                    }
                   </div>
-                }
-              </div>
-              <div class="flex items-center gap-2">
-                <p-fileupload
-                  mode="basic"
-                  [auto]="true"
-                  [customUpload]="true"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  [chooseLabel]="t('company.upload')"
-                  chooseIcon="pi pi-upload"
-                  [chooseButtonProps]="{ severity: 'secondary', outlined: true }"
-                  [disabled]="isSavingLogo()"
-                  (uploadHandler)="onUploadLogo($event)"
-                />
-                @if (companyService.logoUrl()) {
-                  <p-button
-                    type="button"
-                    severity="danger"
-                    [outlined]="true"
-                    icon="pi pi-trash"
-                    [ariaLabel]="t('company.remove')"
-                    [pTooltip]="t('company.remove')"
-                    tooltipPosition="bottom"
-                    [loading]="isSavingLogo()"
-                    (onClick)="onRemoveLogo()"
-                  />
-                }
-              </div>
-              <p-selectbutton
-                [options]="logoDisplayOptions()"
-                optionLabel="label"
-                optionValue="value"
-                [allowEmpty]="false"
-                size="small"
-                [formField]="companyForm.logoDisplay"
-              />
-            </div>
-          </div>
-        </p-fieldset>
-
-        <!-- The signature under every reply, once for the whole company: the placeholders take
-             the person's, their branch's and the company's data when a draft is written, so
-             every branch gets its own signature without its own text. -->
-        <p-fieldset [legend]="t('company.signature')" class="md:col-span-2">
-          <div class="grid gap-4 p-2 lg:grid-cols-2">
-            <div class="flex flex-col gap-4">
-              <div class="flex flex-col gap-2">
-                <p-floatlabel variant="on">
-                  <textarea pTextarea id="replySignature" rows="8" class="w-full" [formField]="companyForm.replySignature"></textarea>
-                  <label for="replySignature">{{ t('company.signatureTemplate') }}</label>
-                </p-floatlabel>
-                <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('company.signatureHint') }}</p>
-                <p class="flex flex-wrap gap-1" [attr.aria-label]="t('company.signaturePlaceholders')">
-                  @for (placeholder of placeholders; track placeholder) {
-                    <code class="rounded bg-surface-100 px-1.5 py-0.5 text-xs dark:bg-surface-800">{{ placeholder }}</code>
-                  }
-                </p>
-              </div>
-              <div class="flex flex-col gap-2">
-                <p-floatlabel variant="on">
-                  <p-select
-                    inputId="signatureUser"
-                    class="w-full"
-                    appendTo="body"
-                    [options]="signatureUserOptions()"
+                  <div class="flex flex-col gap-2">
+                    <p-inputgroup>
+                      <p-inputgroup-addon>
+                        <!-- Swatch and picker in one; it edits the same field as the hex input beside it. -->
+                        <input
+                          type="color"
+                          class="h-7 w-9 cursor-pointer rounded border-0 bg-transparent"
+                          [attr.aria-label]="t('company.color')"
+                          [formField]="companyForm.primaryColor"
+                        />
+                      </p-inputgroup-addon>
+                      <p-floatlabel variant="on">
+                        <input pInputText id="primaryColor" type="text" [formField]="companyForm.primaryColor" />
+                        <label for="primaryColor">{{ t('company.color') }}</label>
+                      </p-floatlabel>
+                    </p-inputgroup>
+                    @if ((companyForm.primaryColor().touched() || hasSubmitAttempted()) && companyForm.primaryColor().invalid()) {
+                      <p-message severity="error" variant="simple" size="small">{{ t('company.colorInvalid') }}</p-message>
+                    }
+                  </div>
+                  <!-- The website belongs to the company itself, not to any of its sites. -->
+                  <p-inputgroup>
+                    <p-inputgroup-addon><i class="pi pi-globe" aria-hidden="true"></i></p-inputgroup-addon>
+                    <p-floatlabel variant="on">
+                      <input pInputText id="website" type="url" [formField]="companyForm.website" />
+                      <label for="website">{{ t('company.website') }}</label>
+                    </p-floatlabel>
+                  </p-inputgroup>
+                </div>
+                <div class="flex shrink-0 flex-col items-center gap-3 self-center sm:self-start">
+                  <div
+                    class="flex h-24 w-40 items-center justify-center overflow-hidden rounded-lg border border-dashed border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-900"
+                  >
+                    @if (companyService.logoUrl(); as logoUrl) {
+                      <img [src]="logoUrl" [alt]="t('company.logo')" class="max-h-24 max-w-40 object-contain p-1" />
+                    } @else {
+                      <div class="flex flex-col items-center gap-1 text-surface-400 dark:text-surface-500">
+                        <i class="pi pi-building text-3xl" aria-hidden="true"></i>
+                        <span class="text-xs">{{ t('company.logo') }}</span>
+                      </div>
+                    }
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <p-fileupload
+                      mode="basic"
+                      [auto]="true"
+                      [customUpload]="true"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      [chooseLabel]="t('company.upload')"
+                      chooseIcon="pi pi-upload"
+                      [chooseButtonProps]="{ severity: 'secondary', outlined: true }"
+                      [disabled]="isSavingLogo()"
+                      (uploadHandler)="onUploadLogo($event)"
+                    />
+                    @if (companyService.logoUrl()) {
+                      <p-button
+                        type="button"
+                        severity="danger"
+                        [outlined]="true"
+                        icon="pi pi-trash"
+                        [ariaLabel]="t('company.remove')"
+                        [pTooltip]="t('company.remove')"
+                        tooltipPosition="bottom"
+                        [loading]="isSavingLogo()"
+                        (onClick)="onRemoveLogo()"
+                      />
+                    }
+                  </div>
+                  <p-selectbutton
+                    [options]="logoDisplayOptions()"
                     optionLabel="label"
                     optionValue="value"
-                    [showClear]="true"
-                    [formField]="companyForm.signatureUserId"
+                    [allowEmpty]="false"
+                    size="small"
+                    [formField]="companyForm.logoDisplay"
                   />
-                  <label for="signatureUser">{{ t('company.signatureUser') }}</label>
-                </p-floatlabel>
-                <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('company.signatureUserHint') }}</p>
+                </div>
               </div>
-            </div>
-            <div class="flex flex-col gap-2">
-              <h3 id="signature-preview-heading" class="text-sm font-medium">{{ t('company.signaturePreview') }}</h3>
-              <!-- Bound as text: whatever stands in the template is shown, never rendered. -->
-              <pre
-                aria-labelledby="signature-preview-heading"
-                class="min-h-32 flex-auto rounded-lg bg-surface-50 p-3 font-sans text-sm whitespace-pre-wrap dark:bg-surface-800"
-                >{{ signaturePreview() }}</pre>
-              <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('company.signaturePreviewHint') }}</p>
-            </div>
-          </div>
-        </p-fieldset>
-
-        <div class="flex justify-end md:col-span-2">
-          <p-button
-            type="submit"
-            icon="pi pi-check"
-            [label]="t('company.save')"
-            [loading]="isSaving()"
-            [disabled]="companyForm().invalid() || !companyForm().dirty()"
-          />
-        </div>
-      </form>
-
-      <!-- Every site of the company, the headquarters among them. -->
-      <p-fieldset [legend]="t('company.branches')">
-        <div class="flex flex-col gap-4 p-2">
-          @if (branchService.branches.value().length === 0) {
-            <p class="text-surface-500 dark:text-surface-400">{{ t('company.branchesEmpty') }}</p>
-          } @else {
-            <p-table [value]="branchService.branches.value()" dataKey="id">
-              <ng-template #header>
-                <tr>
-                  <th scope="col">{{ t('company.branchName') }}</th>
-                  <th scope="col">{{ t('company.city') }}</th>
-                  <th scope="col">{{ t('company.phone') }}</th>
-                  <th scope="col" class="w-24">
-                    <span class="sr-only">{{ t('company.branchActions') }}</span>
-                  </th>
-                </tr>
-              </ng-template>
-              <ng-template #body let-branch>
-                <tr>
-                  <td>
-                    <div class="flex items-center gap-2">
-                      {{ branch.name }}
-                      @if (branch.headquarters) {
-                        <p-tag severity="info" [value]="t('company.headquarters')" />
+              <div class="flex justify-end">
+                <p-button
+                  type="submit"
+                  icon="pi pi-check"
+                  [label]="t('company.save')"
+                  [loading]="isSaving()"
+                  [disabled]="companyForm().invalid() || !companyForm().dirty()"
+                />
+              </div>
+            </p-tabpanel>
+            <p-tabpanel value="signature">
+              <!-- The signature under every reply, once for the whole company: the placeholders take
+             the person's, their branch's and the company's data when a draft is written, so
+             every branch gets its own signature without its own text. -->
+              <div class="grid gap-4 p-2 lg:grid-cols-2">
+                <div class="flex flex-col gap-4">
+                  <div class="flex flex-col gap-2">
+                    <p-floatlabel variant="on">
+                      <textarea pTextarea id="replySignature" rows="8" class="w-full" [formField]="companyForm.replySignature"></textarea>
+                      <label for="replySignature">{{ t('company.signatureTemplate') }}</label>
+                    </p-floatlabel>
+                    <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('company.signatureHint') }}</p>
+                    <p class="flex flex-wrap gap-1" [attr.aria-label]="t('company.signaturePlaceholders')">
+                      @for (placeholder of placeholders; track placeholder) {
+                        <code class="rounded bg-surface-100 px-1.5 py-0.5 text-xs dark:bg-surface-800">{{ placeholder }}</code>
                       }
-                    </div>
-                  </td>
-                  <td>{{ branch.city }}</td>
-                  <td>{{ branch.phone }}</td>
-                  <td>
-                    <div class="flex items-center">
-                      <p-button
-                        icon="pi pi-pencil"
-                        variant="text"
-                        severity="secondary"
-                        [ariaLabel]="t('company.branchEdit')"
-                        [pTooltip]="t('company.branchEdit')"
-                        tooltipPosition="left"
-                        (onClick)="onEditBranch(branch)"
+                    </p>
+                  </div>
+                  <div class="flex flex-col gap-2">
+                    <p-floatlabel variant="on">
+                      <p-select
+                        inputId="signatureUser"
+                        class="w-full"
+                        appendTo="body"
+                        [options]="signatureUserOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        [showClear]="true"
+                        [formField]="companyForm.signatureUserId"
                       />
-                      <p-button
-                        icon="pi pi-trash"
-                        variant="text"
-                        severity="danger"
-                        [ariaLabel]="t('company.branchDelete')"
-                        [pTooltip]="t('company.branchDelete')"
-                        tooltipPosition="left"
-                        (onClick)="onDeleteBranch(branch)"
-                      />
-                    </div>
-                  </td>
-                </tr>
-              </ng-template>
-            </p-table>
-          }
-          <div class="flex justify-end">
-            <p-button icon="pi pi-plus" severity="secondary" [outlined]="true" [label]="t('company.branchAdd')" (onClick)="onAddBranch()" />
-          </div>
-        </div>
-      </p-fieldset>
+                      <label for="signatureUser">{{ t('company.signatureUser') }}</label>
+                    </p-floatlabel>
+                    <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('company.signatureUserHint') }}</p>
+                  </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                  <h3 id="signature-preview-heading" class="text-sm font-medium">{{ t('company.signaturePreview') }}</h3>
+                  <!-- Bound as text: whatever stands in the template is shown, never rendered. -->
+                  <pre
+                    aria-labelledby="signature-preview-heading"
+                    class="min-h-32 flex-auto rounded-lg bg-surface-50 p-3 font-sans text-sm whitespace-pre-wrap dark:bg-surface-800"
+                    >{{ signaturePreview() }}</pre>
+                  <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('company.signaturePreviewHint') }}</p>
+                </div>
+              </div>
+              <div class="flex justify-end">
+                <p-button
+                  type="submit"
+                  icon="pi pi-check"
+                  [label]="t('company.save')"
+                  [loading]="isSaving()"
+                  [disabled]="companyForm().invalid() || !companyForm().dirty()"
+                />
+              </div>
+            </p-tabpanel>
+            <p-tabpanel value="branches">
+              <!-- Every site of the company, the headquarters among them. Buttons only, no field of the
+           company form: what the sites' form needs is in the dialog. -->
+              <div class="flex flex-col gap-4 p-2">
+                @if (branchService.branches.value().length === 0) {
+                  <p class="text-surface-500 dark:text-surface-400">{{ t('company.branchesEmpty') }}</p>
+                } @else {
+                  <p-table [value]="branchService.branches.value()" dataKey="id">
+                    <ng-template #header>
+                      <tr>
+                        <th scope="col">{{ t('company.branchName') }}</th>
+                        <th scope="col">{{ t('company.city') }}</th>
+                        <th scope="col">{{ t('company.phone') }}</th>
+                        <th scope="col" class="w-24">
+                          <span class="sr-only">{{ t('company.branchActions') }}</span>
+                        </th>
+                      </tr>
+                    </ng-template>
+                    <ng-template #body let-branch>
+                      <tr>
+                        <td>
+                          <div class="flex items-center gap-2">
+                            {{ branch.name }}
+                            @if (branch.headquarters) {
+                              <p-tag severity="info" [value]="t('company.headquarters')" />
+                            }
+                          </div>
+                        </td>
+                        <td>{{ branch.city }}</td>
+                        <td>{{ branch.phone }}</td>
+                        <td>
+                          <div class="flex items-center">
+                            <p-button
+                              icon="pi pi-pencil"
+                              variant="text"
+                              severity="secondary"
+                              [ariaLabel]="t('company.branchEdit')"
+                              [pTooltip]="t('company.branchEdit')"
+                              tooltipPosition="left"
+                              (onClick)="onEditBranch(branch)"
+                            />
+                            <p-button
+                              icon="pi pi-trash"
+                              variant="text"
+                              severity="danger"
+                              [ariaLabel]="t('company.branchDelete')"
+                              [pTooltip]="t('company.branchDelete')"
+                              tooltipPosition="left"
+                              (onClick)="onDeleteBranch(branch)"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    </ng-template>
+                  </p-table>
+                }
+                <div class="flex justify-end">
+                  <p-button
+                    icon="pi pi-plus"
+                    severity="secondary"
+                    [outlined]="true"
+                    [label]="t('company.branchAdd')"
+                    (onClick)="onAddBranch()"
+                  />
+                </div>
+              </div>
+            </p-tabpanel>
+          </p-tabpanels>
+        </p-tabs>
+      </form>
 
       <p-dialog
         [header]="t(editingBranchId() === null ? 'company.branchAdd' : 'company.branchEdit')"

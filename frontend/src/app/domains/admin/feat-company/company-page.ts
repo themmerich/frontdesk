@@ -6,7 +6,6 @@ import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
-import { FieldsetModule } from 'primeng/fieldset';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { FileUpload, FileUploadHandlerEvent, FileUploadModule } from 'primeng/fileupload';
 import { InputGroupModule } from 'primeng/inputgroup';
@@ -16,6 +15,7 @@ import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TableModule } from 'primeng/table';
+import { TabsModule } from 'primeng/tabs';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
@@ -40,7 +40,6 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
     TranslocoDirective,
     ButtonModule,
     DialogModule,
-    FieldsetModule,
     FileUploadModule,
     FloatLabelModule,
     InputGroupModule,
@@ -50,6 +49,7 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
     SelectModule,
     SelectButtonModule,
     TableModule,
+    TabsModule,
     TagModule,
     TextareaModule,
     ToggleSwitchModule,

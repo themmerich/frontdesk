@@ -259,6 +259,8 @@ test.describe('Case categories', () => {
     });
 
     await page.goto('/categories');
+    // The settings have a tab of their own; the page opens on the categories.
+    await page.getByRole('tab', { name: 'Einstellungen' }).click();
     const threshold = page.getByLabel('Mindestsicherheit');
     // 0.8 in the database reads as a percentage on the screen.
     await expect(threshold).toHaveValue('80 %');
