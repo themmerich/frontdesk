@@ -59,7 +59,8 @@ public class ReplyDraftProcessor {
 		int drafted = 0;
 		for (Case mailCase : waiting) {
 			try {
-				draft(mailCase, settings);
+				// Nobody stands beside the scheduler to say what the reply should do.
+				draft(mailCase, settings, null);
 				drafted++;
 			} catch (ReplyDraftException e) {
 				// The case stays without a draft and comes up again on the next run;
@@ -72,17 +73,19 @@ public class ReplyDraftProcessor {
 
 	/**
 	 * One case, now, whatever its tier — what the button on the detail page runs. The same code
-	 * as the pass above, so a person asking gets what the scheduler would have written.
+	 * as the pass above, so a person asking gets what the scheduler would have written — unless
+	 * they say what the reply should do, or what to change about the draft there is.
 	 *
+	 * @param instruction the person's line for the model; null or blank for none
 	 * @throws ReplyDraftException when the model gave no draft
 	 */
 	@Transactional
-	public Case draftNow(Case mailCase) {
-		return draft(mailCase, settingsOf(mailCase.getTenant()));
+	public Case draftNow(Case mailCase, String instruction) {
+		return draft(mailCase, settingsOf(mailCase.getTenant()), instruction);
 	}
 
-	private Case draft(Case mailCase, TenantTriageSettings settings) {
-		String text = replyDraftService.draft(mailCase, settings);
+	private Case draft(Case mailCase, TenantTriageSettings settings, String instruction) {
+		String text = replyDraftService.draft(mailCase, settings, instruction);
 		mailCase.applyDraft(text);
 		Case saved = caseRepository.save(mailCase);
 		log.info("Drafted a reply to case {}", mailCase.getId());

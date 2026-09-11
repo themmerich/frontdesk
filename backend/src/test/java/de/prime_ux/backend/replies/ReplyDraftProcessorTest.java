@@ -44,11 +44,13 @@ class ReplyDraftProcessorTest {
 		// Read by the controller test too, which shares this stand-in.
 		final List<String> draftedSubjects = new ArrayList<>();
 		private String lastSignature;
+		String lastInstruction;
 
 		@Override
-		public String draft(Case mailCase, TenantTriageSettings settings) {
+		public String draft(Case mailCase, TenantTriageSettings settings, String instruction) {
 			draftedSubjects.add(mailCase.getSubject());
 			lastSignature = settings.getReplySignature();
+			lastInstruction = instruction;
 			if (failing) {
 				throw new ReplyDraftException("no answer", null);
 			}
@@ -68,6 +70,7 @@ class ReplyDraftProcessorTest {
 			this.text = "Guten Tag, wir prüfen das.";
 			this.failing = false;
 			this.lastSignature = null;
+			this.lastInstruction = null;
 			draftedSubjects.clear();
 		}
 	}
@@ -231,10 +234,21 @@ class ReplyDraftProcessorTest {
 		caseRepository.save(manual);
 		stubReplyDraftService.answer("Die Antwort des Modells.");
 
-		Case drafted = replyDraftProcessor.draftNow(reload(manual));
+		Case drafted = replyDraftProcessor.draftNow(reload(manual), "Lehne ab.");
 
 		// The button does not care about the tier, and the model's text replaces the edit.
 		assertThat(drafted.getDraftText()).isEqualTo("Die Antwort des Modells.");
 		assertThat(reload(manual).getDraftGeneratedText()).isEqualTo("Die Antwort des Modells.");
+		// What the person said travels to the model; the scheduler never says anything.
+		assertThat(stubReplyDraftService.lastInstruction).isEqualTo("Lehne ab.");
+	}
+
+	@Test
+	void theSchedulerGivesTheModelNoLine() {
+		triaged("Ohne Vorgabe", CaseTier.AUTOMATIC);
+
+		replyDraftProcessor.draftOnce(tenant, 10);
+
+		assertThat(stubReplyDraftService.lastInstruction).isNull();
 	}
 }

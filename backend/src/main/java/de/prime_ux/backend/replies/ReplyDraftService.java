@@ -13,7 +13,10 @@ import de.prime_ux.backend.triage.TenantTriageSettings;
 public interface ReplyDraftService {
 
 	/**
+	 * @param instruction what a person wants this reply to do — or, where the case has a draft
+	 * already, what to change about it. Null or blank means: write the reply as the mail asks for
+	 * it, from scratch.
 	 * @throws ReplyDraftException when no draft could be obtained
 	 */
-	String draft(Case mailCase, TenantTriageSettings settings);
+	String draft(Case mailCase, TenantTriageSettings settings, String instruction);
 }

@@ -54,11 +54,12 @@ export class CaseDetailService {
   }
 
   /**
-   * The model writes the reply now, in place of whatever draft there was. Takes as long as the
-   * model takes; the page shows that it is waiting.
+   * The model writes the reply now, in place of whatever draft there was — along the line it is
+   * given, if any: what the reply should do, or what to change about the draft. Takes as long as
+   * the model takes; the page shows that it is waiting.
    */
-  async generateDraft(): Promise<void> {
-    const drafted = await firstValueFrom(this.http.post<CaseDetailResponse>(`/api/cases/${this.id()}/draft`, {}));
+  async generateDraft(instruction: string | null): Promise<void> {
+    const drafted = await firstValueFrom(this.http.post<CaseDetailResponse>(`/api/cases/${this.id()}/draft`, { instruction }));
     this.detail.set(parseMoments(drafted));
   }
 

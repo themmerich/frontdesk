@@ -28,6 +28,10 @@ const translations = {
     draftEditedAt: 'Edited on {{date}}',
     draftGenerated: 'Draft written.',
     draftError: 'No draft could be written.',
+    instruction: 'Instruction for the AI',
+    instructionPlaceholder: 'Instruction (optional)',
+    revisePlaceholder: 'What to change? (optional)',
+    writeYourself: 'Write it yourself',
     save: 'Save',
     saved: 'Changes saved.',
     saveError: 'The changes could not be saved.',
@@ -70,6 +74,7 @@ describe('CaseDetailPage reply draft', () => {
   let classifications: { categoryId: string | null; tier: string | null }[];
   let savedDrafts: string[];
   let generations: number;
+  let instructions: (string | null)[];
   let generationFails: boolean;
   let reloads: number;
   const detailServiceStub = {
@@ -84,8 +89,9 @@ describe('CaseDetailPage reply draft', () => {
       classifications.push({ categoryId, tier });
       return Promise.resolve();
     },
-    generateDraft: () => {
+    generateDraft: (instruction: string | null) => {
       generations++;
+      instructions.push(instruction);
       if (generationFails) {
         return Promise.reject(new Error('nope'));
       }
@@ -119,6 +125,7 @@ describe('CaseDetailPage reply draft', () => {
     classifications = [];
     savedDrafts = [];
     generations = 0;
+    instructions = [];
     generationFails = false;
     reloads = 0;
     toasts = [];
@@ -181,6 +188,58 @@ describe('CaseDetailPage reply draft', () => {
     // The inbox says which cases have a reply waiting, one page back.
     expect(reloads).toBe(1);
     expect(toasts.map((toast) => toast.summary)).toEqual(['Draft written.']);
+  });
+
+  it('hands the model the line it was given, and clears the box afterwards', async () => {
+    const fixture = createFixture();
+    const page = fixture.componentInstance;
+    page['draftInstruction'].set('  Lehne ab und nenne unsere Verfügbarkeit dieses Jahr. ');
+
+    button(fixture, 'Write a draft')!.click();
+    await fixture.whenStable();
+
+    expect(instructions).toEqual(['Lehne ab und nenne unsere Verfügbarkeit dieses Jahr.']);
+    expect(page['draftInstruction']()).toBe('');
+  });
+
+  it('asks the model for a plain reply when the box is left empty', async () => {
+    const fixture = createFixture();
+
+    button(fixture, 'Write a draft')!.click();
+    await fixture.whenStable();
+
+    expect(instructions).toEqual([null]);
+  });
+
+  it('tells the model what to change about the draft there is', async () => {
+    detail.set(drafted);
+    const fixture = createFixture();
+    fixture.componentInstance['draftInstruction'].set('kürzer');
+
+    button(fixture, 'Write again')!.click();
+    await fixture.whenStable();
+
+    expect(instructions).toEqual(['kürzer']);
+  });
+
+  it('lets a person write the reply themselves, and saves it once there is something in it', async () => {
+    const fixture = createFixture();
+    const page = fixture.componentInstance;
+
+    button(fixture, 'Write it yourself')!.click();
+    await fixture.whenStable();
+
+    // An empty box: something to type into, nothing to save yet.
+    expect(textarea(fixture)).not.toBeNull();
+    expect(page['canSave']()).toBe(false);
+
+    page['draftText'].set('Guten Tag,\n\nvielen Dank für Ihre Nachricht.');
+    await fixture.whenStable();
+    expect(page['canSave']()).toBe(true);
+
+    await page['onSave']();
+    expect(savedDrafts).toEqual(['Guten Tag,\n\nvielen Dank für Ihre Nachricht.']);
+    expect(generations).toBe(0);
   });
 
   it('says so when the model gave no draft, and leaves the page as it was', async () => {

@@ -174,8 +174,10 @@ test.describe('Case detail', () => {
 
   test('writes a reply on request and shows it beside the mail', async ({ page }) => {
     let requests = 0;
+    let asked: { instruction: string | null } | undefined;
     await page.route('**/api/cases/1/draft', async (route) => {
       requests++;
+      asked = route.request().postDataJSON() as { instruction: string | null };
       await route.fulfill({
         json: {
           ...detail,
@@ -187,14 +189,40 @@ test.describe('Case detail', () => {
     });
 
     await page.goto('/cases/1');
-    // Nothing written yet: the page says so and offers the button.
+    // Nothing written yet: the page says so and offers the button, with a line for the model.
     await expect(page.getByText('Noch kein Entwurf')).toBeVisible();
+    await page.getByRole('textbox', { name: 'Anweisung an die KI' }).fill('Lehne ab und nenne unsere Verfügbarkeit dieses Jahr.');
     await page.getByRole('button', { name: 'Entwurf erzeugen' }).click();
 
     expect(requests).toBe(1);
+    expect(asked).toEqual({ instruction: 'Lehne ab und nenne unsere Verfügbarkeit dieses Jahr.' });
     await expect(page.getByRole('textbox', { name: 'Antwortentwurf' })).toHaveValue(/die Kopie senden wir Ihnen zu/);
     await expect(page.getByText(/Erzeugt am/)).toBeVisible();
     await expect(page.getByText('Entwurf erzeugt.')).toBeVisible();
+  });
+
+  test('lets a person write the reply themselves', async ({ page }) => {
+    let saved: { text: string } | undefined;
+    await page.route('**/api/cases/1/draft', async (route) => {
+      saved = route.request().postDataJSON() as { text: string };
+      await route.fulfill({ json: { ...detail, draftText: saved.text, draftUpdatedAt: '2026-08-19T10:05:00Z' } });
+    });
+
+    await page.goto('/cases/1');
+    await page.getByRole('button', { name: 'Selbst schreiben' }).click();
+
+    // An empty box to write into; nothing to save until something is in it.
+    const box = page.getByRole('textbox', { name: 'Antwortentwurf' });
+    await expect(box).toHaveValue('');
+    const save = page.getByRole('button', { name: 'Speichern' });
+    await expect(save).toBeDisabled();
+
+    await box.fill('Guten Tag,\n\nvielen Dank für Ihre Nachricht, wir melden uns.');
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    expect(saved).toEqual({ text: 'Guten Tag,\n\nvielen Dank für Ihre Nachricht, wir melden uns.' });
+    await expect(page.getByText('Änderungen gespeichert.')).toBeVisible();
   });
 
   test('saves an edited reply from the same button as the verdict', async ({ page }) => {
