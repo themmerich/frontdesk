@@ -93,10 +93,14 @@ export class CaseDetailPage {
   protected readonly draftTier = linkedSignal(() => this.detailService.detail.value()?.tier ?? null);
 
   /**
-   * The reply as it stands in the box. Re-anchored on the case like the two above, and on a new
-   * draft from the model, which replaces whatever was typed.
+   * The reply as it stands in the box, empty for a case nothing has been written for yet.
+   * Re-anchored on the case like the two above, and on a new draft from the model, which replaces
+   * whatever was typed.
    */
-  protected readonly draftText = linkedSignal(() => this.detailService.detail.value()?.draftText ?? null);
+  protected readonly draftText = linkedSignal(() => this.detailService.detail.value()?.draftText ?? '');
+
+  /** Whether a reply is saved on the case, the model's or a person's. Decides what the button beside the line offers. */
+  protected readonly hasSavedDraft = computed(() => (this.detailService.detail.value()?.draftText ?? null) !== null);
 
   /**
    * A line for the model: what the reply should do — "decline, and name our availability this
@@ -115,21 +119,19 @@ export class CaseDetailPage {
 
   private readonly isDraftDirty = computed(() => {
     const aCase = this.detailService.detail.value();
-    return aCase !== undefined && this.draftText() !== aCase.draftText;
+    // An empty box over a case without a draft is where things start, not an edit.
+    return aCase !== undefined && this.draftText() !== (aCase.draftText ?? '');
   });
 
   /** Nothing to save until something differs from what the case says today — the verdict or the reply. */
   protected readonly isDirty = computed(() => this.isClassificationDirty() || this.isDraftDirty());
 
   /**
-   * A reply a person started to write and left empty. Not a draft, and not worth a request: the
-   * button waits until there is something in the box.
+   * A box with nothing in it, or nothing but blanks. Not a draft, and not worth a request: an
+   * emptied draft is not saved over the one there is, and the verdict alone is saved on its own.
    */
-  private readonly isDraftBlank = computed(() => {
-    const text = this.draftText();
-    return text !== null && text.trim() === '';
-  });
-  protected readonly canSave = computed(() => this.isDirty() && !this.isDraftBlank());
+  private readonly isDraftBlank = computed(() => this.draftText().trim() === '');
+  protected readonly canSave = computed(() => this.isClassificationDirty() || (this.isDraftDirty() && !this.isDraftBlank()));
 
   /**
    * Whether a person has changed the saved draft since the model wrote it. A draft the model never
@@ -271,9 +273,8 @@ export class CaseDetailPage {
       if (this.isClassificationDirty()) {
         await this.detailService.changeClassification(this.draftCategoryId(), this.draftTier());
       }
-      const draft = this.draftText();
-      if (this.isDraftDirty() && draft !== null && draft.trim() !== '') {
-        await this.detailService.saveDraft(draft);
+      if (this.isDraftDirty() && !this.isDraftBlank()) {
+        await this.detailService.saveDraft(this.draftText());
       }
       // The inbox shows the tier, draws its rows in the category's colour, and says whether a
       // reply is waiting — one page back.
@@ -288,24 +289,12 @@ export class CaseDetailPage {
     }
   }
 
-  /** The model writes a reply now — for a case that has none, whatever its tier. */
-  protected async onGenerate(): Promise<void> {
-    await this.generate();
-  }
-
   /**
-   * The third way: no model, a person writes the reply. An empty box to type into, saved from
-   * the button below once something is in it; until then there is nothing to save.
+   * The model writes the reply, whatever the case's tier: a first one, or a new one in place of
+   * the one there is. Asked first when a person's work would go with it: text typed and not
+   * saved, or a saved draft that was edited since the model wrote it.
    */
-  protected onWriteYourself(): void {
-    this.draftText.set('');
-  }
-
-  /**
-   * A new reply in place of the one there is. Asked first when a person's work would go with it:
-   * text typed and not saved, or a saved draft that was edited since the model wrote it.
-   */
-  protected onRegenerate(): void {
+  protected onGenerate(): void {
     if (!this.isDraftDirty() && !this.isDraftEdited()) {
       void this.generate();
       return;

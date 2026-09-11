@@ -1,11 +1,12 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, computed, DestroyRef, effect, inject, Injector, signal, untracked } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, Injector, linkedSignal, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ChartModule } from 'primeng/chart';
+import { SelectModule } from 'primeng/select';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { ChartOptionsBase } from 'primeng/types/chart';
 
@@ -18,6 +19,13 @@ type Period = 'today' | 'week' | 'month' | 'year';
 
 /** The three stretches the tiles compare with the stretch before them. */
 const WINDOW_DAYS = { today: 1, week: 7, month: 30 } as const;
+
+/**
+ * What the arrivals chart may be narrowed to: everything, one category by its key, or the cases
+ * no category has been found for yet. The keys are UUIDs, so neither word can be one of them.
+ */
+const EVERY_CATEGORY = 'all';
+const NO_CATEGORY = 'none';
 
 /** The tier a case sits on, and the label its bar carries — the same wording as in the inbox. */
 const TIER_LABELS: Record<CaseTier | 'none', string> = {
@@ -41,7 +49,7 @@ const TIER_COLORS: Record<CaseTier | 'none', string> = {
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [FormsModule, TranslocoDirective, ButtonModule, CardModule, ChartModule, SelectButtonModule],
+  imports: [FormsModule, TranslocoDirective, ButtonModule, CardModule, ChartModule, SelectModule, SelectButtonModule],
   templateUrl: './dashboard-page.html',
 })
 export class DashboardPage {
@@ -187,10 +195,47 @@ export class DashboardPage {
     };
   });
 
+  /**
+   * The categories the arrivals chart can be narrowed to: the ones the cases at hand carry, in the
+   * order the doughnut draws them, with everything in front and the uncategorised behind.
+   */
+  protected readonly categoryOptions = computed(() => {
+    this.translation();
+    const counts = countByCategory(this.cases());
+    return [
+      { value: EVERY_CATEGORY, label: this.transloco.translate('dashboard.everyCategory') },
+      ...counts.flatMap((count) => (count.id === null ? [] : [{ value: count.id, label: count.name ?? count.id }])),
+      ...(counts.some((count) => count.id === null)
+        ? [{ value: NO_CATEGORY, label: this.transloco.translate('dashboard.withoutCategory') }]
+        : []),
+    ];
+  });
+
+  /**
+   * Which category the arrivals chart is about. A fresh reading may no longer hold the one picked,
+   * its last case filed away, say; then the chart goes back to showing everything rather than a
+   * category the list no longer offers.
+   */
+  protected readonly arrivalCategory = linkedSignal<{ value: string }[], string>({
+    source: this.categoryOptions,
+    computation: (options, previous) =>
+      previous !== undefined && options.some((option) => option.value === previous.value) ? previous.value : EVERY_CATEGORY,
+  });
+
+  /** The cases the arrivals chart counts: all of them, or the ones the picked category holds. */
+  private readonly arrivalCases = computed(() => {
+    const category = this.arrivalCategory();
+    const cases = this.cases();
+    if (category === EVERY_CATEGORY) {
+      return cases;
+    }
+    return cases.filter((aCase) => aCase.categoryId === (category === NO_CATEGORY ? null : category));
+  });
+
   protected readonly arrivalData = computed(() => {
     this.translation();
     const now = new Date();
-    const cases = this.cases();
+    const cases = this.arrivalCases();
     const language = this.transloco.getActiveLang();
     const { counts, format } = {
       today: () => ({ counts: countByHour(cases, now), format: new Intl.DateTimeFormat(language, { hour: '2-digit' }) }),

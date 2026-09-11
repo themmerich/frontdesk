@@ -9,8 +9,12 @@ import { Case, CaseCategoryColor, CaseTier } from './case';
 /** The ladder as the table shows it, so both read in the same order. */
 export const TIER_ORDER: readonly CaseTier[] = ['automatic', 'draft', 'manual', 'info', 'ignore'];
 
-/** How many cases carry one category; `name` is null for the ones the triage has not seen yet. */
+/**
+ * How many cases carry one category; `id` and `name` are null for the ones the triage has not
+ * seen yet. The key is what a filter points at, the name is what is read.
+ */
 export type CategoryCount = {
+  id: string | null;
   name: string | null;
   color: CaseCategoryColor | null;
   count: number;
@@ -49,11 +53,11 @@ export type WindowCount = {
 export function countByCategory(cases: Case[]): CategoryCount[] {
   const counts = new Map<string | null, CategoryCount>();
   for (const aCase of cases) {
-    const existing = counts.get(aCase.categoryName);
+    const existing = counts.get(aCase.categoryId);
     if (existing) {
       existing.count++;
     } else {
-      counts.set(aCase.categoryName, { name: aCase.categoryName, color: aCase.categoryColor, count: 1 });
+      counts.set(aCase.categoryId, { id: aCase.categoryId, name: aCase.categoryName, color: aCase.categoryColor, count: 1 });
     }
   }
   return [...counts.values()].sort((one, other) => {
