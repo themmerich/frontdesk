@@ -31,3 +31,19 @@ const views = new Set<object>([globalThis, document.defaultView].filter((view) =
 for (const view of views) {
   Object.defineProperty(view, 'localStorage', { value: storage, configurable: true });
 }
+
+// PrimeNG's tab list watches its own width through a ResizeObserver, which JSDOM does not
+// implement. Nothing is laid out in JSDOM anyway, so an observer that never observes will do.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe(): void {
+      // Nothing is laid out in JSDOM, so nothing ever resizes.
+    }
+    unobserve(): void {
+      // See observe().
+    }
+    disconnect(): void {
+      // See observe().
+    }
+  };
+}

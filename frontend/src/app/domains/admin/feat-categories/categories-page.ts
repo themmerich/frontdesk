@@ -7,13 +7,13 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
-import { FieldsetModule } from 'primeng/fieldset';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
+import { TabsModule } from 'primeng/tabs';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { TooltipModule } from 'primeng/tooltip';
@@ -98,13 +98,13 @@ function toFormModel(category: CaseCategory): CategoryFormModel {
     ButtonModule,
     CheckboxModule,
     DialogModule,
-    FieldsetModule,
     FloatLabelModule,
     InputNumberModule,
     InputTextModule,
     MessageModule,
     SelectModule,
     TableModule,
+    TabsModule,
     TagModule,
     TextareaModule,
     TooltipModule,

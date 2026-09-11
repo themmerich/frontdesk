@@ -19,6 +19,7 @@ const translations = {
     upload: 'Upload logo',
     remove: 'Remove logo',
     data: 'Company data',
+    signature: 'Email signature',
     name: 'Company name',
     nameRequired: 'Please enter a company name.',
     logoWithName: 'Logo + name',
@@ -217,6 +218,21 @@ describe('CompanyPage', () => {
     // The saved state is the new pristine baseline — the button disarms again.
     fixture.detectChanges();
     expect((element.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('opens on the company data, with the signature and the sites one tab away each', () => {
+    const element = createFixture().nativeElement as HTMLElement;
+
+    const tabs = Array.from(element.querySelectorAll('[role="tab"]')).map((tab) => tab.textContent?.trim());
+    expect(tabs).toEqual(['Company data', 'Email signature', 'Branches']);
+    const panels = Array.from(element.querySelectorAll('[role="tabpanel"]'));
+    // The data panel is shown; the other two stand by, hidden but rendered.
+    expect(panels.find((panel) => panel.querySelector('#name'))?.hasAttribute('hidden')).toBe(false);
+    expect(panels.find((panel) => panel.querySelector('#replySignature'))?.hasAttribute('hidden')).toBe(true);
+    expect(panels.find((panel) => panel.querySelector('p-table'))?.hasAttribute('hidden')).toBe(true);
+    // One form for data and signature, with a save button in each of the two tabs.
+    expect(element.querySelectorAll('form')).toHaveLength(1);
+    expect(element.querySelectorAll('button[type="submit"]')).toHaveLength(2);
   });
 
   it('enables saving only while the form is valid and dirty', async () => {

@@ -154,8 +154,9 @@ test.describe('Company', () => {
     // swatch itself is also labeled "Firmenfarbe", so the id disambiguates).
     await page.locator('#primaryColor').fill('#10b981');
 
-    // The signature, with placeholders — and the preview shows it filled in for Anna, with her
-    // branch and the company name as it now stands in the form.
+    // The signature has a tab of its own. Filled with placeholders, the preview shows it for
+    // Anna, with her branch and the company name as it now stands in the form.
+    await page.getByRole('tab', { name: 'E-Mail-Signatur' }).click();
     await page
       .getByLabel('Signatur', { exact: true })
       .fill('Mit freundlichen Grüßen\n{{vorname}} {{nachname}}, {{position}}\n{{firma}} · {{filiale}}');
@@ -227,6 +228,7 @@ test.describe('Company', () => {
     });
 
     await page.goto('/company');
+    await page.getByRole('tab', { name: 'Filialen' }).click();
     // Every site is listed, the headquarters first and marked as such.
     const headquartersRow = page.getByRole('row', { name: /Musterfirma GmbH/ });
     await expect(headquartersRow).toBeVisible();
@@ -269,6 +271,7 @@ test.describe('Company', () => {
     });
 
     await page.goto('/company');
+    await page.getByRole('tab', { name: 'Filialen' }).click();
     await page.getByRole('button', { name: 'Neue Filiale' }).click();
     await page.getByLabel('Name', { exact: true }).fill('Hauptfiliale Berlin');
     await page.locator('p-dialog').getByLabel('Hauptfiliale').click();

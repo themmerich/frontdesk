@@ -226,6 +226,19 @@ describe('CategoriesPage', () => {
     expect(toasts[0].summary).toBe('Settings saved.');
   });
 
+  it('opens on the categories, with the triage settings one tab away', () => {
+    const fixture = TestBed.createComponent(CategoriesPage);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const tabs = Array.from(element.querySelectorAll('[role="tab"]')).map((tab) => tab.textContent?.trim());
+    expect(tabs).toEqual(['Categories', 'Settings']);
+    const panels = Array.from(element.querySelectorAll('[role="tabpanel"]'));
+    // The categories panel is shown, the settings panel stands by, hidden but rendered.
+    expect(panels.find((panel) => panel.querySelector('p-table'))?.hasAttribute('hidden')).toBe(false);
+    expect(panels.find((panel) => panel.querySelector('#threshold'))?.hasAttribute('hidden')).toBe(true);
+  });
+
   it('arms the settings save button only after an edit', async () => {
     const fixture = TestBed.createComponent(CategoriesPage);
     fixture.detectChanges();
