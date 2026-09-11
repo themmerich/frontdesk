@@ -114,6 +114,52 @@ class CompanyControllerTest {
 
 	@Test
 	@WithMockUser(username = "anna", roles = "ADMIN")
+	void savesTheSignatureAndWhoSignsTheSchedulersDrafts() throws Exception {
+		AppUser ben = appUserRepository.findUniqueByUsernameIgnoreCase("ben").orElseThrow();
+
+		mockMvc.perform(put("/api/company").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"name": "Musterfirma GmbH", "logoDisplay": "WITH_NAME",
+						 "replySignature": "  Mit freundlichen Grüßen\\n{{vorname}} {{nachname}}\\n{{firma}}  ",
+						 "signatureUserId": "%s"}
+						""".formatted(ben.getId())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.replySignature").value("Mit freundlichen Grüßen\n{{vorname}} {{nachname}}\n{{firma}}"))
+				.andExpect(jsonPath("$.signatureUserId").value(ben.getId().toString()));
+
+		// Read back by everyone, stand-in included: the detail page never needs it, but the
+		// company page does.
+		mockMvc.perform(get("/api/company"))
+				.andExpect(jsonPath("$.signatureUserId").value(ben.getId().toString()));
+
+		// Left out again: no signature, nobody signing for the scheduler.
+		mockMvc.perform(put("/api/company").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"name": "Musterfirma GmbH", "logoDisplay": "WITH_NAME"}
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.replySignature").value(""))
+				.andExpect(jsonPath("$.signatureUserId").doesNotExist());
+	}
+
+	@Test
+	@WithMockUser(username = "anna", roles = "ADMIN")
+	void refusesAStrangerAsTheOneWhoSigns() throws Exception {
+		AppUser fritz = appUserRepository.findUniqueByUsernameIgnoreCase("fritz").orElseThrow();
+
+		// Another tenant's user is not found rather than forbidden.
+		mockMvc.perform(put("/api/company").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"name": "Musterfirma GmbH", "logoDisplay": "WITH_NAME", "signatureUserId": "%s"}
+						""".formatted(fritz.getId())))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	@WithMockUser(username = "anna", roles = "ADMIN")
 	void savingTheCompanyLeavesTheBranchesAlone() throws Exception {
 		Branch headquarters = branchRepository.save(new Branch(tenant, "Hauptfiliale Musterstadt", true));
 

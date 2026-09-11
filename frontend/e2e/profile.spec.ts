@@ -97,13 +97,14 @@ test.describe('Profile', () => {
     // Pristine forms have nothing to save; the button arms with the first edit.
     await expect(page.getByRole('button', { name: 'Speichern' })).toBeDisabled();
     await page.getByLabel('Nachname').fill('Anders');
+    await page.getByLabel('Position').fill('Projektleiterin');
     // Switch the assigned site to the branch.
     await page.locator('p-select').click();
     await page.getByRole('option', { name: 'Filiale Hamburg' }).click();
     await page.getByRole('button', { name: 'Speichern' }).click();
 
     await expect(page.getByText('Profil gespeichert.')).toBeVisible();
-    expect(saved).toMatchObject({ lastName: 'Anders', branchId: 'b2' });
+    expect(saved).toMatchObject({ lastName: 'Anders', branchId: 'b2', position: 'Projektleiterin' });
     // The sidebar footer reflects the refreshed session user.
     await expect(page.getByText('Anna Anders')).toBeVisible();
   });

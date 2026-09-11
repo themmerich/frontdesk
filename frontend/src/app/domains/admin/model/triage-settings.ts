@@ -11,8 +11,6 @@ export type TriageSettings = {
    * probability, so this wants tuning against real mail.
    */
   confidenceThreshold: number;
-  /** Put under every reply draft, verbatim; the model never sees it. May be empty. */
-  replySignature: string;
   /** What the replies should sound like — form of address, tone, what never to promise. May be empty. */
   replyInstructions: string;
 };

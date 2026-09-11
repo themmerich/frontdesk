@@ -82,6 +82,11 @@
               <p-message severity="error" variant="simple" size="small">{{ t('users.lastNameRequired') }}</p-message>
             }
           </div>
+          <!-- The job title, as the e-mail signature names it under the person. -->
+          <p-floatlabel variant="on">
+            <input pInputText id="position" type="text" class="w-full" [formField]="userForm.position" />
+            <label for="position">{{ t('users.position') }}</label>
+          </p-floatlabel>
           <!-- A user always joins the admin's own company; only the site is a choice. -->
           <p-floatlabel variant="on">
             <input pInputText id="company" type="text" class="w-full" disabled [value]="companyService.name() ?? ''" />

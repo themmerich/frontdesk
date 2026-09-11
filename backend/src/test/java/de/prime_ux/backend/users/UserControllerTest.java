@@ -107,9 +107,10 @@ class UserControllerTest {
 				.content("""
 						{"username": " clara ", "firstName": "Clara", "lastName": "Neu",
 						 "password": "geheim1234", "role": "user", "active": true,
-						 "branchId": "%s"}""".formatted(headquarters.getId())))
+						 "branchId": "%s", "position": " Projektleiterin "}""".formatted(headquarters.getId())))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.username").value("clara"))
+				.andExpect(jsonPath("$.position").value("Projektleiterin"))
 				.andExpect(jsonPath("$.firstName").value("Clara"))
 				.andExpect(jsonPath("$.lastName").value("Neu"))
 				.andExpect(jsonPath("$.role").value("user"))

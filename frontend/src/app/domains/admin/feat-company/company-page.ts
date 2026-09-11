@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, linkedSignal, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { email, form, FormField, required, submit, validate } from '@angular/forms/signals';
+import { email, form, FormField, maxLength, required, submit, validate } from '@angular/forms/signals';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -17,63 +17,22 @@ import { SelectModule } from 'primeng/select';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { TextareaModule } from 'primeng/textarea';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TooltipModule } from 'primeng/tooltip';
 
 import { BranchService } from '../../../shared/data/branch-service';
 import { CompanyService } from '../../../shared/data/company-service';
 import { Branch } from '../../../shared/model/branch';
-import { Company, LogoDisplay } from '../../../shared/model/company';
+import { LogoDisplay } from '../../../shared/model/company';
+import { renderSignature, SIGNATURE_PLACEHOLDERS } from '../../../shared/model/signature';
+import { OwnProfileService } from '../data/own-profile-service';
+import { UsersService } from '../data/users-service';
+import { BranchFormModel, toBranchFormModel, toFormModel } from './company-forms';
 
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
-type CompanyFormModel = {
-  name: string;
-  website: string;
-  logoDisplay: LogoDisplay;
-  /** Hex color (#RRGGBB); empty means no company color. */
-  primaryColor: string;
-};
-
-type BranchFormModel = {
-  name: string;
-  /** Exactly one site is the headquarters; marking a new one demotes the previous. */
-  headquarters: boolean;
-  street: string;
-  postalCode: string;
-  city: string;
-  /** Dropdown choice; null while no country is picked. */
-  country: string | null;
-  phone: string;
-  fax: string;
-  email: string;
-};
-
-function toBranchFormModel(branch: Branch | null): BranchFormModel {
-  return {
-    name: branch?.name ?? '',
-    headquarters: branch?.headquarters ?? false,
-    street: branch?.street ?? '',
-    postalCode: branch?.postalCode ?? '',
-    city: branch?.city ?? '',
-    country: branch?.country ?? null,
-    phone: branch?.phone ?? '',
-    fax: branch?.fax ?? '',
-    email: branch?.email ?? '',
-  };
-}
-
-function toFormModel(company: Company | null): CompanyFormModel {
-  return {
-    name: company?.name ?? '',
-    website: company?.website ?? '',
-    logoDisplay: company?.logoDisplay ?? 'WITH_NAME',
-    primaryColor: company?.primaryColor ?? '',
-  };
-}
-
-/** The signed-in admin's own company: logo, name, branding, and the company's sites. */
 @Component({
   selector: 'app-company-page',
   imports: [
@@ -92,6 +51,7 @@ function toFormModel(company: Company | null): CompanyFormModel {
     SelectButtonModule,
     TableModule,
     TagModule,
+    TextareaModule,
     ToggleSwitchModule,
     TooltipModule,
   ],
@@ -100,6 +60,8 @@ function toFormModel(company: Company | null): CompanyFormModel {
 export class CompanyPage {
   protected readonly companyService = inject(CompanyService);
   protected readonly branchService = inject(BranchService);
+  private readonly usersService = inject(UsersService);
+  private readonly ownProfileService = inject(OwnProfileService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
 
@@ -110,6 +72,8 @@ export class CompanyPage {
   protected readonly companyForm = form(this.model, (schemaPath) => {
     required(schemaPath.name);
     validate(schemaPath.primaryColor, ({ value }) => (value() === '' || /^#[0-9a-fA-F]{6}$/.test(value()) ? null : { kind: 'pattern' }));
+    // The same ceiling the backend puts on the template.
+    maxLength(schemaPath.replySignature, 2000);
   });
 
   /** The app serves the DACH region for now; free-text countries return when needed. */
@@ -133,6 +97,36 @@ export class CompanyPage {
   protected readonly hasSubmitAttempted = signal(false);
 
   protected readonly branchModel = signal<BranchFormModel>(toBranchFormModel(null));
+  /** Every name the template may use, as it is written: {{vorname}}, {{firma}}, {{ort}} … */
+  protected readonly placeholders = SIGNATURE_PLACEHOLDERS.map((name) => `{{${name}}}`);
+
+  /**
+   * Who may sign the scheduler's drafts: any user of the company. A list that could not be loaded
+   * leaves the choice empty rather than taking the page down.
+   */
+  protected readonly signatureUserOptions = computed(() => {
+    const users = this.usersService.users.error() ? [] : this.usersService.users.value();
+    return users.map((user) => ({ label: `${user.firstName} ${user.lastName}`, value: user.id }));
+  });
+
+  /**
+   * The template filled in for the admin at the desk, with their own branch or the headquarters:
+   * what a draft they generate will carry. Follows every keystroke in the template.
+   */
+  protected readonly signaturePreview = computed(() => {
+    const model = this.model();
+    const person = this.ownProfileService.person();
+    const branches = this.branchService.branches.value();
+    const branch =
+      branches.find((candidate) => candidate.id === person?.branchId) ?? branches.find((candidate) => candidate.headquarters) ?? null;
+    return renderSignature(
+      model.replySignature,
+      { name: model.name, website: model.website === '' ? null : model.website },
+      person,
+      branch,
+    );
+  });
+
   protected readonly branchForm = form(this.branchModel, (schemaPath) => {
     required(schemaPath.name);
     email(schemaPath.email);

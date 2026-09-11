@@ -99,6 +99,53 @@
           </div>
         </p-fieldset>
 
+        <!-- The signature under every reply, once for the whole company: the placeholders take
+             the person's, their branch's and the company's data when a draft is written, so
+             every branch gets its own signature without its own text. -->
+        <p-fieldset [legend]="t('company.signature')" class="md:col-span-2">
+          <div class="grid gap-4 p-2 lg:grid-cols-2">
+            <div class="flex flex-col gap-4">
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on">
+                  <textarea pTextarea id="replySignature" rows="8" class="w-full" [formField]="companyForm.replySignature"></textarea>
+                  <label for="replySignature">{{ t('company.signatureTemplate') }}</label>
+                </p-floatlabel>
+                <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('company.signatureHint') }}</p>
+                <p class="flex flex-wrap gap-1" [attr.aria-label]="t('company.signaturePlaceholders')">
+                  @for (placeholder of placeholders; track placeholder) {
+                    <code class="rounded bg-surface-100 px-1.5 py-0.5 text-xs dark:bg-surface-800">{{ placeholder }}</code>
+                  }
+                </p>
+              </div>
+              <div class="flex flex-col gap-2">
+                <p-floatlabel variant="on">
+                  <p-select
+                    inputId="signatureUser"
+                    class="w-full"
+                    appendTo="body"
+                    [options]="signatureUserOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [showClear]="true"
+                    [formField]="companyForm.signatureUserId"
+                  />
+                  <label for="signatureUser">{{ t('company.signatureUser') }}</label>
+                </p-floatlabel>
+                <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('company.signatureUserHint') }}</p>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <h3 id="signature-preview-heading" class="text-sm font-medium">{{ t('company.signaturePreview') }}</h3>
+              <!-- Bound as text: whatever stands in the template is shown, never rendered. -->
+              <pre
+                aria-labelledby="signature-preview-heading"
+                class="min-h-32 flex-auto rounded-lg bg-surface-50 p-3 font-sans text-sm whitespace-pre-wrap dark:bg-surface-800"
+                >{{ signaturePreview() }}</pre>
+              <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('company.signaturePreviewHint') }}</p>
+            </div>
+          </div>
+        </p-fieldset>
+
         <div class="flex justify-end md:col-span-2">
           <p-button
             type="submit"

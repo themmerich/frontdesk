@@ -16,7 +16,9 @@ public interface ReplyDraftService {
 	 * @param instruction what a person wants this reply to do — or, where the case has a draft
 	 * already, what to change about it. Null or blank means: write the reply as the mail asks for
 	 * it, from scratch.
+	 * @param signature the signature as it goes under this reply, already rendered for whoever
+	 * signs it; empty for none
 	 * @throws ReplyDraftException when no draft could be obtained
 	 */
-	String draft(Case mailCase, TenantTriageSettings settings, String instruction);
+	String draft(Case mailCase, TenantTriageSettings settings, String instruction, String signature);
 }

@@ -19,6 +19,8 @@ export type Profile = {
   email: string | null;
   phone: string | null;
   fax: string | null;
+  /** Job title, as the company's e-mail signature names it under the person. */
+  position: string | null;
 };
 
 /** Everything the user may change; the username stays read-only for now. */

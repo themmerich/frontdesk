@@ -65,6 +65,7 @@ const storedProfile: Profile = {
   email: 'anna@musterfirma.example',
   phone: null,
   fax: null,
+  position: null,
 };
 
 const branches: Branch[] = [

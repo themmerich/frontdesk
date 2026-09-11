@@ -45,7 +45,6 @@ type CategoryFormModel = {
 type SettingsFormModel = {
   extraInstructions: string;
   thresholdPercent: number;
-  replySignature: string;
   replyInstructions: string;
 };
 
@@ -53,7 +52,6 @@ function toSettingsFormModel(settings: TriageSettings | null): SettingsFormModel
   return {
     extraInstructions: settings?.extraInstructions ?? '',
     thresholdPercent: Math.round((settings?.confidenceThreshold ?? 0.8) * 100),
-    replySignature: settings?.replySignature ?? '',
     replyInstructions: settings?.replyInstructions ?? '',
   };
 }
@@ -140,7 +138,6 @@ export class CategoriesPage {
     max(schemaPath.thresholdPercent, 100);
     // The same ceiling the backend puts on each of the three texts.
     maxLength(schemaPath.extraInstructions, 2000);
-    maxLength(schemaPath.replySignature, 2000);
     maxLength(schemaPath.replyInstructions, 2000);
   });
   protected readonly isSavingSettings = signal(false);
@@ -242,7 +239,6 @@ export class CategoriesPage {
         await this.settingsService.save({
           extraInstructions: model.extraInstructions.trim(),
           confidenceThreshold: model.thresholdPercent / 100,
-          replySignature: model.replySignature.trim(),
           replyInstructions: model.replyInstructions.trim(),
         });
         // Back to pristine: the save button stays disabled until the next edit.

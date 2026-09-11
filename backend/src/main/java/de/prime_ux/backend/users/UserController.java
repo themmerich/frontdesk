@@ -59,7 +59,8 @@ class UserController {
 		}
 		AppUser user = new AppUser(admin.getTenant(), username, request.firstName().trim(),
 				request.lastName().trim(), passwordEncoder.encode(request.password()), request.toRole());
-		user.assignBranch(resolveBranch(request.branchId(), admin.getTenant().getId()));
+		user.updateAccount(username, request.firstName().trim(), request.lastName().trim(), request.toRole(),
+				resolveBranch(request.branchId(), admin.getTenant().getId()), blankToNull(request.position()));
 		if (!request.active()) {
 			user.deactivate();
 		}
@@ -93,7 +94,7 @@ class UserController {
 					"Admins cannot take away their own access");
 		}
 		user.updateAccount(username, request.firstName().trim(), request.lastName().trim(), role,
-				resolveBranch(request.branchId(), tenantId));
+				resolveBranch(request.branchId(), tenantId), blankToNull(request.position()));
 		if (request.active()) {
 			user.activate();
 		} else {
@@ -136,5 +137,10 @@ class UserController {
 	private AppUser currentUser(Authentication authentication) {
 		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+	}
+
+	/** A position left empty is no position, not an empty one. */
+	private static String blankToNull(String value) {
+		return value == null || value.isBlank() ? null : value.strip();
 	}
 }

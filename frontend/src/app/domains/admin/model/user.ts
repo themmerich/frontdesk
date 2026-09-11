@@ -13,6 +13,8 @@ export type User = {
   /** The site the user works at; null while unassigned. */
   branchId: string | null;
   createdAt: Date;
+  /** Job title, as a signature names it under the person; null when none is set. */
+  position: string | null;
 };
 
 /**
@@ -29,6 +31,7 @@ export type UserCreate = {
   active: boolean;
   /** The site the user works at; null while unassigned. */
   branchId: string | null;
+  position: string | null;
 };
 
 /** Everything an admin may change about an existing user — the password is the user's own. */

@@ -237,7 +237,8 @@
     "editTitle": "Benutzer bearbeiten",
     "saved": "Benutzer gespeichert.",
     "saveError": "Benutzer konnte nicht gespeichert werden. Bitte erneut versuchen.",
-    "selfChange": "Du kannst dein eigenes Konto weder deaktivieren noch dir selbst die Adminrolle nehmen."
+    "selfChange": "Du kannst dein eigenes Konto weder deaktivieren noch dir selbst die Adminrolle nehmen.",
+    "position": "Position"
   },
   "categories": {
     "title": "Kategorien",
@@ -291,8 +292,6 @@
     "thresholdHint": "Ist sich die KI unsicherer als das, rutscht ein Vorgang eine Stufe tiefer — lieber ein Entwurf zu viel als eine falsche automatische Antwort.",
     "instructions": "Zusätzliche Anweisung",
     "instructionsHint": "Wird an den Prompt angehängt, für Eigenheiten dieses Betriebs. Zum Beispiel: „Mails von @lieferant-xy.de sind immer Bestellbestätigungen.\"",
-    "replySignature": "Signatur",
-    "replySignatureHint": "Steht wörtlich unter jedem Antwortentwurf. Die KI bekommt sie nicht zu sehen.",
     "replyInstructions": "Hinweise für Antworten",
     "replyInstructionsHint": "Wie die Antworten klingen sollen: Anrede, Ton, was nie zugesagt wird. Zum Beispiel: „Kunden werden gesiezt. Keine Liefertermine zusagen.\"",
     "settingsSaved": "Einstellungen gespeichert.",
@@ -341,7 +340,15 @@
     "branchesEmpty": "Noch keine Filialen angelegt.",
     "cancel": "Abbrechen",
     "error": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
-    "loadError": "Firmendaten konnten nicht geladen werden. Läuft das Backend?"
+    "loadError": "Firmendaten konnten nicht geladen werden. Läuft das Backend?",
+    "signature": "E-Mail-Signatur",
+    "signatureTemplate": "Signatur",
+    "signatureHint": "Steht unter jedem Antwortentwurf. Die Platzhalter werden beim Erzeugen mit den Daten der Person, ihrer Filiale und der Firma gefüllt. Zeilen, deren Platzhalter leer bleiben, entfallen.",
+    "signaturePlaceholders": "Verfügbare Platzhalter",
+    "signatureUser": "Signatur für automatische Entwürfe",
+    "signatureUserHint": "Entwürfe, die frontdesk ohne Beteiligung einer Person schreibt, tragen die Daten dieses Benutzers. Ohne Auswahl entfallen die Personenzeilen.",
+    "signaturePreview": "Vorschau",
+    "signaturePreviewHint": "So sieht die Signatur unter einem Entwurf aus, den Sie selbst erzeugen."
   },
   "settings": {
     "title": "E-Mail-Einstellungen",
@@ -433,7 +440,8 @@
     "passwordChanged": "Passwort geändert.",
     "passwordWrong": "Das aktuelle Passwort ist falsch.",
     "error": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
-    "loadError": "Profil konnte nicht geladen werden. Läuft das Backend?"
+    "loadError": "Profil konnte nicht geladen werden. Läuft das Backend?",
+    "position": "Position"
   },
   "login": {
     "title": "Anmelden",

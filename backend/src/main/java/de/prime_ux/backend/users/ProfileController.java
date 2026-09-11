@@ -62,7 +62,7 @@ class ProfileController {
 		AppUser user = currentUser(authentication);
 		user.updateProfile(request.firstName().trim(), request.lastName().trim(), request.birthDate(),
 				request.joinedAt(), resolveBranch(request.branchId(), user), normalize(request.email()),
-				normalize(request.phone()), normalize(request.fax()));
+				normalize(request.phone()), normalize(request.fax()), normalize(request.position()));
 		appUserRepository.save(user);
 		return ProfileResponse.from(user);
 	}
