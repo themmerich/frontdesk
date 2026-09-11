@@ -9,13 +9,21 @@ import { CaseList } from './case-list';
 /** Picking rows and what follows from it; only the labels these tests press are translated. */
 const translations = { cases: { delete: 'Delete', deleteRow: 'Delete case', deleteSelected: 'Delete selection' } };
 
+/**
+ * Each case a minute older than the one made before it. The table sorts newest first, so the rows
+ * stand in the order a test lists its cases — every time. Dated off the clock, two cases would
+ * share a millisecond now and then, and the sort would put them in whichever order it liked.
+ */
+let lastReceivedAt = Date.UTC(2026, 7, 19, 8, 0);
+
 function aCase(overrides: Partial<Case> = {}): Case {
+  lastReceivedAt -= 60_000;
   return {
     id: '1',
     sender: 'anna@example.com',
     recipient: 'info@example.com',
     subject: 'Delivery status',
-    receivedAt: new Date(),
+    receivedAt: new Date(lastReceivedAt),
     hasAttachments: false,
     sizeBytes: 2048,
     summary: null,
