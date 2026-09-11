@@ -23,6 +23,7 @@ function mockCases() {
       sender: 'anna@example.com',
       subject: 'Lieferstatus',
       receivedAt: today.toISOString(),
+      categoryId: 'c1',
       categoryName: 'Statusanfrage Bestellung',
       categoryColor: 'blue',
       tier: 'automatic',
@@ -34,6 +35,7 @@ function mockCases() {
       sender: 'ben@example.com',
       subject: 'Reklamation',
       receivedAt: today.toISOString(),
+      categoryId: 'c2',
       categoryName: 'Reklamation',
       categoryColor: 'red',
       tier: 'manual',
@@ -45,6 +47,7 @@ function mockCases() {
       sender: 'cara@example.com',
       subject: 'Noch unbewertet',
       receivedAt: yesterday.toISOString(),
+      categoryId: null,
       categoryName: null,
       categoryColor: null,
       tier: null,
@@ -201,6 +204,29 @@ test.describe('Dashboard', () => {
 
     await expect(page.getByRole('button', { name: '12 Monate' })).toHaveAttribute('aria-pressed', 'true');
     expect(await chart.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).not.toBe(thirtyDays);
+  });
+
+  test('narrows the arrivals chart to one category', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
+
+    await page.goto('/dashboard');
+    const chart = page.locator('canvas').last();
+    await expect(chart).toBeVisible();
+    const everything = await chart.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
+
+    // Everything to begin with; on offer are the categories the cases carry, and the lack of one.
+    const filter = page.locator('p-select[inputid="dashboard-arrivals-category"]');
+    await expect(filter).toContainText('Alle Kategorien');
+    await filter.click();
+    await expect(page.getByRole('option')).toHaveText(['Alle Kategorien', 'Reklamation', 'Statusanfrage Bestellung', 'Ohne Kategorie']);
+
+    await page.getByRole('option', { name: 'Reklamation' }).click();
+
+    // A different picture, and the select says whose it is.
+    await expect(filter).toContainText('Reklamation');
+    expect(await chart.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).not.toBe(everything);
+    // The tiles above are about everything still.
+    await expect(page.getByText('Vorgänge gesamt').locator('xpath=following-sibling::p')).toHaveText('3');
   });
 
   test('picks up what came in while the page stood still, when asked to', async ({ page }) => {

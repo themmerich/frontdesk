@@ -39,6 +39,8 @@ const translations = {
     byTier: 'Cases per tier',
     arrivals: 'Arrivals',
     withoutCategory: 'Without a category',
+    everyCategory: 'All categories',
+    filterCategory: 'Arrivals by category',
     notTriaged: 'Not triaged',
   },
   cases: {
@@ -81,6 +83,15 @@ describe('DashboardPage', () => {
   const reload = vi.fn();
 
   beforeEach(async () => {
+    // PrimeNG's overlay queries matchMedia via the document's view; JSDOM does not implement it.
+    const view = document.defaultView as unknown as { matchMedia?: (query: string) => Partial<MediaQueryList> };
+    view.matchMedia ??= (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    });
+
     cases.set([]);
     error.set(undefined);
     status.set('resolved');
@@ -194,8 +205,8 @@ describe('DashboardPage', () => {
 
   it('draws the categories, the tiers and the arrivals', () => {
     cases.set([
-      aCase({ categoryName: 'Statusanfrage', categoryColor: 'blue', tier: 'automatic' }),
-      aCase({ id: '2', categoryName: 'Statusanfrage', categoryColor: 'blue', tier: 'automatic' }),
+      aCase({ categoryId: 'c1', categoryName: 'Statusanfrage', categoryColor: 'blue', tier: 'automatic' }),
+      aCase({ id: '2', categoryId: 'c1', categoryName: 'Statusanfrage', categoryColor: 'blue', tier: 'automatic' }),
       aCase({ id: '3' }),
     ]);
 
@@ -297,6 +308,56 @@ describe('DashboardPage', () => {
     period('12 months').click();
     await fixture.whenStable();
     expect(chartData(fixture, 2).labels).toHaveLength(12);
+  });
+
+  it('narrows the arrivals to one category, and offers the ones the cases carry', async () => {
+    cases.set([
+      aCase({ categoryId: 'c1', categoryName: 'Jobsuche' }),
+      aCase({ id: '2', categoryId: 'c1', categoryName: 'Jobsuche' }),
+      aCase({ id: '3', categoryId: 'c2', categoryName: 'Werbung' }),
+      aCase({ id: '4' }),
+    ]);
+    const fixture = createFixture();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    // Everything to begin with: all four on today's point.
+    expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(4);
+
+    (element.querySelector('p-select') as HTMLElement).click();
+    await fixture.whenStable();
+    const options = Array.from(document.querySelectorAll('li[role="option"]'));
+    // The largest category first, as in the doughnut, and the uncategorised at the very end.
+    expect(options.map((option) => option.textContent?.trim())).toEqual(['All categories', 'Jobsuche', 'Werbung', 'Without a category']);
+
+    (options[2] as HTMLElement).click();
+    await fixture.whenStable();
+
+    // Only the one case filed under Werbung is left on the chart.
+    expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(1);
+    // The numbers above the chart are not part of the filter.
+    expect(element.textContent).toMatch(/Cases in total\s*4/);
+  });
+
+  it('goes back to every category when the one picked is no longer among the cases', async () => {
+    cases.set([aCase({ categoryId: 'c1', categoryName: 'Jobsuche' }), aCase({ id: '2' })]);
+    const fixture = createFixture();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    (element.querySelector('p-select') as HTMLElement).click();
+    await fixture.whenStable();
+    (document.querySelectorAll('li[role="option"]')[1] as HTMLElement).click();
+    await fixture.whenStable();
+    expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(1);
+
+    // Read again, and the Jobsuche case is gone.
+    cases.set([aCase({ id: '2' })]);
+    (element.querySelector('p-button button') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(element.querySelector('p-select')?.textContent).toContain('All categories');
+    expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(1);
   });
 
   it('reads again when the refresh button is pressed', async () => {

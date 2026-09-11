@@ -26,22 +26,25 @@ function aCase(overrides: Partial<Case> = {}): Case {
 describe('countByCategory', () => {
   it('counts each category once, the largest first and the uncategorised last', () => {
     const counts = countByCategory([
-      aCase({ categoryName: 'Rechnungseingang', categoryColor: 'amber' }),
-      aCase({ categoryName: 'Statusanfrage', categoryColor: 'blue' }),
+      aCase({ categoryId: 'c2', categoryName: 'Rechnungseingang', categoryColor: 'amber' }),
+      aCase({ categoryId: 'c1', categoryName: 'Statusanfrage', categoryColor: 'blue' }),
       aCase(),
-      aCase({ categoryName: 'Statusanfrage', categoryColor: 'blue' }),
+      aCase({ categoryId: 'c1', categoryName: 'Statusanfrage', categoryColor: 'blue' }),
     ]);
 
     expect(counts).toEqual([
-      { name: 'Statusanfrage', color: 'blue', count: 2 },
-      { name: 'Rechnungseingang', color: 'amber', count: 1 },
+      { id: 'c1', name: 'Statusanfrage', color: 'blue', count: 2 },
+      { id: 'c2', name: 'Rechnungseingang', color: 'amber', count: 1 },
       // Not a category but the absence of one, so it stays out of the ranking.
-      { name: null, color: null, count: 1 },
+      { id: null, name: null, color: null, count: 1 },
     ]);
   });
 
   it('sorts categories of the same size by name, so the chart stands still', () => {
-    const counts = countByCategory([aCase({ categoryName: 'Reklamation' }), aCase({ categoryName: 'Newsletter' })]);
+    const counts = countByCategory([
+      aCase({ categoryId: 'c1', categoryName: 'Reklamation' }),
+      aCase({ categoryId: 'c2', categoryName: 'Newsletter' }),
+    ]);
 
     expect(counts.map((count) => count.name)).toEqual(['Newsletter', 'Reklamation']);
   });

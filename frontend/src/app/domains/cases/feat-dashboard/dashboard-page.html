@@ -94,17 +94,30 @@
       <p-card>
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 id="dashboard-arrivals" class="text-lg font-medium">{{ t('dashboard.arrivals') }}</h2>
-          <!-- The same stretches the tiles count, plus the year: what the chart shows follows
-               what was just read above it. -->
-          <p-selectbutton
-            [options]="periodOptions()"
-            [(ngModel)]="period"
-            optionLabel="label"
-            optionValue="value"
-            [allowEmpty]="false"
-            size="small"
-            ariaLabelledBy="dashboard-arrivals"
-          />
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- One category or all of them: how much of one kind came in, over the stretch
+                 picked beside it. The categories on offer are the ones the cases carry. -->
+            <p-select
+              inputId="dashboard-arrivals-category"
+              [options]="categoryOptions()"
+              [(ngModel)]="arrivalCategory"
+              optionLabel="label"
+              optionValue="value"
+              size="small"
+              [ariaLabel]="t('dashboard.filterCategory')"
+            />
+            <!-- The same stretches the tiles count, plus the year: what the chart shows follows
+                 what was just read above it. -->
+            <p-selectbutton
+              [options]="periodOptions()"
+              [(ngModel)]="period"
+              optionLabel="label"
+              optionValue="value"
+              [allowEmpty]="false"
+              size="small"
+              ariaLabelledBy="dashboard-arrivals"
+            />
+          </div>
         </div>
         <p-chart type="line" [data]="arrivalData()" [options]="lineOptions()" height="18rem" [ariaLabel]="t('dashboard.arrivals')" />
       </p-card>
