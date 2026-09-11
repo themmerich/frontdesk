@@ -1,8 +1,10 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { Confirmation, ConfirmationService, MessageService, ToastMessageOptions } from 'primeng/api';
+import { of } from 'rxjs';
 
 import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseDetailService } from '../data/case-detail-service';
@@ -102,6 +104,12 @@ describe('CaseDetailPage reply draft', () => {
   const casesServiceStub = {
     cases: { reload: () => reloads++ },
   } as unknown as CasesService;
+  // A narrow screen, said outright: the CDK would otherwise read matchMedia, which JSDOM does
+  // not have and which another spec may have polyfilled halfway.
+  const breakpointsStub = {
+    observe: () => of({ matches: false, breakpoints: {} }),
+    isMatched: () => false,
+  } as unknown as BreakpointObserver;
 
   let toasts: ToastMessageOptions[];
   let confirmations: Confirmation[];
@@ -131,6 +139,7 @@ describe('CaseDetailPage reply draft', () => {
         { provide: CaseDetailService, useValue: detailServiceStub },
         { provide: CaseCategoriesService, useValue: categoriesServiceStub },
         { provide: CasesService, useValue: casesServiceStub },
+        { provide: BreakpointObserver, useValue: breakpointsStub },
         {
           provide: ConfirmationService,
           useValue: { confirm: (confirmation: Confirmation) => confirmations.push(confirmation) },
