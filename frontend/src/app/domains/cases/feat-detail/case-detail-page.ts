@@ -1,4 +1,5 @@
-import { DatePipe, PercentPipe } from '@angular/common';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { DatePipe, DOCUMENT, PercentPipe } from '@angular/common';
 import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -6,9 +7,11 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import { map } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
+import { SplitterModule } from 'primeng/splitter';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { TooltipModule } from 'primeng/tooltip';
@@ -52,6 +55,7 @@ const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
     ButtonModule,
     MessageModule,
     SelectModule,
+    SplitterModule,
     TagModule,
     TextareaModule,
     TooltipModule,
@@ -71,6 +75,8 @@ export class CaseDetailPage {
   private readonly transloco = inject(TranslocoService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly router = inject(Router);
+  private readonly breakpoints = inject(BreakpointObserver);
+  private readonly storage = inject(DOCUMENT).defaultView?.localStorage ?? null;
 
   protected readonly isSaving = signal(false);
   protected readonly isDeleting = signal(false);
@@ -124,6 +130,24 @@ export class CaseDetailPage {
    */
   protected readonly isHandled = computed(() => (this.detailService.detail.value()?.handledAt ?? null) !== null);
   protected readonly isTrashed = computed(() => (this.detailService.detail.value()?.deletedAt ?? null) !== null);
+
+  /**
+   * Whether the mail and its reply stand beside each other or one under the other. Tailwind's
+   * xl, read through the same media query rather than a class, because the splitter between the
+   * two has to be told which way it runs.
+   */
+  private readonly isWide = toSignal(this.breakpoints.observe('(min-width: 80rem)').pipe(map((state) => state.matches)), {
+    initialValue: this.breakpoints.isMatched('(min-width: 80rem)'),
+  });
+  protected readonly splitterLayout = computed<'horizontal' | 'vertical'>(() => (this.isWide() ? 'horizontal' : 'vertical'));
+
+  /**
+   * Where the line between the two was left, kept per arrangement: a split of the width and a
+   * split of the height are two different choices. No storage, no state — as with the table.
+   */
+  protected readonly splitterStateKey = computed(() =>
+    this.storage === null ? null : this.isWide() ? 'frontdesk-case-detail-splitter-wide' : 'frontdesk-case-detail-splitter-stacked',
+  );
 
   constructor() {
     effect(() => this.detailService.id.set(this.id()));

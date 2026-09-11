@@ -305,6 +305,41 @@ test.describe('Case detail', () => {
     await expect(page.getByRole('row', { name: /Rechnung 2026-081/ })).toBeVisible();
   });
 
+  test('lets the line between mail and reply be dragged, and remembers where it was left', async ({ page }) => {
+    // A mail written in HTML sits in a frame, and a frame keeps the pointer events that land on
+    // it: the drag has to survive the pointer crossing into the mail, at speed.
+    await page.route('**/api/cases/1', (route) => route.fulfill({ json: { ...detail, bodyHtml: '<p>Bitte um eine Kopie.</p>' } }));
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/cases/1');
+    await expect(page.locator('iframe[sandbox]')).toBeVisible();
+    const separator = page.getByRole('separator');
+    await expect(separator).toHaveAttribute('aria-orientation', 'horizontal');
+    const mailPanel = page.locator('.p-splitter-panel').first();
+    const before = (await mailPanel.boundingBox())!.width;
+
+    // Dragged 200 pixels to the left in three big steps, across the mail: the reply gets the
+    // room, the mail gives it up.
+    const handle = (await separator.boundingBox())!;
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + handle.width / 2 - 200, handle.y + handle.height / 2, { steps: 3 });
+    await page.mouse.up();
+    const after = (await mailPanel.boundingBox())!.width;
+    expect(after).toBeLessThan(before - 150);
+
+    // Remembered across a reload, under the key for the wide arrangement.
+    await page.reload();
+    await expect(page.getByRole('separator')).toBeVisible();
+    expect((await page.locator('.p-splitter-panel').first().boundingBox())!.width).toBeCloseTo(after, -1);
+    const stored = await page.evaluate(() => localStorage.getItem('frontdesk-case-detail-splitter-wide'));
+    expect(stored).not.toBeNull();
+
+    // On a narrow screen the line runs the other way, and the wide split is not applied to it.
+    await page.setViewportSize({ width: 1000, height: 1000 });
+    await expect(page.getByRole('separator')).toHaveAttribute('aria-orientation', 'vertical');
+    expect(await page.evaluate(() => localStorage.getItem('frontdesk-case-detail-splitter-stacked'))).toBeNull();
+  });
+
   test('deletes a case and moves on to the next one', async ({ page }) => {
     await page.route('**/api/cases', (route) => {
       if (route.request().method() === 'DELETE') {

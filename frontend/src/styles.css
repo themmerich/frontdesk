@@ -139,6 +139,26 @@
   width: 100%;
 }
 
+/* The line between a mail and its reply (cases/feat-detail/case-detail-page). The two are boxes
+   of their own already, so the splitter draws no box around them and no bar between them — only
+   a short handle in the middle of the gutter says where to grab. */
+.app-case-detail-splitter {
+  --p-splitter-background: transparent;
+  --p-splitter-border-color: transparent;
+  --p-splitter-gutter-background: transparent;
+  --p-splitter-handle-background: var(--p-content-border-color);
+  --p-splitter-handle-size: 2.5rem;
+}
+
+/* While the line is being dragged, the panels must not catch the pointer: the splitter follows
+   it through the document, and a mail shown in a frame keeps every pointer event that lands on
+   it to itself — the drag would stall the moment the pointer crossed into the mail. Selecting
+   text on the way is not wanted either. */
+.app-case-detail-splitter[data-resizing] .p-splitter-panel {
+  pointer-events: none;
+  user-select: none;
+}
+
 /* CDK drag & drop styling for the column-toggle popover (cases/ui/case-list).
    The drag preview and the popover overlay are attached to <body>, so
    component-scoped styles cannot reach them. */
