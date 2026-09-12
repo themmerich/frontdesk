@@ -171,3 +171,8 @@
 .app-column-toggle-list .cdk-drag-placeholder {
   opacity: 0.4;
 }
+
+/* The trail on the detail page: one-sided, so the words get the whole width of the aside. */
+.app-case-timeline .p-timeline-event-opposite {
+  display: none;
+}

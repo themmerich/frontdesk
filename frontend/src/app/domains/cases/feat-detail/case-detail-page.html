@@ -64,7 +64,9 @@
       <!-- The verdict sits beside the mail on wide screens and moves above it on narrow ones,
            where the answer matters before the evidence. -->
       <div class="flex min-h-0 flex-auto flex-col gap-4 lg:flex-row-reverse">
-        <aside class="flex flex-col gap-3 lg:w-72 lg:shrink-0">
+        <!-- Beside the mail the aside scrolls on its own: the trail grows with the case, and the
+             footer below must stay where it is. -->
+        <aside class="flex flex-col gap-3 lg:min-h-0 lg:w-72 lg:shrink-0 lg:overflow-y-auto">
           <h2 class="text-sm font-medium">{{ t('caseDetail.verdict') }}</h2>
           <dl class="flex flex-col gap-2 text-sm">
             <div class="flex items-baseline justify-between gap-3">
@@ -105,6 +107,12 @@
               [disabled]="isSaving()"
             />
           </div>
+          <!-- What the case has been through, under the verdict: came in, was judged, was
+               corrected, was answered — each step with who took it and when. -->
+          @if (aCase.events.length > 0) {
+            <h2 class="mt-2 text-sm font-medium">{{ t('caseDetail.history') }}</h2>
+            <app-case-timeline [events]="aCase.events" />
+          }
         </aside>
 
         <!-- The mail and the reply to it side by side where the screen allows, one under the
@@ -210,14 +218,15 @@
               } @else {
                 <!-- The box is open from the start, empty when nobody has written into it yet:
                      typing is one way to a reply and needs no button first. Read-only in the trash,
-                     where a draft is looked at but not worked on. -->
+                     where a draft is looked at but not worked on, and once the reply went out,
+                     because what the customer got is what stays. -->
                 <textarea
                   pTextarea
                   id="draft"
                   class="min-h-0 w-full flex-auto resize-none text-sm leading-relaxed"
                   aria-labelledby="draft-heading"
                   [(ngModel)]="draftText"
-                  [readonly]="isTrashed()"
+                  [readonly]="isTrashed() || isSent()"
                   [disabled]="isGenerating()"
                 ></textarea>
                 <p class="flex flex-wrap gap-x-2 text-sm text-surface-500 dark:text-surface-400">
@@ -227,8 +236,11 @@
                   @if (isDraftEdited()) {
                     <span>{{ t('caseDetail.draftEditedAt', { date: (aCase.draftUpdatedAt | date: 'short') ?? '' }) }}</span>
                   }
+                  @if (aCase.sentAt) {
+                    <span>{{ t('caseDetail.sentAt', { date: (aCase.sentAt | date: 'short') ?? '', name: aCase.sentByName ?? '' }) }}</span>
+                  }
                 </p>
-                @if (!isTrashed()) {
+                @if (!isTrashed() && !isSent()) {
                   <!-- The other two ways: the model writes the reply, plain or along a line the
                        person gives — "decline, and name our availability". With a draft saved the
                        line is about that draft — "shorter", "without the price" — and the button
@@ -287,7 +299,26 @@
             (onClick)="onHandled(aCase)"
           />
         }
-        <p-button icon="pi pi-check" [label]="t('caseDetail.save')" [disabled]="!canSave()" [loading]="isSaving()" (onClick)="onSave()" />
+        <p-button
+          icon="pi pi-check"
+          severity="secondary"
+          [outlined]="true"
+          [label]="t('caseDetail.save')"
+          [disabled]="!canSave()"
+          [loading]="isSaving()"
+          (onClick)="onSave()"
+        />
+        @if (!isTrashed() && !isSent()) {
+          <!-- The reply leaves from here, once. Saving steps back to a second colour beside it:
+               the reply going out is what the page is for. -->
+          <p-button
+            icon="pi pi-send"
+            [label]="t('caseDetail.send')"
+            [disabled]="!canSend()"
+            [loading]="isSending()"
+            (onClick)="onSend(aCase)"
+          />
+        }
       </div>
     }
   </main>

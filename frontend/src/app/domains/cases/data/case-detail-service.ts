@@ -2,12 +2,21 @@ import { HttpClient, httpResource } from '@angular/common/http';
 import { inject, resource, Service, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { CaseAttachment, CaseDetail, CaseTier } from '../model/case';
+import { CaseAttachment, CaseDetail, CaseEvent, CaseTier } from '../model/case';
 
 /** The wire shape: the moments are ISO strings until they are parsed into Dates. */
 type CaseDetailResponse = Omit<
   CaseDetail,
-  'receivedAt' | 'handledAt' | 'deletedAt' | 'draftText' | 'draftGeneratedAt' | 'draftUpdatedAt' | 'attachments'
+  | 'receivedAt'
+  | 'handledAt'
+  | 'deletedAt'
+  | 'draftText'
+  | 'draftGeneratedAt'
+  | 'draftUpdatedAt'
+  | 'attachments'
+  | 'sentAt'
+  | 'sentByName'
+  | 'events'
 > & {
   receivedAt: string;
   handledAt?: string | null;
@@ -16,6 +25,9 @@ type CaseDetailResponse = Omit<
   draftGeneratedAt?: string | null;
   draftUpdatedAt?: string | null;
   attachments?: CaseAttachment[];
+  sentAt?: string | null;
+  sentByName?: string | null;
+  events?: (Omit<CaseEvent, 'occurredAt'> & { occurredAt: string })[];
 };
 
 /** An inline part the body can refer to: one with an id. The rest of them is not shown anywhere. */
@@ -34,6 +46,9 @@ function parseMoments(response: CaseDetailResponse): CaseDetail {
     draftGeneratedAt: response.draftGeneratedAt ? new Date(response.draftGeneratedAt) : null,
     draftUpdatedAt: response.draftUpdatedAt ? new Date(response.draftUpdatedAt) : null,
     attachments: response.attachments ?? [],
+    sentAt: response.sentAt ? new Date(response.sentAt) : null,
+    sentByName: response.sentByName ?? null,
+    events: (response.events ?? []).map((event) => ({ ...event, occurredAt: new Date(event.occurredAt) })),
   };
 }
 
@@ -102,6 +117,16 @@ export class CaseDetailService {
   async saveDraft(text: string): Promise<void> {
     const saved = await firstValueFrom(this.http.put<CaseDetailResponse>(`/api/cases/${this.id()}/draft`, { text }));
     this.detail.set(parseMoments(saved));
+  }
+
+  /**
+   * The reply leaves the house, as it stands on the server. Whoever calls this has read it —
+   * that is the approval. The answer is the case as sent: frozen draft, in the archive, with the
+   * step on its trail.
+   */
+  async send(): Promise<void> {
+    const sent = await firstValueFrom(this.http.post<CaseDetailResponse>(`/api/cases/${this.id()}/send`, null));
+    this.detail.set(parseMoments(sent));
   }
 
   private async dataUrlOf(caseId: string, attachmentId: string): Promise<string> {

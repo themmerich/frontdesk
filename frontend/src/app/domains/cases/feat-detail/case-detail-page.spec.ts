@@ -43,6 +43,7 @@ const translations = {
     noCategory: 'Without a category',
     saved: 'Classification saved.',
     saveError: 'The classification could not be saved.',
+    send: 'Send',
     confidence: 'Model confidence',
     tier: 'Tier',
     original: 'Original message',
@@ -79,6 +80,9 @@ const aCase: CaseDetail = {
   draftGeneratedAt: null,
   draftUpdatedAt: null,
   attachments: [],
+  sentAt: null,
+  sentByName: null,
+  events: [],
 };
 
 describe('CaseDetailPage', () => {

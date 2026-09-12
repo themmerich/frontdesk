@@ -25,6 +25,7 @@ import { attachmentIcon, opensInTheBrowser } from '../model/attachments';
 import { CaseAttachment, CaseDetail, CaseTier } from '../model/case';
 import { mailDocument, pointsAtRemoteContent } from '../model/mail-html';
 import { mailTextParts } from '../model/mail-text';
+import { CaseTimeline } from '../ui/case-timeline';
 import { FileSizePipe } from '../ui/file-size-pipe';
 import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from '../ui/tier-tag';
 
@@ -37,6 +38,7 @@ import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from '../ui/tier-tag';
   imports: [
     DatePipe,
     PercentPipe,
+    CaseTimeline,
     FileSizePipe,
     FormsModule,
     RouterLink,
@@ -72,6 +74,7 @@ export class CaseDetailPage {
   protected readonly isDeleting = signal(false);
   protected readonly isHandling = signal(false);
   protected readonly isGenerating = signal(false);
+  protected readonly isSending = signal(false);
 
   /**
    * What a person has picked but not saved yet. Both follow the case they belong to: opening
@@ -142,6 +145,15 @@ export class CaseDetailPage {
    */
   protected readonly isHandled = computed(() => (this.detailService.detail.value()?.handledAt ?? null) !== null);
   protected readonly isTrashed = computed(() => (this.detailService.detail.value()?.deletedAt ?? null) !== null);
+
+  /**
+   * Whether the reply went out. From then on the box is read-only and nothing is written or
+   * sent any more: what the customer got is what stays on the case.
+   */
+  protected readonly isSent = computed(() => (this.detailService.detail.value()?.sentAt ?? null) !== null);
+
+  /** Something in the box, a case that is neither thrown away nor answered: that can go out. */
+  protected readonly canSend = computed(() => !this.isTrashed() && !this.isSent() && !this.isDraftBlank());
 
   /**
    * Whether the mail and its reply stand beside each other or one under the other. Tailwind's
@@ -360,6 +372,40 @@ export class CaseDetailPage {
       this.toast('error', handled ? 'cases.markHandledError' : 'cases.reopenError');
     } finally {
       this.isHandling.set(false);
+    }
+  }
+
+  /**
+   * The one button that lets the reply leave. Asked first, with the address and the subject:
+   * pressing it is the approval, and what is approved should be said. What is pending — a
+   * correction, an edited draft — is saved first, so what goes out is what stands in the box.
+   */
+  protected onSend(aCase: CaseDetail): void {
+    this.confirmationService.confirm({
+      header: this.transloco.translate('caseDetail.sendHeader'),
+      message: this.transloco.translate('caseDetail.sendMessage', { to: aCase.sender, subject: aCase.subject }),
+      icon: 'pi pi-send',
+      acceptLabel: this.transloco.translate('caseDetail.send'),
+      rejectLabel: this.transloco.translate('cases.deleteCancel'),
+      rejectButtonProps: { severity: 'secondary', outlined: true },
+      accept: () => void this.send(),
+    });
+  }
+
+  private async send(): Promise<void> {
+    if (this.isDirty() && !(await this.save())) {
+      return;
+    }
+    this.isSending.set(true);
+    try {
+      await this.detailService.send();
+      // The case has left the inbox for the archive.
+      this.casesService.cases.reload();
+      this.toast('success', 'caseDetail.sent');
+    } catch {
+      this.toast('error', 'caseDetail.sendError');
+    } finally {
+      this.isSending.set(false);
     }
   }
 
