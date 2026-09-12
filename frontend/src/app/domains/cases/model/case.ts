@@ -58,6 +58,27 @@ export type CaseDetail = Omit<Case, 'hasDraft'> & {
   draftText: string | null;
   draftGeneratedAt: Date | null;
   draftUpdatedAt: Date | null;
+  /**
+   * What came with the mail, in the order the mail has it — the metadata only, the bytes have an
+   * endpoint of their own. Empty for a mail without attachments, and for one ingested before
+   * they were kept; `hasAttachments` still says whether there were any back then.
+   */
+  attachments: CaseAttachment[];
+};
+
+/**
+ * One part that was attached to the mail. Inline parts are the pictures the HTML body shows in
+ * place, a signature's logo mostly; they are put back into the body by their Content-ID and kept
+ * out of the list of things a person would open.
+ */
+export type CaseAttachment = {
+  id: string;
+  fileName: string;
+  /** The MIME type without parameters, e.g. `application/pdf`. */
+  contentType: string;
+  sizeBytes: number;
+  inline: boolean;
+  contentId: string | null;
 };
 
 /** A category as a case is filed under it: what it is called, and the colour it is drawn in. */

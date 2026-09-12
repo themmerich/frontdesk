@@ -38,6 +38,30 @@ describe('mailDocument', () => {
     expect(document).toContain('color-scheme: light');
   });
 
+  it('puts the pictures the mail brought along where the mail refers to them', () => {
+    const mail = '<img src="cid:logo@kunde"><img src=\'cid:sig%40kunde\' alt="Sig"><IMG SRC=cid:plain>';
+    const images = {
+      'logo@kunde': 'data:image/png;base64,LOGO',
+      'sig@kunde': 'data:image/png;base64,SIG',
+      plain: 'data:image/gif;base64,P',
+    };
+
+    const document = mailDocument(mail, false, images);
+
+    // Quoted either way, unquoted, percent-encoded, upper case: all of it as mail clients write it.
+    expect(document).toContain('<img src="data:image/png;base64,LOGO">');
+    expect(document).toContain('<img src="data:image/png;base64,SIG" alt="Sig">');
+    expect(document).toContain('<IMG SRC="data:image/gif;base64,P">');
+    expect(document).not.toContain('cid:');
+  });
+
+  it('leaves a reference alone that nothing was handed over for, and the mail alone without pictures', () => {
+    const mail = '<img src="cid:missing@kunde"><a href="cid:not-a-picture">x</a>';
+
+    expect(mailDocument(mail, false, { 'other@kunde': 'data:image/png;base64,X' })).toContain(mail);
+    expect(mailDocument(mail, false)).toContain(mail);
+  });
+
   /** The policy the document carries in its head, as the browser would read it. */
   function policyOf(document: string): string {
     return /content="([^"]+)"/.exec(document)![1];

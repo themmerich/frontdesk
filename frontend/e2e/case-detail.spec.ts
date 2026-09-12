@@ -72,6 +72,46 @@ test.describe('Case detail', () => {
     await expect(page.getByText('Diese Mail hat Anhänge')).toBeVisible();
   });
 
+  test('lists the attachments and opens each the way its kind asks for', async ({ page }) => {
+    const attachments = [
+      { id: 'a1', fileName: 'logo.png', contentType: 'image/png', sizeBytes: 900, inline: true, contentId: 'logo@kunde' },
+      { id: 'a2', fileName: 'Angebot Frühjahr.pdf', contentType: 'application/pdf', sizeBytes: 122_880, inline: false, contentId: null },
+      {
+        id: 'a3',
+        fileName: 'Preise.xlsx',
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        sizeBytes: 2_048,
+        inline: false,
+        contentId: null,
+      },
+    ];
+    const html = '<p>Anbei unser <b>Angebot</b>.</p><img src="cid:logo@kunde" alt="Logo">';
+    await page.route('**/api/cases/1', (route) => route.fulfill({ json: { ...detail, bodyHtml: html, attachments } }));
+    // The logo, fetched by the page for the frame; the two files are not fetched until clicked.
+    const served: string[] = [];
+    await page.route('**/api/cases/1/attachments/*', (route) => {
+      served.push(route.request().url().split('/').pop() ?? '');
+      return route.fulfill({ contentType: 'image/png', body: Buffer.from('iVBORw0KGgo=', 'base64') });
+    });
+
+    await page.goto('/cases/1');
+
+    // The two files a person would open, with name and size; the logo belongs into the mail.
+    const list = page.getByRole('list', { name: 'Anhänge' });
+    const links = list.getByRole('link');
+    await expect(links).toHaveText(['Angebot Frühjahr.pdf 120 KB', 'Preise.xlsx 2 KB']);
+    await expect(links.first()).toHaveAttribute('href', '/api/cases/1/attachments/a2');
+    await expect(links.first()).toHaveAttribute('target', '_blank');
+    await expect(links.nth(1)).toHaveAttribute('download', 'Preise.xlsx');
+    await expect(links.nth(1)).not.toHaveAttribute('target', /.+/);
+    await expect(page.getByText('Diese Mail hat Anhänge')).toHaveCount(0);
+
+    // The logo is in the frame as a data URL: the frame has no origin to fetch it with itself.
+    const frame = page.frameLocator('iframe[sandbox]');
+    await expect(frame.locator('img')).toHaveAttribute('src', /^data:image\/png;base64,/);
+    expect(served).toEqual(['a1']);
+  });
+
   test('uses the whole width and makes the addresses in the mail clickable', async ({ page }) => {
     await page.route('**/api/cases/1', (route) =>
       route.fulfill({ json: { ...detail, bodyText: 'Status unter https://example.com/status/4711 (dort auch die Nummer).' } }),

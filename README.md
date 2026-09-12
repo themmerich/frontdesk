@@ -4,9 +4,10 @@ AI-assisted email case handling for small and medium-sized businesses (KMU): inc
 triaged into **handled automatically**, **draft for approval**, or **manual with context** — with a
 human in the loop before anything reaches a customer.
 
-**Status: early development.** Mail ingest, AI triage into tiers and categories, a working
-inbox with archive and trash, a review mode, a dashboard, and the admin area (users, categories,
-company, mailbox, AI key) are in place; answer drafts, approval and sending are not yet. See
+**Status: early development.** Mail ingest with attachments, AI triage into tiers and
+categories, a working inbox with archive and trash, a review mode, a dashboard, answer drafts, and
+the admin area (users, categories, company, mailbox, AI key) are in place; approval and sending
+are not yet. See
 [`ROADMAP.md`](ROADMAP.md) for what exists and what is planned.
 
 ## Repository layout

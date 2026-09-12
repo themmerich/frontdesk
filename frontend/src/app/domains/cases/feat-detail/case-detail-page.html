@@ -158,7 +158,32 @@
                 <div class="min-h-0 flex-auto overflow-y-auto rounded-lg bg-surface-50 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:bg-surface-800"
               >@for (part of bodyParts(); track $index) {@if (part.href) {<a [href]="part.href" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2 hover:no-underline">{{ part.text }}</a>} @else {{{ part.text }}}}</div>
               }
-              @if (aCase.hasAttachments) {
+              @if (listedAttachments().length > 0) {
+                <!-- What came with the mail, each under its own name. A picture or a PDF opens in
+                     a tab of its own, since a browser can show it; anything else is saved. The
+                     link is a plain one and the browser follows it with the session in hand —
+                     nothing is fetched until somebody clicks. -->
+                <ul class="flex flex-wrap gap-2 text-sm" [attr.aria-label]="t('caseDetail.attachments')">
+                  @for (attachment of listedAttachments(); track attachment.id) {
+                    <li data-attachment>
+                      <a
+                        class="inline-flex items-center gap-2 rounded-lg border border-surface-200 px-3 py-1.5 hover:bg-surface-50 dark:border-surface-700 dark:hover:bg-surface-800"
+                        [href]="detailService.attachmentUrl(attachment.id)"
+                        [attr.target]="opensInTheBrowser(attachment) ? '_blank' : null"
+                        [attr.rel]="opensInTheBrowser(attachment) ? 'noopener' : null"
+                        [attr.download]="opensInTheBrowser(attachment) ? null : attachment.fileName"
+                      >
+                        <i [class]="attachmentIcon(attachment)" aria-hidden="true"></i>
+                        <span>{{ attachment.fileName }}</span>
+                        <!-- A blank a screen reader and a test can hear; the gap alone is only seen. -->
+                        &ngsp;
+                        <span class="text-surface-500 dark:text-surface-400">{{ attachment.sizeBytes | fileSize }}</span>
+                      </a>
+                    </li>
+                  }
+                </ul>
+              } @else if (attachmentsLost()) {
+                <!-- Ingested before attachments were kept: the flag says there were some. -->
                 <p class="text-sm text-surface-500 dark:text-surface-400">
                   <i class="pi pi-paperclip" aria-hidden="true"></i>
                   {{ t('caseDetail.attachmentsNotStored') }}
