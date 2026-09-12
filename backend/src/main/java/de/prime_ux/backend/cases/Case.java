@@ -3,6 +3,7 @@ package de.prime_ux.backend.cases;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.triage.CaseCategory;
 import de.prime_ux.backend.triage.CaseTier;
+import de.prime_ux.backend.users.AppUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -122,6 +123,19 @@ public class Case {
 	@Column(name = "draft_updated_at")
 	private Instant draftUpdatedAt;
 
+	// The reply as it went out: when, by whom, and under which Message-ID, so a
+	// customer's next mail can be threaded onto it. The text is the draft, which
+	// does not change any more once these are set.
+	@Column(name = "sent_at")
+	private Instant sentAt;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "sent_by_user_id")
+	private AppUser sentBy;
+
+	@Column(name = "sent_message_id")
+	private String sentMessageId;
+
 	public Case(Tenant tenant, String messageId, String sender, String recipient, String subject, String bodyText,
 			Instant receivedAt, boolean hasAttachments, long sizeBytes) {
 		this(tenant, messageId, sender, recipient, subject, bodyText, null, receivedAt, hasAttachments, sizeBytes);
@@ -223,6 +237,7 @@ public class Case {
 	 */
 	public void applyDraft(String text) {
 		requireNotTrashed();
+		requireNotSent();
 		Instant now = Instant.now();
 		this.draftGeneratedText = text;
 		this.draftText = text;
@@ -236,8 +251,32 @@ public class Case {
 	 */
 	public void editDraft(String text) {
 		requireNotTrashed();
+		requireNotSent();
 		this.draftText = text;
 		this.draftUpdatedAt = Instant.now();
+	}
+
+	/**
+	 * The reply went out. Sending is also taking note: the case leaves the inbox for the archive,
+	 * unless somebody ticked it off before. The draft is frozen from here on — what was sent is
+	 * what stays on the case.
+	 */
+	public void markSent(AppUser person, String messageId) {
+		requireNotTrashed();
+		requireNotSent();
+		Instant now = Instant.now();
+		this.sentAt = now;
+		this.sentBy = person;
+		this.sentMessageId = messageId;
+		if (this.handledAt == null) {
+			this.handledAt = now;
+		}
+	}
+
+	private void requireNotSent() {
+		if (this.sentAt != null) {
+			throw new IllegalStateException("A sent reply is not changed");
+		}
 	}
 
 	private void requireNotTrashed() {

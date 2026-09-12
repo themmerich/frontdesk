@@ -9,6 +9,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import de.prime_ux.backend.TestcontainersConfiguration;
 import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseEventRepository;
+import de.prime_ux.backend.cases.CaseEventType;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import de.prime_ux.backend.users.AppUserRepository;
@@ -93,6 +95,9 @@ class TriageProcessorTest {
 	private CaseRepository caseRepository;
 
 	@Autowired
+	private CaseEventRepository caseEventRepository;
+
+	@Autowired
 	private CaseCategoryRepository caseCategoryRepository;
 
 	@Autowired
@@ -148,6 +153,14 @@ class TriageProcessorTest {
 		assertThat(caseCategoryRepository.findById(sorted.getCategory().getId()).orElseThrow().getCode())
 				.isEqualTo("ORDER_STATUS");
 		assertThat(sorted.getConfidence()).isEqualByComparingTo(new BigDecimal("0.95"));
+		// The verdict is written down as it was given, with nobody behind it.
+		assertThat(caseEventRepository.findAllByMailCaseIdOrderByOccurredAtAsc(sorted.getId())).singleElement()
+				.satisfies(event -> {
+					assertThat(event.getType()).isEqualTo(CaseEventType.TRIAGED);
+					assertThat(event.getActorName()).isNull();
+					assertThat(event.getDetails()).contains("\"tier\":\"automatic\"").contains("\"confidence\":0.95")
+							.contains("\"categoryName\":\"Statusanfrage Bestellung\"");
+				});
 		// The sentence the model wrote is kept, not thrown away.
 		assertThat(sorted.getSummary()).isEqualTo("Kunde fragt nach dem Liefertermin.");
 		assertThat(sorted.getTriagedAt()).isNotNull();

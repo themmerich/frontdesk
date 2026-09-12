@@ -3,11 +3,14 @@ package de.prime_ux.backend.replies;
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseDetailResponse;
 import de.prime_ux.backend.cases.CaseDetails;
+import de.prime_ux.backend.cases.CaseEventType;
+import de.prime_ux.backend.cases.CaseEvents;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
 
 import jakarta.validation.Valid;
+import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -33,13 +36,15 @@ class ReplyDraftController {
 
 	private final CaseRepository caseRepository;
 	private final CaseDetails caseDetails;
+	private final CaseEvents caseEvents;
 	private final AppUserRepository appUserRepository;
 	private final ReplyDraftProcessor replyDraftProcessor;
 
-	ReplyDraftController(CaseRepository caseRepository, CaseDetails caseDetails, AppUserRepository appUserRepository,
-			ReplyDraftProcessor replyDraftProcessor) {
+	ReplyDraftController(CaseRepository caseRepository, CaseDetails caseDetails, CaseEvents caseEvents,
+			AppUserRepository appUserRepository, ReplyDraftProcessor replyDraftProcessor) {
 		this.caseRepository = caseRepository;
 		this.caseDetails = caseDetails;
+		this.caseEvents = caseEvents;
 		this.appUserRepository = appUserRepository;
 		this.replyDraftProcessor = replyDraftProcessor;
 	}
@@ -75,14 +80,18 @@ class ReplyDraftController {
 	@Transactional
 	CaseDetailResponse edit(@PathVariable UUID id, @Valid @RequestBody EditDraftRequest request,
 			Authentication authentication) {
-		Case aCase = ownDraftableCase(id, currentUser(authentication));
+		AppUser person = currentUser(authentication);
+		Case aCase = ownDraftableCase(id, person);
 		aCase.editDraft(request.text());
-		return caseDetails.of(caseRepository.save(aCase));
+		Case saved = caseRepository.save(aCase);
+		caseEvents.record(saved, CaseEventType.DRAFT_EDITED, person, Map.of());
+		return caseDetails.of(saved);
 	}
 
 	/**
 	 * A case of another tenant is not found rather than forbidden — the answer must not say that
-	 * it exists. A case in the trash is found, but nobody answers a mail that was thrown away.
+	 * it exists. A case in the trash is found, but nobody answers a mail that was thrown away; a
+	 * case whose reply went out is found, but what was sent is what stays.
 	 */
 	private Case ownDraftableCase(UUID id, AppUser person) {
 		UUID tenantId = person.getTenant().getId();
@@ -91,6 +100,9 @@ class ReplyDraftController {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 		if (aCase.getDeletedAt() != null) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "a case in the trash gets no draft");
+		}
+		if (aCase.getSentAt() != null) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "a sent reply is not changed");
 		}
 		return aCase;
 	}

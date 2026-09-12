@@ -44,6 +44,9 @@ const aCase: CaseDetail = {
   draftGeneratedAt: null,
   draftUpdatedAt: null,
   attachments: [],
+  sentAt: null,
+  sentByName: null,
+  events: [],
 };
 
 const offer: CaseAttachment = {

@@ -3,6 +3,8 @@ package de.prime_ux.backend.replies;
 import de.prime_ux.backend.branches.Branch;
 import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseEventType;
+import de.prime_ux.backend.cases.CaseEvents;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.tenants.TenantRepository;
@@ -35,16 +37,18 @@ public class ReplyDraftProcessor {
 	static final List<CaseTier> DRAFTED_TIERS = List.of(CaseTier.AUTOMATIC, CaseTier.DRAFT);
 
 	private final CaseRepository caseRepository;
+	private final CaseEvents caseEvents;
 	private final TenantTriageSettingsRepository tenantTriageSettingsRepository;
 	private final TenantRepository tenantRepository;
 	private final AppUserRepository appUserRepository;
 	private final BranchRepository branchRepository;
 	private final ReplyDraftService replyDraftService;
 
-	ReplyDraftProcessor(CaseRepository caseRepository, TenantTriageSettingsRepository tenantTriageSettingsRepository,
-			TenantRepository tenantRepository, AppUserRepository appUserRepository, BranchRepository branchRepository,
-			ReplyDraftService replyDraftService) {
+	ReplyDraftProcessor(CaseRepository caseRepository, CaseEvents caseEvents,
+			TenantTriageSettingsRepository tenantTriageSettingsRepository, TenantRepository tenantRepository,
+			AppUserRepository appUserRepository, BranchRepository branchRepository, ReplyDraftService replyDraftService) {
 		this.caseRepository = caseRepository;
+		this.caseEvents = caseEvents;
 		this.tenantTriageSettingsRepository = tenantTriageSettingsRepository;
 		this.tenantRepository = tenantRepository;
 		this.appUserRepository = appUserRepository;
@@ -79,7 +83,7 @@ public class ReplyDraftProcessor {
 		for (Case mailCase : waiting) {
 			try {
 				// Nobody stands beside the scheduler to say what the reply should do.
-				draft(mailCase, settings, null, signature);
+				draft(mailCase, settings, null, signature, null);
 				drafted++;
 			} catch (ReplyDraftException e) {
 				// The case stays without a draft and comes up again on the next run;
@@ -102,7 +106,7 @@ public class ReplyDraftProcessor {
 	@Transactional
 	public Case draftNow(Case mailCase, String instruction, AppUser person) {
 		Tenant tenant = attached(mailCase.getTenant());
-		return draft(mailCase, settingsOf(tenant), instruction, signatureFor(tenant, person));
+		return draft(mailCase, settingsOf(tenant), instruction, signatureFor(tenant, person), person);
 	}
 
 	/**
@@ -119,10 +123,13 @@ public class ReplyDraftProcessor {
 		return SignatureRenderer.render(tenant.getReplySignature(), tenant, person, headquarters);
 	}
 
-	private Case draft(Case mailCase, TenantTriageSettings settings, String instruction, String signature) {
+	/** @param person who asked, or null when the scheduler did on its own */
+	private Case draft(Case mailCase, TenantTriageSettings settings, String instruction, String signature,
+			AppUser person) {
 		String text = replyDraftService.draft(mailCase, settings, instruction, signature);
 		mailCase.applyDraft(text);
 		Case saved = caseRepository.save(mailCase);
+		caseEvents.record(saved, CaseEventType.DRAFT_GENERATED, person, CaseEvents.details("onRequest", person != null));
 		log.info("Drafted a reply to case {}", mailCase.getId());
 		return saved;
 	}

@@ -298,6 +298,74 @@ test.describe('Case detail', () => {
     await expect(page.getByText(/Bearbeitet am/)).toBeVisible();
   });
 
+  test('sends the reply after asking, and shows the case as sent with the step on its trail', async ({ page }) => {
+    const drafted = {
+      ...detail,
+      draftText: 'Guten Tag,\n\ndie Kopie senden wir Ihnen zu.',
+      draftGeneratedAt: '2026-08-19T10:00:00Z',
+      draftUpdatedAt: '2026-08-19T10:00:00Z',
+      events: [
+        { type: 'ingested', occurredAt: '2026-08-19T09:15:00Z', actorName: null, details: { sender: 'kunde@example.com' } },
+        {
+          type: 'triaged',
+          occurredAt: '2026-08-19T09:16:00Z',
+          actorName: null,
+          details: { tier: 'draft', confidence: 0.72, categoryName: 'Rechnung' },
+        },
+      ],
+    };
+    let sends = 0;
+    await page.route('**/api/cases/1', (route) => route.fulfill({ json: drafted }));
+    await page.route('**/api/cases/1/send', (route) => {
+      sends++;
+      return route.fulfill({
+        json: {
+          ...drafted,
+          sentAt: '2026-08-19T11:00:00Z',
+          sentByName: 'Anna Admin',
+          handledAt: '2026-08-19T11:00:00Z',
+          events: [
+            ...drafted.events,
+            {
+              type: 'sent',
+              occurredAt: '2026-08-19T11:00:00Z',
+              actorName: 'Anna Admin',
+              details: { to: 'kunde@example.com', subject: 'Re: Rechnung 2026-081' },
+            },
+          ],
+        },
+      });
+    });
+
+    await page.goto('/cases/1');
+    // The trail so far, under the verdict: came in, was judged — with the verdict spelled out.
+    await expect(page.getByRole('heading', { name: 'Verlauf' })).toBeVisible();
+    const history = page.locator('app-case-timeline');
+    await expect(history.locator('[data-event]')).toHaveCount(2);
+    await expect(history.locator('[data-event="triaged"]')).toContainText('Bewertet: Entwurf, 72 %, Rechnung');
+
+    await page.getByRole('button', { name: 'Senden' }).click();
+
+    // Asked first, with the address and the subject; nothing has left yet.
+    // Named, because the page's own confirm dialog host carries the role as well.
+    const dialog = page.getByRole('alertdialog', { name: 'Antwort senden?' });
+    await expect(dialog).toContainText('Die Antwort geht an kunde@example.com. Betreff: Rechnung 2026-081');
+    expect(sends).toBe(0);
+    await dialog.getByRole('button', { name: 'Senden' }).click();
+
+    await expect(page.getByText('Antwort gesendet.')).toBeVisible();
+    expect(sends).toBe(1);
+    // Frozen, dated and signed; nothing more to write or to send.
+    const box = page.getByRole('textbox', { name: 'Antwortentwurf' });
+    await expect(box).toHaveAttribute('readonly', '');
+    await expect(page.getByText(/Gesendet am .* von Anna Admin/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Senden' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Neu erzeugen' })).toHaveCount(0);
+    await expect(history.locator('[data-event]')).toHaveCount(3);
+    await expect(history.locator('[data-event="sent"]')).toContainText('Antwort gesendet an kunde@example.com');
+    await expect(history.locator('[data-event="sent"]')).toContainText('Anna Admin');
+  });
+
   test('saves category and tier together, and only when the button is pressed', async ({ page }) => {
     let stored = { ...detail };
     let saves = 0;

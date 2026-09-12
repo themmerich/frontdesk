@@ -58,6 +58,9 @@ const aCase: CaseDetail = {
   draftGeneratedAt: null,
   draftUpdatedAt: null,
   attachments: [],
+  sentAt: null,
+  sentByName: null,
+  events: [],
 };
 
 /** The case once the model has written to it: both moments the same, nothing edited yet. */

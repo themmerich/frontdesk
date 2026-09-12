@@ -44,9 +44,12 @@ SMTP) in Docker Compose as the dev/demo mail infrastructure; the core entity is 
       page; edited there and saved together with the verdict. What the model wrote is kept beside
       the edit. Signature and reply instructions per tenant, kept with the triage settings; the
       inbox marks the cases with a reply waiting.
-- [ ] **5. Approval and send** — approve a draft, send it via SMTP with proper threading
-      (In-Reply-To, References), store the sent reply on the case, and add an **audit trail**
-      per case: ingested, triaged (model, confidence), corrected by whom, handled, sent.
+- [x] **5. Approval and send** — one button sends the draft through the tenant's mailbox,
+      threaded onto the customer's mail (In-Reply-To, References), from the mailbox address with
+      the alias the customer wrote to as Reply-To; the case moves to the archive with the sent
+      reply frozen on it. An **audit trail** per case — ingested, triaged (tier, confidence),
+      corrected by whom, drafted, handled, sent — is recorded and shown as a timeline on the
+      detail page.
 - [ ] **6. Demo mailbox** — realistic seeded mail corpus for a fictional B2B business, with a
       seeder script and an expected-tier check to make prompt tuning measurable. The
       corrections people make in the inbox are the natural source of expected tiers.

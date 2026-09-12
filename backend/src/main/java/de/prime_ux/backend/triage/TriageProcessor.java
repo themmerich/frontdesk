@@ -1,10 +1,13 @@
 package de.prime_ux.backend.triage;
 
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseEventType;
+import de.prime_ux.backend.cases.CaseEvents;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.tenants.Tenant;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
@@ -24,13 +27,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class TriageProcessor {
 
 	private final CaseRepository caseRepository;
+	private final CaseEvents caseEvents;
 	private final CaseCategoryRepository caseCategoryRepository;
 	private final TenantTriageSettingsRepository tenantTriageSettingsRepository;
 	private final TriageService triageService;
 
-	TriageProcessor(CaseRepository caseRepository, CaseCategoryRepository caseCategoryRepository,
+	TriageProcessor(CaseRepository caseRepository, CaseEvents caseEvents, CaseCategoryRepository caseCategoryRepository,
 			TenantTriageSettingsRepository tenantTriageSettingsRepository, TriageService triageService) {
 		this.caseRepository = caseRepository;
+		this.caseEvents = caseEvents;
 		this.caseCategoryRepository = caseCategoryRepository;
 		this.tenantTriageSettingsRepository = tenantTriageSettingsRepository;
 		this.triageService = triageService;
@@ -74,7 +79,11 @@ public class TriageProcessor {
 			Optional<CaseCategory> category = TriageRule.categoryOf(verdict, categories);
 			CaseTier tier = TriageRule.tierOf(verdict, category, settings.getConfidenceThreshold());
 			mailCase.applyTriage(category.orElse(null), tier, verdict.confidence(), verdict.summary());
-			caseRepository.save(mailCase);
+			Case saved = caseRepository.save(mailCase);
+			// The model's verdict, written down as it was given; nobody stands behind it.
+			caseEvents.record(saved, CaseEventType.TRIAGED, null, CaseEvents.details("tier",
+					tier.name().toLowerCase(Locale.ROOT), "confidence", verdict.confidence(), "categoryName",
+					category.map(CaseCategory::getName).orElse(null)));
 			log.info("Triaged case {} as {} ({})", mailCase.getId(), tier,
 					category.map(CaseCategory::getCode).orElse("no category"));
 			return true;

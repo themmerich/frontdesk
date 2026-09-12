@@ -64,6 +64,39 @@ export type CaseDetail = Omit<Case, 'hasDraft'> & {
    * they were kept; `hasAttachments` still says whether there were any back then.
    */
   attachments: CaseAttachment[];
+  /**
+   * When the reply went out, and in whose name. Null while it has not. Once it has, the draft is
+   * what was sent and does not change any more.
+   */
+  sentAt: Date | null;
+  sentByName: string | null;
+  /** What the case has been through, oldest step first. */
+  events: CaseEvent[];
+};
+
+/** What can happen to a case, as the trail writes it down. */
+export type CaseEventType =
+  | 'ingested'
+  | 'triaged'
+  | 'classification_corrected'
+  | 'draft_generated'
+  | 'draft_edited'
+  | 'handled'
+  | 'reopened'
+  | 'trashed'
+  | 'restored'
+  | 'sent';
+
+/**
+ * One step of a case's trail: what happened, when, who did it — null for what the system did on
+ * its own — and a few facts about it whose keys depend on the type: the tier and confidence of a
+ * verdict, the address a reply went to.
+ */
+export type CaseEvent = {
+  type: CaseEventType;
+  occurredAt: Date;
+  actorName: string | null;
+  details: Record<string, unknown>;
 };
 
 /**
