@@ -58,8 +58,8 @@ SMTP) in Docker Compose as the dev/demo mail infrastructure; the core entity is 
 
 Gaps in what exists, each small enough for one PR.
 
-- [ ] **Attachments** — store them and offer them for download on the detail page; today they
-      are detected (flag and size) and dropped.
+- [x] **Attachments** — stored with the case and listed on the detail page, pictures and PDFs
+      opening in a tab, the rest downloading; inline pictures are put back into the HTML mail.
 - [ ] **Conversations** — file a reply from the same sender on the same subject under the
       existing case, using In-Reply-To and References of the incoming mail.
 - [ ] **Assignment** — assign a case to a person, with a "my cases" filter.

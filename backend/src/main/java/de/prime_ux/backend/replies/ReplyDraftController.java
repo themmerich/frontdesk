@@ -2,6 +2,7 @@ package de.prime_ux.backend.replies;
 
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseDetailResponse;
+import de.prime_ux.backend.cases.CaseDetails;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
@@ -31,12 +32,14 @@ import org.springframework.web.server.ResponseStatusException;
 class ReplyDraftController {
 
 	private final CaseRepository caseRepository;
+	private final CaseDetails caseDetails;
 	private final AppUserRepository appUserRepository;
 	private final ReplyDraftProcessor replyDraftProcessor;
 
-	ReplyDraftController(CaseRepository caseRepository, AppUserRepository appUserRepository,
+	ReplyDraftController(CaseRepository caseRepository, CaseDetails caseDetails, AppUserRepository appUserRepository,
 			ReplyDraftProcessor replyDraftProcessor) {
 		this.caseRepository = caseRepository;
+		this.caseDetails = caseDetails;
 		this.appUserRepository = appUserRepository;
 		this.replyDraftProcessor = replyDraftProcessor;
 	}
@@ -54,7 +57,7 @@ class ReplyDraftController {
 		AppUser person = currentUser(authentication);
 		Case aCase = ownDraftableCase(id, person);
 		try {
-			return CaseDetailResponse.from(
+			return caseDetails.of(
 					replyDraftProcessor.draftNow(aCase, request == null ? null : request.instruction(), person));
 		} catch (ReplyDraftException e) {
 			// Said in the log with its cause: the page only shows that it did not work, and the
@@ -74,7 +77,7 @@ class ReplyDraftController {
 			Authentication authentication) {
 		Case aCase = ownDraftableCase(id, currentUser(authentication));
 		aCase.editDraft(request.text());
-		return CaseDetailResponse.from(caseRepository.save(aCase));
+		return caseDetails.of(caseRepository.save(aCase));
 	}
 
 	/**

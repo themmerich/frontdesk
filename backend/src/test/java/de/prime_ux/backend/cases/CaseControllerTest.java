@@ -4,7 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -45,6 +49,9 @@ class CaseControllerTest {
 	private CaseRepository caseRepository;
 
 	@Autowired
+	private CaseAttachmentRepository caseAttachmentRepository;
+
+	@Autowired
 	private AppUserRepository appUserRepository;
 
 	@Autowired
@@ -67,6 +74,7 @@ class CaseControllerTest {
 
 	@BeforeEach
 	void cleanDatabaseAndCreateTenants() {
+		caseAttachmentRepository.deleteAll();
 		caseRepository.deleteAll();
 		// Mail settings reference tenants and may linger from other test classes
 		// sharing this context's database.
@@ -160,6 +168,67 @@ class CaseControllerTest {
 
 		// The list would pay for every body on every reload and never shows one.
 		mockMvc.perform(get("/api/cases")).andExpect(jsonPath("$[0].bodyText").doesNotExist());
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void listsTheAttachmentsOnTheDetailAndServesEachByItsType() throws Exception {
+		Case aCase = caseRepository.save(new Case(tenant, "<attached@test>", "anna@example.com", "info@example.com",
+				"Angebot", "Anbei.", "<p>Anbei.</p><img src=\"cid:logo\">", Instant.parse("2026-08-01T10:00:00Z"), true,
+				40_000));
+		CaseAttachment logo = caseAttachmentRepository.save(new CaseAttachment(aCase, 0, "logo.png", "image/png",
+				"logo", true, "png-bytes".getBytes()));
+		CaseAttachment offer = caseAttachmentRepository.save(new CaseAttachment(aCase, 1, "Angebot Frühjahr.pdf",
+				"application/pdf", null, false, "pdf-bytes".getBytes()));
+		CaseAttachment sheet = caseAttachmentRepository.save(new CaseAttachment(aCase, 2, "Preise.xlsx",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", null, false, "xlsx-bytes".getBytes()));
+
+		// The detail lists them in the order of the mail, without their bytes.
+		mockMvc.perform(get("/api/cases/" + aCase.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.attachments.length()").value(3))
+				.andExpect(jsonPath("$.attachments[0].id").value(logo.getId().toString()))
+				.andExpect(jsonPath("$.attachments[0].inline").value(true))
+				.andExpect(jsonPath("$.attachments[0].contentId").value("logo"))
+				.andExpect(jsonPath("$.attachments[1].fileName").value("Angebot Frühjahr.pdf"))
+				.andExpect(jsonPath("$.attachments[1].contentType").value("application/pdf"))
+				.andExpect(jsonPath("$.attachments[1].sizeBytes").value("pdf-bytes".length()))
+				.andExpect(jsonPath("$.attachments[1].inline").value(false))
+				.andExpect(jsonPath("$.attachments[1].content").doesNotExist());
+
+		// A PDF is shown, with its name escaped for the header; a spreadsheet is saved.
+		mockMvc.perform(get("/api/cases/" + aCase.getId() + "/attachments/" + offer.getId()))
+				.andExpect(status().isOk())
+				.andExpect(header().string("Content-Type", "application/pdf"))
+				.andExpect(header().string("Content-Disposition", startsWith("inline;")))
+				.andExpect(header().string("Content-Disposition", containsString("filename*=UTF-8''Angebot%20Fr%C3%BChjahr.pdf")))
+				.andExpect(header().string("X-Content-Type-Options", "nosniff"))
+				.andExpect(header().string("Cache-Control", "max-age=0, private"))
+				.andExpect(content().bytes("pdf-bytes".getBytes()));
+		mockMvc.perform(get("/api/cases/" + aCase.getId() + "/attachments/" + sheet.getId()))
+				.andExpect(status().isOk())
+				.andExpect(header().string("Content-Disposition", startsWith("attachment;")))
+				.andExpect(header().string("Content-Disposition", containsString("Preise.xlsx")))
+				.andExpect(content().bytes("xlsx-bytes".getBytes()));
+		mockMvc.perform(get("/api/cases/" + aCase.getId() + "/attachments/" + logo.getId()))
+				.andExpect(header().string("Content-Disposition", startsWith("inline;")));
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void doesNotServeAnotherTenantsAttachmentNorOneThroughTheWrongCase() throws Exception {
+		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com",
+				"info@example.com", "Fremd", "body", Instant.parse("2026-08-03T10:00:00Z"), true, 1024));
+		CaseAttachment foreignFile = caseAttachmentRepository.save(new CaseAttachment(foreign, 0, "geheim.pdf",
+				"application/pdf", null, false, "secret".getBytes()));
+		Case own = caseRepository.save(new Case(tenant, "<own@test>", "anna@example.com", "info@example.com", "Eigen",
+				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 1024));
+
+		// Not forbidden but not found, in both cases: the answer must not say that it exists.
+		mockMvc.perform(get("/api/cases/" + foreign.getId() + "/attachments/" + foreignFile.getId()))
+				.andExpect(status().isNotFound());
+		mockMvc.perform(get("/api/cases/" + own.getId() + "/attachments/" + foreignFile.getId()))
+				.andExpect(status().isNotFound());
 	}
 
 	@Test

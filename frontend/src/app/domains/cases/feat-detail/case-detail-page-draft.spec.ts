@@ -57,6 +57,7 @@ const aCase: CaseDetail = {
   draftText: null,
   draftGeneratedAt: null,
   draftUpdatedAt: null,
+  attachments: [],
 };
 
 /** The case once the model has written to it: both moments the same, nothing edited yet. */
@@ -83,6 +84,8 @@ describe('CaseDetailPage reply draft', () => {
       isLoading: signal(false),
       hasValue: () => detail() !== undefined,
     },
+    inlineImages: { value: signal(undefined) },
+    attachmentUrl: (attachmentId: string) => `/api/cases/b/attachments/${attachmentId}`,
     changeClassification: (categoryId: string | null, tier: string | null) => {
       classifications.push({ categoryId, tier });
       return Promise.resolve();

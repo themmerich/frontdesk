@@ -31,15 +31,19 @@ const BASE_STYLE = `
   a { color: #1d4ed8; }
 `;
 
+/** A `src="cid:..."` as mail clients write it, with or without quotes; the id is the third group. */
+const CID_REFERENCE = /(src\s*=\s*)(["']?)cid:([^"'\s>]+)\2/gi;
+
 /**
  * The mail as a whole document for the iframe's srcdoc. The mail's own markup is left exactly as
  * it is — reformatting somebody's mail is not this program's business — and is only wrapped in a
- * head that says what it may do.
+ * head that says what it may do. The one exception are the pictures the mail brought along, see
+ * {@link withInlineImages}.
  *
  * <p>`base target="_blank"` sends every link in the mail to a new tab, as the plain text view
  * does; inside the frame there is nothing to navigate to anyway.
  */
-export function mailDocument(html: string, withRemoteContent: boolean): string {
+export function mailDocument(html: string, withRemoteContent: boolean, inlineImages: Readonly<Record<string, string>> = {}): string {
   const policy = `default-src 'none'; style-src 'unsafe-inline'; ${withRemoteContent ? REMOTE_CONTENT : OWN_CONTENT}`;
   return [
     '<!doctype html><html><head><meta charset="utf-8">',
@@ -47,9 +51,35 @@ export function mailDocument(html: string, withRemoteContent: boolean): string {
     '<base target="_blank">',
     `<style>${BASE_STYLE}</style>`,
     '</head><body>',
-    html,
+    withInlineImages(html, inlineImages),
     '</body></html>',
   ].join('');
+}
+
+/**
+ * The pictures the mail carries with it, put where the mail refers to them. A mail client bundles
+ * a signature's logo as a part of the mail with a Content-ID and writes `src="cid:..."`. The frame
+ * has no origin and cannot fetch such a part itself, so the caller hands the parts over as data
+ * URLs, keyed by their id, and the references are rewritten to them. A cid nothing was handed
+ * over for stays as it is — a broken picture, as in any mail client that has not got the part.
+ */
+function withInlineImages(html: string, images: Readonly<Record<string, string>>): string {
+  if (Object.keys(images).length === 0) {
+    return html;
+  }
+  return html.replace(CID_REFERENCE, (reference: string, prefix: string, _quote: string, id: string) => {
+    const url = images[id] ?? images[decoded(id)];
+    return url === undefined ? reference : `${prefix}"${url}"`;
+  });
+}
+
+/** Some clients write the id percent-encoded; a malformed one is left as it is. */
+function decoded(id: string): string {
+  try {
+    return decodeURIComponent(id);
+  } catch {
+    return id;
+  }
 }
 
 /**

@@ -21,24 +21,12 @@ import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseDetailService } from '../data/case-detail-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
-import { CaseDetail, CaseTier } from '../model/case';
+import { attachmentIcon, opensInTheBrowser } from '../model/attachments';
+import { CaseAttachment, CaseDetail, CaseTier } from '../model/case';
 import { mailDocument, pointsAtRemoteContent } from '../model/mail-html';
 import { mailTextParts } from '../model/mail-text';
 import { FileSizePipe } from '../ui/file-size-pipe';
-
-/**
- * Green, amber, red for the three tiers that need an answer — rising with the work left to a
- * person. Blue and grey for the two that need none.
- */
-type TierSeverity = 'success' | 'warn' | 'danger' | 'info' | 'secondary';
-
-const TIER_SEVERITY: Record<CaseTier, TierSeverity> = {
-  automatic: 'success',
-  draft: 'warn',
-  manual: 'danger',
-  info: 'info',
-  ignore: 'secondary',
-};
+import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from '../ui/tier-tag';
 
 /**
  * One case in full: the mail as it arrived, what the triage made of it, the reply the model wrote
@@ -240,17 +228,39 @@ export class CaseDetailPage {
    */
   protected readonly mailDocument = computed<SafeHtml | null>(() => {
     const html = this.bodyHtml();
-    return html === null ? null : this.sanitizer.bypassSecurityTrustHtml(mailDocument(html, this.showRemoteContent()));
+    if (html === null) {
+      return null;
+    }
+    // The pictures the mail brought along go in as data URLs; until they are here, the
+    // references stand as the mail wrote them.
+    const document = mailDocument(html, this.showRemoteContent(), this.detailService.inlineImages.value() ?? {});
+    return this.sanitizer.bypassSecurityTrustHtml(document);
   });
 
+  /** What a person would open: the attachments that are not part of the body. */
+  protected readonly listedAttachments = computed(() =>
+    (this.detailService.detail.value()?.attachments ?? []).filter((attachment) => !attachment.inline),
+  );
+
+  /**
+   * A mail that came with attachments before they were kept: the flag was set when it came in,
+   * nothing was stored. Said, so nobody looks for a list that is not there.
+   */
+  protected readonly attachmentsLost = computed(() => {
+    const aCase = this.detailService.detail.value();
+    return aCase !== undefined && aCase.hasAttachments && aCase.attachments.length === 0;
+  });
+
+  protected attachmentIcon(attachment: CaseAttachment): string {
+    return attachmentIcon(attachment.contentType);
+  }
+
+  protected opensInTheBrowser(attachment: CaseAttachment): boolean {
+    return opensInTheBrowser(attachment.contentType);
+  }
+
   protected tierLabelKey(tier: CaseTier): string {
-    return {
-      automatic: 'cases.tierAutomatic',
-      draft: 'cases.tierDraft',
-      manual: 'cases.tierManual',
-      info: 'cases.tierInfo',
-      ignore: 'cases.tierIgnore',
-    }[tier];
+    return TIER_LABEL_KEY[tier];
   }
 
   protected tierSeverity(tier: CaseTier): TierSeverity {

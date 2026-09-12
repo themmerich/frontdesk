@@ -20,7 +20,10 @@ import jakarta.mail.Session;
 import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
+import jakarta.mail.internet.MimeUtility;
 import jakarta.mail.util.ByteArrayDataSource;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +50,9 @@ class MailIngestServiceTest {
 	private CaseRepository caseRepository;
 
 	@Autowired
+	private CaseAttachmentRepository caseAttachmentRepository;
+
+	@Autowired
 	private TenantRepository tenantRepository;
 
 	@Autowired
@@ -64,6 +70,7 @@ class MailIngestServiceTest {
 
 	@BeforeEach
 	void cleanSlate() throws Exception {
+		caseAttachmentRepository.deleteAll();
 		caseRepository.deleteAll();
 		// Settings reference tenants and may linger from another test class sharing
 		// this context's database.
@@ -186,11 +193,101 @@ class MailIngestServiceTest {
 
 		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
 
-		assertThat(caseRepository.findAll()).singleElement().satisfies(ingested -> {
-			assertThat(ingested.isHasAttachments()).isTrue();
-			assertThat(ingested.getBodyText()).contains("Details siehe Anhang.");
-			assertThat(ingested.getSizeBytes()).isPositive();
-		});
+		Case ingested = caseRepository.findAll().getFirst();
+		assertThat(ingested.isHasAttachments()).isTrue();
+		assertThat(ingested.getBodyText()).contains("Details siehe Anhang.");
+		assertThat(ingested.getSizeBytes()).isPositive();
+		// The attachment itself is kept, bytes and all, and can be told apart from the body.
+		assertThat(caseAttachmentRepository.findAllByMailCaseIdOrderByPosition(ingested.getId())).singleElement()
+				.satisfies(stored -> {
+					assertThat(stored.getFileName()).isEqualTo("anfrage.pdf");
+					assertThat(stored.getContentType()).isEqualTo("application/pdf");
+					assertThat(stored.getSizeBytes()).isEqualTo("pdf-content".length());
+					assertThat(stored.isInline()).isFalse();
+					assertThat(stored.getContentId()).isNull();
+					assertThat(caseAttachmentRepository.findByIdAndMailCaseId(stored.getId(), ingested.getId()))
+							.get().extracting(CaseAttachment::getContent).isEqualTo("pdf-content".getBytes());
+				});
+	}
+
+	@Test
+	void keepsInlinePicturesForTheBodyAndTheRestForTheList() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Session session = GreenMailUtil.getSession(greenMail.getImap().getServerSetup());
+		MimeMessage mail = new MimeMessage(session);
+		mail.setFrom("kunde@example.com");
+		mail.setRecipients(Message.RecipientType.TO, "inbox@frontdesk.local");
+		mail.setSubject("Angebot mit Logo");
+		// The HTML body and the logo it shows, as mail clients bundle them.
+		MimeBodyPart html = new MimeBodyPart();
+		html.setContent("<p>Anbei unser Angebot.</p><img src=\"cid:logo@musterkunde\">", "text/html; charset=utf-8");
+		MimeBodyPart logo = new MimeBodyPart();
+		logo.setDataHandler(new DataHandler(new ByteArrayDataSource("png-bytes".getBytes(), "image/png")));
+		logo.setHeader("Content-ID", "<logo@musterkunde>");
+		logo.setDisposition(Part.INLINE);
+		MimeMultipart related = new MimeMultipart("related");
+		related.addBodyPart(html);
+		related.addBodyPart(logo);
+		MimeBodyPart body = new MimeBodyPart();
+		body.setContent(related);
+		// The offer itself, with a MIME-encoded German file name.
+		MimeBodyPart offer = new MimeBodyPart();
+		offer.setDataHandler(new DataHandler(new ByteArrayDataSource("pdf-bytes".getBytes(), "application/pdf")));
+		offer.setFileName(MimeUtility.encodeText("Angebot Frühjahr.pdf", StandardCharsets.UTF_8.name(), "Q"));
+		offer.setDisposition(Part.ATTACHMENT);
+		MimeMultipart mixed = new MimeMultipart("mixed");
+		mixed.addBodyPart(body);
+		mixed.addBodyPart(offer);
+		mail.setContent(mixed);
+		mail.saveChanges();
+		inbox.deliver(mail);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		Case ingested = caseRepository.findAll().getFirst();
+		assertThat(ingested.isHasAttachments()).isTrue();
+		assertThat(ingested.getBodyHtml()).contains("cid:logo@musterkunde");
+		List<CaseAttachmentRepository.AttachmentSummary> attachments = caseAttachmentRepository
+				.findAllByMailCaseIdOrderByPosition(ingested.getId());
+		// In the order of the mail: the logo stands in the body, before the offer.
+		assertThat(attachments).extracting(CaseAttachmentRepository.AttachmentSummary::getFileName)
+				.containsExactly("anhang-1.png", "Angebot Frühjahr.pdf");
+		assertThat(attachments.get(0).getFileName()).isEqualTo("anhang-1.png");
+		assertThat(attachments.get(0).getContentType()).isEqualTo("image/png");
+		assertThat(attachments.get(0).getContentId()).isEqualTo("logo@musterkunde");
+		assertThat(attachments.get(0).isInline()).isTrue();
+		assertThat(attachments.get(1).getFileName()).isEqualTo("Angebot Frühjahr.pdf");
+		assertThat(attachments.get(1).isInline()).isFalse();
+		assertThat(attachments.get(1).getContentId()).isNull();
+	}
+
+	@Test
+	void carriesNoPaperclipForAMailWithNothingButItsSignaturesLogo() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Session session = GreenMailUtil.getSession(greenMail.getImap().getServerSetup());
+		MimeMessage mail = new MimeMessage(session);
+		mail.setFrom("kunde@example.com");
+		mail.setRecipients(Message.RecipientType.TO, "inbox@frontdesk.local");
+		mail.setSubject("Kurze Frage");
+		MimeBodyPart html = new MimeBodyPart();
+		html.setContent("<p>Wann liefern Sie?</p><img src=\"cid:sig\">", "text/html; charset=utf-8");
+		MimeBodyPart logo = new MimeBodyPart();
+		logo.setDataHandler(new DataHandler(new ByteArrayDataSource("png-bytes".getBytes(), "image/png")));
+		logo.setHeader("Content-ID", "<sig>");
+		MimeMultipart related = new MimeMultipart("related");
+		related.addBodyPart(html);
+		related.addBodyPart(logo);
+		mail.setContent(related);
+		mail.saveChanges();
+		inbox.deliver(mail);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		Case ingested = caseRepository.findAll().getFirst();
+		// Stored, so the body can show it — but nothing a person would open, so no paperclip.
+		assertThat(ingested.isHasAttachments()).isFalse();
+		assertThat(caseAttachmentRepository.findAllByMailCaseIdOrderByPosition(ingested.getId())).singleElement()
+				.satisfies(attachment -> assertThat(attachment.isInline()).isTrue());
 	}
 
 	@Test

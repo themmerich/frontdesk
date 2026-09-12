@@ -2,9 +2,12 @@ package de.prime_ux.backend.triage;
 
 import de.prime_ux.backend.aisettings.TenantChatClients;
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseAttachmentRepository;
+import de.prime_ux.backend.cases.CaseAttachmentRepository.AttachmentSummary;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
@@ -37,9 +40,11 @@ class AnthropicTriageService implements TriageService {
 			""";
 
 	private final TenantChatClients tenantChatClients;
+	private final CaseAttachmentRepository caseAttachmentRepository;
 
-	AnthropicTriageService(TenantChatClients tenantChatClients) {
+	AnthropicTriageService(TenantChatClients tenantChatClients, CaseAttachmentRepository caseAttachmentRepository) {
 		this.tenantChatClients = tenantChatClients;
+		this.caseAttachmentRepository = caseAttachmentRepository;
 	}
 
 	@Override
@@ -50,7 +55,7 @@ class AnthropicTriageService implements TriageService {
 			ChatClient chatClient = this.tenantChatClients.forTenant(mailCase.getTenant());
 			TriageAnswer answer = chatClient.prompt()
 					.system(systemPrompt(categories, settings))
-					.user(userPrompt(mailCase))
+					.user(userPrompt(mailCase, caseAttachmentRepository.findAllByMailCaseIdOrderByPosition(mailCase.getId())))
 					.call()
 					.entity(TriageAnswer.class);
 			if (answer == null) {
@@ -90,7 +95,7 @@ class AnthropicTriageService implements TriageService {
 	 * Static and package-private so a test can read the prompt the model is actually handed;
 	 * nothing here depends on the service's state.
 	 */
-	static String userPrompt(Case mailCase) {
+	static String userPrompt(Case mailCase, List<AttachmentSummary> attachments) {
 		StringBuilder prompt = new StringBuilder("Absender: ").append(mailCase.getSender()).append('\n');
 		// Which of the tenant's addresses the mail arrived on — with an alias that is
 		// what the sender wrote to, and "an rechnung@" often says more than half the
@@ -100,9 +105,32 @@ class AnthropicTriageService implements TriageService {
 			prompt.append("Empfänger: ").append(mailCase.getRecipient()).append('\n');
 		}
 		return prompt.append("Betreff: ").append(mailCase.getSubject()).append('\n')
-				.append("Anhang: ").append(mailCase.isHasAttachments() ? "ja" : "nein").append("\n\n")
+				.append("Anhänge: ").append(attachmentLine(attachments)).append("\n\n")
 				.append(truncate(mailCase.getBodyText()))
 				.toString();
+	}
+
+	/**
+	 * What is attached, by name and size — "Rechnung_4711.pdf (120 KB)" says more about a mail
+	 * than "ja". Inline pictures are left out: a signature's logo says nothing. Only names and
+	 * sizes go to the model, never the files.
+	 */
+	private static String attachmentLine(List<AttachmentSummary> attachments) {
+		List<String> named = attachments.stream()
+				.filter(attachment -> !attachment.isInline())
+				.map(attachment -> attachment.getFileName() + " (" + sizeOf(attachment.getSizeBytes()) + ")")
+				.toList();
+		return named.isEmpty() ? "keine" : String.join(", ", named);
+	}
+
+	private static String sizeOf(long bytes) {
+		if (bytes < 1024) {
+			return bytes + " B";
+		}
+		if (bytes < 1024 * 1024) {
+			return Math.round(bytes / 1024.0) + " KB";
+		}
+		return String.format(Locale.GERMANY, "%.1f MB", bytes / (1024.0 * 1024.0));
 	}
 
 	private static String truncate(String bodyText) {

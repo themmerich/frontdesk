@@ -5,9 +5,16 @@ import de.prime_ux.backend.triage.CaseCategoryRepository;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
 import jakarta.validation.Valid;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,12 +32,17 @@ import org.springframework.web.server.ResponseStatusException;
 class CaseController {
 
 	private final CaseRepository caseRepository;
+	private final CaseAttachmentRepository caseAttachmentRepository;
+	private final CaseDetails caseDetails;
 	private final CaseCategoryRepository caseCategoryRepository;
 	private final AppUserRepository appUserRepository;
 
-	CaseController(CaseRepository caseRepository, CaseCategoryRepository caseCategoryRepository,
+	CaseController(CaseRepository caseRepository, CaseAttachmentRepository caseAttachmentRepository,
+			CaseDetails caseDetails, CaseCategoryRepository caseCategoryRepository,
 			AppUserRepository appUserRepository) {
 		this.caseRepository = caseRepository;
+		this.caseAttachmentRepository = caseAttachmentRepository;
+		this.caseDetails = caseDetails;
 		this.caseCategoryRepository = caseCategoryRepository;
 		this.appUserRepository = appUserRepository;
 	}
@@ -48,7 +60,45 @@ class CaseController {
 	 */
 	@GetMapping("/{id}")
 	CaseDetailResponse getCase(@PathVariable UUID id, Authentication authentication) {
-		return CaseDetailResponse.from(ownCase(id, currentTenantId(authentication)));
+		return caseDetails.of(ownCase(id, currentTenantId(authentication)));
+	}
+
+	/**
+	 * The bytes of one attachment, reached only through its case, so another tenant's attachment
+	 * is not found rather than forbidden. Pictures and PDFs are handed over to be shown, since a
+	 * browser can; everything else is handed over to be saved. The file name goes into the header
+	 * escaped, whatever the sender called the file. Served from the trash as well: what was thrown
+	 * away can be read until it is purged.
+	 */
+	@GetMapping("/{id}/attachments/{attachmentId}")
+	ResponseEntity<byte[]> getAttachment(@PathVariable UUID id, @PathVariable UUID attachmentId,
+			Authentication authentication) {
+		Case aCase = ownCase(id, currentTenantId(authentication));
+		CaseAttachment attachment = caseAttachmentRepository.findByIdAndMailCaseId(attachmentId, aCase.getId())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+		MediaType type = mediaTypeOf(attachment.getContentType());
+		ContentDisposition disposition = (opensInTheBrowser(type) ? ContentDisposition.inline()
+				: ContentDisposition.attachment()).filename(attachment.getFileName(), StandardCharsets.UTF_8).build();
+		return ResponseEntity.ok()
+				.contentType(type)
+				.contentLength(attachment.getSizeBytes())
+				.header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+				// The type is what the row says, not what the browser makes of the first bytes.
+				.header("X-Content-Type-Options", "nosniff")
+				.cacheControl(CacheControl.maxAge(0, TimeUnit.SECONDS).cachePrivate())
+				.body(attachment.getContent());
+	}
+
+	private static MediaType mediaTypeOf(String contentType) {
+		try {
+			return MediaType.parseMediaType(contentType);
+		} catch (IllegalArgumentException e) {
+			return MediaType.APPLICATION_OCTET_STREAM;
+		}
+	}
+
+	private static boolean opensInTheBrowser(MediaType type) {
+		return "image".equals(type.getType()) || MediaType.APPLICATION_PDF.equalsTypeAndSubtype(type);
 	}
 
 	/**
@@ -67,7 +117,7 @@ class CaseController {
 		Case aCase = ownCase(id, tenantId);
 		aCase.changeCategory(request.categoryId() == null ? null : ownCategory(request.categoryId(), tenantId));
 		aCase.changeTier(request.toTier());
-		return CaseDetailResponse.from(caseRepository.save(aCase));
+		return caseDetails.of(caseRepository.save(aCase));
 	}
 
 	/**
@@ -80,7 +130,7 @@ class CaseController {
 			Authentication authentication) {
 		Case aCase = ownCase(id, currentTenantId(authentication));
 		aCase.markHandled(request.handled());
-		return CaseDetailResponse.from(caseRepository.save(aCase));
+		return caseDetails.of(caseRepository.save(aCase));
 	}
 
 	/**

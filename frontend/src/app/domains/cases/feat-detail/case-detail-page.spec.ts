@@ -78,6 +78,7 @@ const aCase: CaseDetail = {
   draftText: null,
   draftGeneratedAt: null,
   draftUpdatedAt: null,
+  attachments: [],
 };
 
 describe('CaseDetailPage', () => {
@@ -96,6 +97,8 @@ describe('CaseDetailPage', () => {
       isLoading: signal(false),
       hasValue: () => detail() !== undefined,
     },
+    inlineImages: { value: signal(undefined) },
+    attachmentUrl: (attachmentId: string) => `/api/cases/b/attachments/${attachmentId}`,
     changeClassification: (categoryId: string | null, tier: string | null) => {
       saved.push({ categoryId, tier });
       return saveFails ? Promise.reject(new Error('nope')) : Promise.resolve();
