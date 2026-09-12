@@ -223,6 +223,27 @@ class ReplyDraftControllerTest {
 
 	@Test
 	@WithMockUser(username = "anna")
+	void leavesAReplyAloneOnceItWentOut() throws Exception {
+		Case sent = caseOf(tenant, "Beantwortet");
+		sent.editDraft("Guten Tag, die Lieferung ist unterwegs.");
+		sent.markSent(appUserRepository.findUniqueByUsernameIgnoreCase("anna").orElseThrow(), "<reply@test>");
+		caseRepository.save(sent);
+
+		// Neither the model nor a person changes what the customer has already got.
+		mockMvc.perform(post("/api/cases/{id}/draft", sent.getId()).with(csrf()))
+				.andExpect(status().isConflict());
+		mockMvc.perform(put("/api/cases/{id}/draft", sent.getId()).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"text": "Doch anders"}"""))
+				.andExpect(status().isConflict());
+
+		assertThat(reload(sent).getDraftText()).isEqualTo("Guten Tag, die Lieferung ist unterwegs.");
+		assertThat(stubReplyDraftService.draftedSubjects).isEmpty();
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
 	void answersNoMailThatWasThrownAway() throws Exception {
 		Case trashed = caseOf(tenant, "Im Papierkorb");
 		trashed.moveToTrash();

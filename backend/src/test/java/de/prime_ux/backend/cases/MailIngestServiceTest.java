@@ -53,6 +53,9 @@ class MailIngestServiceTest {
 	private CaseAttachmentRepository caseAttachmentRepository;
 
 	@Autowired
+	private CaseEventRepository caseEventRepository;
+
+	@Autowired
 	private TenantRepository tenantRepository;
 
 	@Autowired
@@ -106,6 +109,13 @@ class MailIngestServiceTest {
 			assertThat(ingested.getReceivedAt()).isNotNull();
 			assertThat(ingested.isHasAttachments()).isFalse();
 			assertThat(ingested.getSizeBytes()).isPositive();
+			// The first step of the case's trail, taken by nobody.
+			assertThat(caseEventRepository.findAllByMailCaseIdOrderByOccurredAtAsc(ingested.getId())).singleElement()
+					.satisfies(event -> {
+						assertThat(event.getType()).isEqualTo(CaseEventType.INGESTED);
+						assertThat(event.getActorName()).isNull();
+						assertThat(event.getDetails()).contains("\"sender\":\"kunde@example.com\"");
+					});
 		});
 
 		// The mail is now marked SEEN on the server; a second poll must not duplicate it.

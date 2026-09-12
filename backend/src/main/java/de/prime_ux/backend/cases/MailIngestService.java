@@ -54,12 +54,14 @@ public class MailIngestService {
 
 	private final CaseRepository caseRepository;
 	private final CaseAttachmentRepository caseAttachmentRepository;
+	private final CaseEvents caseEvents;
 	private final TransactionTemplate transaction;
 
 	public MailIngestService(CaseRepository caseRepository, CaseAttachmentRepository caseAttachmentRepository,
-			PlatformTransactionManager transactionManager) {
+			CaseEvents caseEvents, PlatformTransactionManager transactionManager) {
 		this.caseRepository = caseRepository;
 		this.caseAttachmentRepository = caseAttachmentRepository;
+		this.caseEvents = caseEvents;
 		this.transaction = new TransactionTemplate(transactionManager);
 	}
 
@@ -123,6 +125,9 @@ public class MailIngestService {
 				caseAttachmentRepository.save(new CaseAttachment(saved, attachment.position(), attachment.fileName(),
 						attachment.contentType(), attachment.contentId(), attachment.inline(), attachment.content()));
 			}
+			// The first step of the trail; nobody did this, the mail came.
+			caseEvents.record(saved, CaseEventType.INGESTED, null,
+					CaseEvents.details("sender", saved.getSender(), "messageId", messageId));
 		});
 		log.info("Ingested mail '{}' from {} as case {} with {} attachment(s)", newCase.getSubject(),
 				newCase.getSender(), newCase.getId(), attachments.size());

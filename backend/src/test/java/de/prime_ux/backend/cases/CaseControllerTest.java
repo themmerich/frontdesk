@@ -27,6 +27,7 @@ import de.prime_ux.backend.users.AppUserRepository;
 import de.prime_ux.backend.users.UserRole;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,9 @@ class CaseControllerTest {
 
 	@Autowired
 	private CaseAttachmentRepository caseAttachmentRepository;
+
+	@Autowired
+	private CaseEventRepository caseEventRepository;
 
 	@Autowired
 	private AppUserRepository appUserRepository;
@@ -229,6 +233,60 @@ class CaseControllerTest {
 				.andExpect(status().isNotFound());
 		mockMvc.perform(get("/api/cases/" + own.getId() + "/attachments/" + foreignFile.getId()))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void writesDownWhatAPersonDoesToACaseAndListsTheTrailOldestFirst() throws Exception {
+		CaseCategory complaint = caseCategoryRepository.save(new CaseCategory(tenant, "COMPLAINT", "Reklamation",
+				"Beschwerde über eine Lieferung.", CaseTier.MANUAL, 1));
+		Case aCase = caseRepository.save(new Case(tenant, "<trail@test>", "anna@example.com", "info@example.com",
+				"Lieferung 4711", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+
+		mockMvc.perform(put("/api/cases/" + aCase.getId() + "/classification").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"categoryId\": \"" + complaint.getId() + "\", \"tier\": \"manual\"}"))
+				.andExpect(status().isOk());
+		mockMvc.perform(put("/api/cases/" + aCase.getId() + "/handled").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"handled\": true}"))
+				.andExpect(status().isOk());
+
+		// Two steps, in the order they happened, each in the name of who took it — with the
+		// verdict as it was set, so the trail reads without the category table.
+		mockMvc.perform(get("/api/cases/" + aCase.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.events.length()").value(2))
+				.andExpect(jsonPath("$.events[0].type").value("classification_corrected"))
+				.andExpect(jsonPath("$.events[0].actorName").value("Anna Muster"))
+				.andExpect(jsonPath("$.events[0].occurredAt").exists())
+				.andExpect(jsonPath("$.events[0].details.tier").value("manual"))
+				.andExpect(jsonPath("$.events[0].details.categoryName").value("Reklamation"))
+				.andExpect(jsonPath("$.events[1].type").value("handled"))
+				.andExpect(jsonPath("$.events[1].actorName").value("Anna Muster"))
+				// Not sent: nothing to say about it.
+				.andExpect(jsonPath("$.sentAt").doesNotExist())
+				.andExpect(jsonPath("$.sentByName").doesNotExist());
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void writesDownEveryCaseOfASelectionThatIsThrownAwayOrFetchedBack() throws Exception {
+		Case first = caseRepository.save(new Case(tenant, "<one@test>", "anna@example.com", "info@example.com", "Eins",
+				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+		Case second = caseRepository.save(new Case(tenant, "<two@test>", "ben@example.com", "info@example.com", "Zwei",
+				"body", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
+		String ids = "{\"ids\": [\"" + first.getId() + "\", \"" + second.getId() + "\"]}";
+
+		mockMvc.perform(delete("/api/cases").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ids))
+				.andExpect(status().isNoContent());
+		mockMvc.perform(put("/api/cases/restore").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ids))
+				.andExpect(status().isNoContent());
+
+		for (Case aCase : List.of(first, second)) {
+			assertThat(caseEventRepository.findAllByMailCaseIdOrderByOccurredAtAsc(aCase.getId()))
+					.extracting(CaseEvent::getType)
+					.containsExactly(CaseEventType.TRASHED, CaseEventType.RESTORED);
+		}
 	}
 
 	@Test

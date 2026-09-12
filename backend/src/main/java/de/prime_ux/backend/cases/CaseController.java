@@ -7,6 +7,8 @@ import de.prime_ux.backend.users.AppUserRepository;
 import jakarta.validation.Valid;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.springframework.http.CacheControl;
@@ -34,15 +36,17 @@ class CaseController {
 	private final CaseRepository caseRepository;
 	private final CaseAttachmentRepository caseAttachmentRepository;
 	private final CaseDetails caseDetails;
+	private final CaseEvents caseEvents;
 	private final CaseCategoryRepository caseCategoryRepository;
 	private final AppUserRepository appUserRepository;
 
 	CaseController(CaseRepository caseRepository, CaseAttachmentRepository caseAttachmentRepository,
-			CaseDetails caseDetails, CaseCategoryRepository caseCategoryRepository,
+			CaseDetails caseDetails, CaseEvents caseEvents, CaseCategoryRepository caseCategoryRepository,
 			AppUserRepository appUserRepository) {
 		this.caseRepository = caseRepository;
 		this.caseAttachmentRepository = caseAttachmentRepository;
 		this.caseDetails = caseDetails;
+		this.caseEvents = caseEvents;
 		this.caseCategoryRepository = caseCategoryRepository;
 		this.appUserRepository = appUserRepository;
 	}
@@ -113,11 +117,17 @@ class CaseController {
 	@Transactional
 	CaseDetailResponse changeClassification(@PathVariable UUID id,
 			@Valid @RequestBody ChangeClassificationRequest request, Authentication authentication) {
-		UUID tenantId = currentTenantId(authentication);
+		AppUser person = currentUser(authentication);
+		UUID tenantId = person.getTenant().getId();
 		Case aCase = ownCase(id, tenantId);
-		aCase.changeCategory(request.categoryId() == null ? null : ownCategory(request.categoryId(), tenantId));
+		CaseCategory category = request.categoryId() == null ? null : ownCategory(request.categoryId(), tenantId);
+		aCase.changeCategory(category);
 		aCase.changeTier(request.toTier());
-		return caseDetails.of(caseRepository.save(aCase));
+		Case saved = caseRepository.save(aCase);
+		caseEvents.record(saved, CaseEventType.CLASSIFICATION_CORRECTED, person, CaseEvents.details("tier",
+				request.toTier() == null ? null : request.toTier().name().toLowerCase(Locale.ROOT), "categoryName",
+				category == null ? null : category.getName()));
+		return caseDetails.of(saved);
 	}
 
 	/**
@@ -128,9 +138,12 @@ class CaseController {
 	@Transactional
 	CaseDetailResponse markHandled(@PathVariable UUID id, @Valid @RequestBody MarkHandledRequest request,
 			Authentication authentication) {
-		Case aCase = ownCase(id, currentTenantId(authentication));
+		AppUser person = currentUser(authentication);
+		Case aCase = ownCase(id, person.getTenant().getId());
 		aCase.markHandled(request.handled());
-		return caseDetails.of(caseRepository.save(aCase));
+		Case saved = caseRepository.save(aCase);
+		caseEvents.record(saved, request.handled() ? CaseEventType.HANDLED : CaseEventType.REOPENED, person, Map.of());
+		return caseDetails.of(saved);
 	}
 
 	/**
@@ -142,9 +155,10 @@ class CaseController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Transactional
 	void deleteCases(@Valid @RequestBody DeleteCasesRequest request, Authentication authentication) {
-		List<Case> own = ownCases(request.ids(), currentTenantId(authentication));
+		AppUser person = currentUser(authentication);
+		List<Case> own = ownCases(request.ids(), person.getTenant().getId());
 		own.forEach(Case::moveToTrash);
-		caseRepository.saveAll(own);
+		caseRepository.saveAll(own).forEach(aCase -> caseEvents.record(aCase, CaseEventType.TRASHED, person, Map.of()));
 	}
 
 	/** Back out of the trash, to where the case was: the archive if it was worked through. */
@@ -152,9 +166,10 @@ class CaseController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Transactional
 	void restoreCases(@Valid @RequestBody DeleteCasesRequest request, Authentication authentication) {
-		List<Case> own = ownCases(request.ids(), currentTenantId(authentication));
+		AppUser person = currentUser(authentication);
+		List<Case> own = ownCases(request.ids(), person.getTenant().getId());
 		own.forEach(Case::restore);
-		caseRepository.saveAll(own);
+		caseRepository.saveAll(own).forEach(aCase -> caseEvents.record(aCase, CaseEventType.RESTORED, person, Map.of()));
 	}
 
 	/**
@@ -189,9 +204,12 @@ class CaseController {
 	}
 
 	private UUID currentTenantId(Authentication authentication) {
+		return currentUser(authentication).getTenant().getId();
+	}
+
+	/** Who is at the desk — what they do to a case is written down in their name. */
+	private AppUser currentUser(Authentication authentication) {
 		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.map(AppUser::getTenant)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED))
-				.getId();
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 	}
 }
