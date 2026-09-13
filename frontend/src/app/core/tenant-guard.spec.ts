@@ -2,7 +2,7 @@ import { computed, provideZonelessChangeDetection, signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRouteSnapshot, provideRouter, RouterStateSnapshot } from '@angular/router';
 
-import { AuthStore, CurrentUser } from './data/auth-store';
+import { AuthStore, CurrentUser } from '../shared/data/auth-store';
 import { tenantGuard } from './tenant-guard';
 
 const musterfirma = { slug: 'musterfirma', name: 'Musterfirma GmbH' };

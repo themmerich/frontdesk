@@ -4,7 +4,7 @@ import { AvatarModule } from 'primeng/avatar';
 import { PopoverModule } from 'primeng/popover';
 import { StyleClassModule } from 'primeng/styleclass';
 
-import { AuthStore } from '../../data/auth-store';
+import { AuthStore } from '../../../shared/data/auth-store';
 import { PRESET_NAMES, ThemeService, TINTED_SURFACES } from '../../data/theme-service';
 
 type Swatch = { name: string; color: string };

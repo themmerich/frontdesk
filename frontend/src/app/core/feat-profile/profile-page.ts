@@ -19,7 +19,7 @@ import { TooltipModule } from 'primeng/tooltip';
 
 import { BranchService } from '../../shared/data/branch-service';
 import { CompanyService } from '../../shared/data/company-service';
-import { AuthStore } from '../data/auth-store';
+import { AuthStore } from '../../shared/data/auth-store';
 import { Profile, ProfileService } from '../data/profile-service';
 
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];

@@ -7,7 +7,7 @@ import { MessageService, ToastMessageOptions } from 'primeng/api';
 import { BranchService } from '../../shared/data/branch-service';
 import { CompanyService } from '../../shared/data/company-service';
 import { Branch } from '../../shared/model/branch';
-import { AuthStore } from '../data/auth-store';
+import { AuthStore } from '../../shared/data/auth-store';
 import { Profile, ProfileService, ProfileUpdate } from '../data/profile-service';
 import { ProfilePage } from './profile-page';
 

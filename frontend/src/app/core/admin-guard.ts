@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 
-import { AuthStore } from './data/auth-store';
+import { AuthStore } from '../shared/data/auth-store';
 
 /**
  * Protects a tenant's administration: its admins pass, and a super-user who has the tenant open.

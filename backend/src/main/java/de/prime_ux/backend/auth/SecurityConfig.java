@@ -36,6 +36,7 @@ class SecurityConfig {
 				// without one, CurrentSession answers every tenant-bound call with 403.
 				// Opening and closing a tenant is the super-user's alone.
 				.requestMatchers("/api/auth/tenant").hasRole("SUPERUSER")
+				.requestMatchers("/api/tenants/**").hasRole("SUPERUSER")
 				.requestMatchers("/api/settings/**").hasAnyRole("ADMIN", "SUPERUSER")
 				.requestMatchers("/api/users/**").hasAnyRole("ADMIN", "SUPERUSER")
 				// What the model costs is the admin's concern, like the key that pays for it.

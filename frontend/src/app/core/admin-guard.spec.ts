@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRouteSnapshot, provideRouter, RouterStateSnapshot, UrlTree } from '@angular/router';
 
 import { adminGuard } from './admin-guard';
-import { AuthStore, CurrentUser } from './data/auth-store';
+import { AuthStore, CurrentUser } from '../shared/data/auth-store';
 
 const musterfirma = { slug: 'musterfirma', name: 'Musterfirma GmbH' };
 

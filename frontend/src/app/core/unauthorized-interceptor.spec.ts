@@ -6,7 +6,7 @@ import { provideRouter, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import type { MockInstance } from 'vitest';
 
-import { AuthStore } from './data/auth-store';
+import { AuthStore } from '../shared/data/auth-store';
 import { unauthorizedInterceptor } from './unauthorized-interceptor';
 
 describe('unauthorizedInterceptor', () => {

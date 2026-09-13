@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 
-import { AuthStore } from './data/auth-store';
+import { AuthStore } from '../shared/data/auth-store';
 
 /**
  * Protects the shell routes: resolves the session on first navigation and sends anonymous

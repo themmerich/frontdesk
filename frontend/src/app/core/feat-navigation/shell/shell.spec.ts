@@ -5,7 +5,7 @@ import { TranslocoTestingModule } from '@jsverse/transloco';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { CompanyService } from '../../../shared/data/company-service';
-import { AuthStore } from '../../data/auth-store';
+import { AuthStore } from '../../../shared/data/auth-store';
 import { Shell } from './shell';
 
 describe('Shell', () => {

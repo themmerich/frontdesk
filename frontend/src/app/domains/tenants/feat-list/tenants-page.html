@@ -1,6 +1,180 @@
 <ng-container *transloco="let t">
   <main class="flex flex-col gap-4">
-    <h1 class="text-xl font-semibold">{{ t('tenants.title') }}</h1>
-    <p class="text-surface-500 dark:text-surface-400">{{ t('tenants.comingSoon') }}</p>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h1 class="text-2xl font-semibold">{{ t('tenants.title') }}</h1>
+      <p-button icon="pi pi-plus" [label]="t('tenants.create')" (onClick)="onCreate()" />
+    </div>
+    <p class="text-surface-500 dark:text-surface-400">{{ t('tenants.intro') }}</p>
+
+    <!-- value() throws while the resource is in the error state, so the table only renders in the else branch. -->
+    @if (tenantsService.tenants.error()) {
+      <p class="text-red-600 dark:text-red-400">{{ t('tenants.loadError') }}</p>
+    } @else {
+      <p-table [value]="tenantsService.tenants.value()" dataKey="id" [loading]="tenantsService.tenants.isLoading()">
+        <ng-template #header>
+          <tr>
+            <th scope="col">{{ t('tenants.name') }}</th>
+            <th scope="col">{{ t('tenants.slug') }}</th>
+            <th scope="col" class="text-right">{{ t('tenants.users') }}</th>
+            <th scope="col" class="text-right">{{ t('tenants.cases') }}</th>
+            <th scope="col">{{ t('tenants.createdAt') }}</th>
+            <th scope="col">{{ t('tenants.actions') }}</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-row>
+          <!-- The tenant the session is about is marked: the person is inside it right now. -->
+          <tr [attr.aria-current]="row.slug === openSlug() ? 'true' : null">
+            <td>
+              <span class="font-medium">{{ row.name }}</span>
+              @if (row.slug === openSlug()) {
+                <p-tag class="ml-2" severity="info" [value]="t('tenants.opened')" />
+              }
+            </td>
+            <td>
+              <code>{{ row.slug }}</code>
+            </td>
+            <td class="text-right">{{ row.userCount }}</td>
+            <td class="text-right">{{ row.caseCount }}</td>
+            <td>{{ row.createdAt | date: 'mediumDate' }}</td>
+            <td>
+              <div class="flex gap-1">
+                <p-button
+                  icon="pi pi-sign-in"
+                  severity="secondary"
+                  [text]="true"
+                  [ariaLabel]="t('tenants.open')"
+                  [pTooltip]="t('tenants.open')"
+                  tooltipPosition="bottom"
+                  [loading]="openingSlug() === row.slug"
+                  (onClick)="onOpen(row)"
+                />
+                <p-button
+                  icon="pi pi-pencil"
+                  severity="secondary"
+                  [text]="true"
+                  [ariaLabel]="t('tenants.edit')"
+                  [pTooltip]="t('tenants.edit')"
+                  tooltipPosition="bottom"
+                  (onClick)="onEdit(row)"
+                />
+                <p-button
+                  icon="pi pi-trash"
+                  severity="danger"
+                  [text]="true"
+                  [ariaLabel]="t('tenants.delete')"
+                  [pTooltip]="t('tenants.delete')"
+                  tooltipPosition="bottom"
+                  (onClick)="onDelete(row)"
+                />
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="6" class="text-center text-surface-500 dark:text-surface-400">{{ t('tenants.empty') }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      <p-dialog
+        [header]="t(editingTenantId() === null ? 'tenants.createTitle' : 'tenants.editTitle')"
+        [modal]="true"
+        [(visible)]="isDialogVisible"
+        [style]="{ width: '28rem' }"
+      >
+        <form novalidate class="flex flex-col gap-4 pt-2" (submit)="onSave($event)">
+          <div class="flex flex-col gap-2">
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-building" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <input pInputText id="tenant-name" type="text" autocomplete="organization" [formField]="tenantForm.name" />
+                <label for="tenant-name">{{ t('tenants.name') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
+            @if (tenantForm.name().invalid()) {
+              <p-message severity="error" variant="simple" size="small">{{ t('tenants.nameRequired') }}</p-message>
+            }
+          </div>
+          <div class="flex flex-col gap-2">
+            <p-inputgroup>
+              <p-inputgroup-addon><i class="pi pi-tag" aria-hidden="true"></i></p-inputgroup-addon>
+              <p-floatlabel variant="on">
+                <!-- Proposed from the name while creating, until the person types here. -->
+                <input pInputText id="tenant-slug" type="text" autocomplete="off" [formField]="tenantForm.slug" (input)="onSlugInput()" />
+                <label for="tenant-slug">{{ t('tenants.slug') }}</label>
+              </p-floatlabel>
+            </p-inputgroup>
+            @if (isSlugTaken()) {
+              <p-message severity="error" variant="simple" size="small">{{ t('tenants.slugTaken') }}</p-message>
+            } @else if (tenantForm.slug().invalid()) {
+              <p-message severity="error" variant="simple" size="small">{{ t('tenants.slugInvalid') }}</p-message>
+            } @else {
+              <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('tenants.slugHint') }}</p>
+            }
+          </div>
+          <div class="flex justify-end gap-2">
+            <p-button
+              type="button"
+              severity="secondary"
+              [outlined]="true"
+              [label]="t('tenants.cancel')"
+              (onClick)="isDialogVisible.set(false)"
+            />
+            <p-button
+              type="submit"
+              icon="pi pi-check"
+              [label]="t('tenants.save')"
+              [loading]="isSaving()"
+              [disabled]="tenantForm().invalid() || !tenantForm().dirty()"
+            />
+          </div>
+        </form>
+      </p-dialog>
+
+      <!-- Final, so the confirm dialog is not enough: the name has to be typed. -->
+      <p-dialog
+        [header]="t('tenants.deleteTitle')"
+        [modal]="true"
+        [visible]="deletingTenant() !== null"
+        (visibleChange)="$event || deletingTenant.set(null)"
+        [style]="{ width: '28rem' }"
+      >
+        @if (deletingTenant(); as tenant) {
+          <div class="flex flex-col gap-4 pt-2">
+            <p-message severity="warn">{{ t('tenants.deleteWarning', { name: tenant.name }) }}</p-message>
+            <div class="flex flex-col gap-2">
+              <label for="tenant-delete-confirmation" class="text-sm">{{ t('tenants.deleteTypeName') }}</label>
+              <input
+                pInputText
+                id="tenant-delete-confirmation"
+                type="text"
+                autocomplete="off"
+                [value]="deleteConfirmation()"
+                (input)="onDeleteConfirmationInput($event)"
+              />
+            </div>
+            <div class="flex justify-end gap-2">
+              <p-button
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                [label]="t('tenants.cancel')"
+                (onClick)="deletingTenant.set(null)"
+              />
+              <p-button
+                type="button"
+                icon="pi pi-trash"
+                severity="danger"
+                [label]="t('tenants.deleteConfirm')"
+                [loading]="isDeleting()"
+                [disabled]="!isDeleteConfirmed()"
+                (onClick)="onConfirmDelete()"
+              />
+            </div>
+          </div>
+        }
+      </p-dialog>
+    }
   </main>
 </ng-container>

@@ -3,7 +3,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { tap } from 'rxjs';
 
-import { AuthStore } from './data/auth-store';
+import { AuthStore } from '../shared/data/auth-store';
 
 /**
  * When any API call answers 401, the server session has expired: forget it locally and return

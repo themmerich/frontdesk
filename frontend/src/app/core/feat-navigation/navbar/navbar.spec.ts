@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
 import { CompanyService } from '../../../shared/data/company-service';
-import { AuthStore } from '../../data/auth-store';
+import { AuthStore } from '../../../shared/data/auth-store';
 import { THEME_STORAGE } from '../../data/theme-service';
 import { Navbar } from './navbar';
 

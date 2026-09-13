@@ -5,7 +5,8 @@ import { AvatarModule } from 'primeng/avatar';
 import { StyleClassModule } from 'primeng/styleclass';
 
 import { CompanyService } from '../../../shared/data/company-service';
-import { AuthStore } from '../../data/auth-store';
+import { AuthStore } from '../../../shared/data/auth-store';
+import { FrontdeskLogo } from '../../ui/frontdesk-logo';
 
 /**
  * Colored sidebar with the grouped navigation menu and the user footer. Hidden
@@ -13,7 +14,7 @@ import { AuthStore } from '../../data/auth-store';
  */
 @Component({
   selector: 'app-sidebar',
-  imports: [RouterLink, RouterLinkActive, TranslocoDirective, AvatarModule, StyleClassModule],
+  imports: [RouterLink, RouterLinkActive, TranslocoDirective, AvatarModule, StyleClassModule, FrontdeskLogo],
   templateUrl: './sidebar.html',
   // The host wraps the sidebar div; `contents` keeps that div a direct flex
   // child of the shell container, exactly as in the original one-piece layout.
