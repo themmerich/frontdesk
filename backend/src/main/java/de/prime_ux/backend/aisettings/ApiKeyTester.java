@@ -1,5 +1,9 @@
 package de.prime_ux.backend.aisettings;
 
+import de.prime_ux.backend.aiusage.AiCallKind;
+import de.prime_ux.backend.aiusage.AiCallRecorder;
+import de.prime_ux.backend.tenants.Tenant;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 
 /**
@@ -23,16 +27,21 @@ public class ApiKeyTester {
 		}
 	}
 
-	private final TenantChatClients tenantChatClients;
+	private final ChatClients chatClients;
+	private final AiCallRecorder aiCalls;
 
-	ApiKeyTester(TenantChatClients tenantChatClients) {
-		this.tenantChatClients = tenantChatClients;
+	ApiKeyTester(ChatClients chatClients, AiCallRecorder aiCalls) {
+		this.chatClients = chatClients;
+		this.aiCalls = aiCalls;
 	}
 
-	public ApiKeyTestResult test(String apiKey) {
+	/** @param tenant whose admin is trying the key; the call is billed to the key, but counted for them */
+	public ApiKeyTestResult test(Tenant tenant, String apiKey) {
 		try {
-			// The answer is thrown away; that the call was accepted is the whole point.
-			this.tenantChatClients.withApiKey(apiKey).prompt().user("ping").call().content();
+			// The answer is thrown away; that the call was accepted is the whole point. What it
+			// cost is not: a ping is a call like any other.
+			ChatResponse response = this.chatClients.withApiKey(apiKey).prompt().user("ping").call().chatResponse();
+			this.aiCalls.record(tenant, null, AiCallKind.KEY_TEST, response);
 			return ApiKeyTestResult.ok();
 		} catch (RuntimeException e) {
 			return ApiKeyTestResult.failure(e.getMessage());

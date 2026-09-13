@@ -1,6 +1,8 @@
 package de.prime_ux.backend.triage;
 
-import de.prime_ux.backend.aisettings.TenantChatClients;
+import de.prime_ux.backend.aisettings.ChatClients;
+import de.prime_ux.backend.aiusage.AiCallKind;
+import de.prime_ux.backend.aiusage.AiCallRecorder;
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseAttachmentRepository;
 import de.prime_ux.backend.cases.CaseAttachmentRepository.AttachmentSummary;
@@ -12,6 +14,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ChatClientAttributes;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.stereotype.Service;
 
 /**
@@ -41,13 +46,15 @@ class AnthropicTriageService implements TriageService {
 			  nicht: eine Rechnungsfrage an info@ bleibt eine Rechnungsfrage.
 			""";
 
-	private final TenantChatClients tenantChatClients;
+	private final ChatClients chatClients;
+	private final AiCallRecorder aiCalls;
 	private final CaseMessageRepository caseMessageRepository;
 	private final CaseAttachmentRepository caseAttachmentRepository;
 
-	AnthropicTriageService(TenantChatClients tenantChatClients, CaseMessageRepository caseMessageRepository,
+	AnthropicTriageService(ChatClients chatClients, AiCallRecorder aiCalls, CaseMessageRepository caseMessageRepository,
 			CaseAttachmentRepository caseAttachmentRepository) {
-		this.tenantChatClients = tenantChatClients;
+		this.chatClients = chatClients;
+		this.aiCalls = aiCalls;
 		this.caseMessageRepository = caseMessageRepository;
 		this.caseAttachmentRepository = caseAttachmentRepository;
 	}
@@ -55,15 +62,32 @@ class AnthropicTriageService implements TriageService {
 	@Override
 	public TriageVerdict classify(Case mailCase, List<CaseCategory> categories,
 			TenantTriageSettings settings) {
+		return classify(mailCase, categories, settings, openingBodyOf(mailCase),
+				caseAttachmentRepository.findAllByMailCaseIdOrderByPosition(mailCase.getId()));
+	}
+
+	/**
+	 * The call itself, with the body and the attachments handed in rather than read: what a test
+	 * exercises without a database behind it.
+	 */
+	TriageVerdict classify(Case mailCase, List<CaseCategory> categories, TenantTriageSettings settings,
+			String bodyText, List<AttachmentSummary> attachments) {
 		try {
 			// Whose Anthropic account this is billed to is the tenant's own decision.
-			ChatClient chatClient = this.tenantChatClients.forTenant(mailCase.getTenant());
-			TriageAnswer answer = chatClient.prompt()
+			ChatClient chatClient = this.chatClients.forTenant(mailCase.getTenant());
+			// The answer shape is asked for the way entity() would ask for it — the format
+			// instruction travels in the request context and the call advisor appends it to the
+			// user message — but the response is taken whole, so it can be written down before
+			// it is judged: an answer that turns out unusable was paid for all the same.
+			BeanOutputConverter<TriageAnswer> converter = new BeanOutputConverter<>(TriageAnswer.class);
+			ChatResponse response = chatClient.prompt()
 					.system(systemPrompt(categories, settings))
-					.user(userPrompt(mailCase, openingBodyOf(mailCase),
-							caseAttachmentRepository.findAllByMailCaseIdOrderByPosition(mailCase.getId())))
+					.user(userPrompt(mailCase, bodyText, attachments))
+					.advisors(advisors -> advisors.param(ChatClientAttributes.OUTPUT_FORMAT.getKey(), converter.getFormat()))
 					.call()
-					.entity(TriageAnswer.class);
+					.chatResponse();
+			this.aiCalls.record(mailCase.getTenant(), mailCase, AiCallKind.TRIAGE, response);
+			TriageAnswer answer = answerOf(converter, response);
 			if (answer == null) {
 				throw new TriageException("The model returned no usable answer", null);
 			}
@@ -73,6 +97,22 @@ class AnthropicTriageService implements TriageService {
 			throw e;
 		} catch (RuntimeException e) {
 			throw new TriageException("Classifying case " + mailCase.getId() + " failed", e);
+		}
+	}
+
+	/** The answer bound to its shape, or null when there is no text or the text is not the shape. */
+	private static TriageAnswer answerOf(BeanOutputConverter<TriageAnswer> converter, ChatResponse response) {
+		if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
+			return null;
+		}
+		String text = response.getResult().getOutput().getText();
+		if (text == null || text.isBlank()) {
+			return null;
+		}
+		try {
+			return converter.convert(text);
+		} catch (RuntimeException e) {
+			return null;
 		}
 	}
 

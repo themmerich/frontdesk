@@ -70,6 +70,20 @@
   --app-chart-grid: #334155;
 }
 
+/* What the cost page's bars are drawn in, one colour per thing a call can be
+   for. Read into the canvas the same way as the tier colours above. */
+:root {
+  --app-ai-triage: #1d4ed8;
+  --app-ai-draft: #b45309;
+  --app-ai-key-test: #64748b;
+}
+
+.dark {
+  --app-ai-triage: #93c5fd;
+  --app-ai-draft: #fcd34d;
+  --app-ai-key-test: #cbd5e1;
+}
+
 /* Which way a number moved against the stretch before it. Green for more, red for
    less — with the triangle pointing the same way, so the colour is a second
    reading of it and never the only one. */

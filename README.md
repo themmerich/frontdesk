@@ -7,7 +7,7 @@ human in the loop before anything reaches a customer.
 **Status: early development.** Mail ingest with attachments, AI triage into tiers and
 categories, a working inbox with archive and trash, a review mode, a dashboard, answer drafts with
 approval and sending, conversations that thread a customer's replies onto their case, an audit trail
-per case, and the admin area (users, categories, company, mailbox, AI key) are in place. See
+per case, and the admin area (users, categories, company, mailbox, AI key, AI costs) are in place. See
 [`ROADMAP.md`](ROADMAP.md) for what exists and what is planned.
 
 ## Repository layout

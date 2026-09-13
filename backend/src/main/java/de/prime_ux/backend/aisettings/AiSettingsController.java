@@ -71,8 +71,9 @@ class AiSettingsController {
 	 * it is saved.
 	 */
 	@PostMapping("/test")
-	ApiKeyTester.ApiKeyTestResult testApiKey(@Valid @RequestBody UpdateAiSettingsRequest request) {
-		return this.apiKeyTester.test(request.apiKey().trim());
+	ApiKeyTester.ApiKeyTestResult testApiKey(@Valid @RequestBody UpdateAiSettingsRequest request,
+			Authentication authentication) {
+		return this.apiKeyTester.test(currentTenant(authentication), request.apiKey().trim());
 	}
 
 	private Tenant currentTenant(Authentication authentication) {

@@ -39,6 +39,8 @@ class SecurityConfig {
 				// the admins' realm.
 				.requestMatchers("/api/settings/**").hasRole("ADMIN")
 				.requestMatchers("/api/users/**").hasRole("ADMIN")
+				// What the model costs is the admin's concern, like the key that pays for it.
+				.requestMatchers("/api/ai-usage/**").hasRole("ADMIN")
 				// Before the admin rule below, which would otherwise swallow it: whoever
 				// works in the inbox files cases under a category and needs to read the
 				// list of them. Managing the categories stays with the admins.

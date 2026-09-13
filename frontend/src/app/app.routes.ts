@@ -31,6 +31,11 @@ export const routes: Routes = [
         loadChildren: () => import('./domains/admin/api/ai-settings-routes').then((m) => m.aiSettingsRoutes),
       },
       {
+        path: 'ai-costs',
+        canActivate: [adminGuard],
+        loadChildren: () => import('./domains/admin/api/ai-costs-routes').then((m) => m.aiCostsRoutes),
+      },
+      {
         path: 'users',
         canActivate: [adminGuard],
         loadChildren: () => import('./domains/admin/api/users-routes').then((m) => m.usersRoutes),
