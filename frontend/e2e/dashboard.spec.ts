@@ -6,7 +6,7 @@ const mockUser = {
   username: 'admin',
   displayName: 'Anna Admin',
   role: 'admin',
-  tenantName: 'Musterfirma GmbH',
+  tenant: { slug: 'musterfirma', name: 'Musterfirma GmbH' },
 };
 
 /** Two from earlier today, one from yesterday around the same time; one still untriaged. */

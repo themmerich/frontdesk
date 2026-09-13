@@ -7,6 +7,14 @@
       <!-- novalidate: Signal Forms attach per field, so Angular never disables the browser's
            own bubbles; validation and messages come from the form schema instead. -->
       <form novalidate class="flex flex-col gap-4" (submit)="onSubmit($event)">
+        <!-- Which tenant: a Kennung rather than a list, so no customer's name is shown before a
+             login. Optional, because a super-user signs in without one. -->
+        <div class="flex flex-col gap-2">
+          <label for="tenant" class="font-medium">{{ t('login.tenant') }}</label>
+          <input pInputText id="tenant" type="text" autocomplete="organization" [formField]="loginForm.tenant" />
+          <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('login.tenantHint') }}</p>
+        </div>
+
         <div class="flex flex-col gap-2">
           <label for="username" class="font-medium">{{ t('login.username') }}</label>
           <input pInputText id="username" type="text" autocomplete="username" [formField]="loginForm.username" />

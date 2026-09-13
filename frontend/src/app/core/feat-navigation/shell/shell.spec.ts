@@ -13,6 +13,9 @@ describe('Shell', () => {
   const authStoreStub = {
     currentUser: signal(null),
     avatarUrl: signal<string | null>(null),
+    hasTenant: signal(false),
+    isSuperuser: signal(false),
+    canAdminister: signal(false),
     logout: () => Promise.resolve(),
   } as unknown as AuthStore;
   // The sidebar shows the company name and logo from the shared service.

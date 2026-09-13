@@ -6,7 +6,7 @@ const adminUser = {
   username: 'admin',
   displayName: 'Anna Admin',
   role: 'admin',
-  tenantName: 'Musterfirma GmbH',
+  tenant: { slug: 'musterfirma', name: 'Musterfirma GmbH' },
 };
 
 const A_KEY = 'sk-ant-api03-testkey_0123456789';

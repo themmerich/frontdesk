@@ -27,7 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = "frontdesk.mail.polling-enabled=false")
@@ -90,7 +90,7 @@ class MailSettingsControllerTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
 		appUserRepository.save(new AppUser(tenant, "admin", "Anna", "Admin", "{noop}irrelevant",
 				UserRole.ADMIN));
 		appUserRepository.save(new AppUser(tenant, "user", "Uwe", "User", "{noop}irrelevant",
@@ -98,7 +98,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void showsGreenMailDefaultsWithoutStoringThemWhenNothingIsConfigured() throws Exception {
 		mockMvc.perform(get("/api/settings/mail"))
 				.andExpect(status().isOk())
@@ -111,7 +111,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "user", roles = "USER")
+	@AsUser("user")
 	void deniesTheSettingsToRegularUsers() throws Exception {
 		mockMvc.perform(get("/api/settings/mail")).andExpect(status().isForbidden());
 		mockMvc.perform(put("/api/settings/mail").with(csrf())
@@ -121,7 +121,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void savesACustomConfigurationWithoutEchoingThePassword() throws Exception {
 		mockMvc.perform(put("/api/settings/mail").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -139,7 +139,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void keepsTheStoredPasswordWhenTheFieldStaysBlank() throws Exception {
 		mockMvc.perform(put("/api/settings/mail").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -156,7 +156,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void greenMailModeForcesTheFixedDevValues() throws Exception {
 		mockMvc.perform(put("/api/settings/mail").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -173,7 +173,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void rejectsAnIncompleteCustomConfiguration() throws Exception {
 		mockMvc.perform(put("/api/settings/mail").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -199,7 +199,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void reportsAReachableMailboxAsSuccess() throws Exception {
 		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
 
@@ -211,7 +211,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void reportsWrongCredentialsAsFailureWithAReason() throws Exception {
 		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
 
@@ -224,7 +224,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void testsWithTheStoredPasswordWhenTheFieldStaysBlank() throws Exception {
 		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
 		// Store a configuration whose password is correct, then test with a blank one.
@@ -241,7 +241,7 @@ class MailSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "user", roles = "USER")
+	@AsUser("user")
 	void deniesTheConnectionTestToRegularUsers() throws Exception {
 		mockMvc.perform(post("/api/settings/mail/test").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)

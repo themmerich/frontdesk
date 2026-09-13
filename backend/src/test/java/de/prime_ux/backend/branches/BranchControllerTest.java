@@ -17,6 +17,7 @@ import de.prime_ux.backend.tenants.TenantLogoRepository;
 import de.prime_ux.backend.tenants.TenantRepository;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
+import de.prime_ux.backend.users.TestUsers;
 import de.prime_ux.backend.users.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = "frontdesk.mail.polling-enabled=false")
@@ -68,8 +69,8 @@ class BranchControllerTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
-		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
+		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 		headquarters = branchRepository.save(new Branch(tenant, "Musterfirma GmbH", true));
 		filiale = branchRepository.save(new Branch(tenant, "Filiale Hamburg", false));
 		// Another tenant's branch must never show up nor be reachable.
@@ -81,7 +82,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ben")
+	@AsUser("ben")
 	void everyUserListsTheOwnTenantsBranchesHeadquartersFirst() throws Exception {
 		mockMvc.perform(get("/api/branches"))
 				.andExpect(status().isOk())
@@ -93,7 +94,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void createsABranchAndBlanksBecomeNull() throws Exception {
 		mockMvc.perform(post("/api/branches").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -111,7 +112,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void creatingAHeadquartersDemotesThePreviousOne() throws Exception {
 		mockMvc.perform(post("/api/branches").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -126,7 +127,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void promotesABranchToTheHeadquarters() throws Exception {
 		mockMvc.perform(put("/api/branches/" + filiale.getId()).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -140,7 +141,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void keepsTheHeadquartersWhenItSavesItself() throws Exception {
 		mockMvc.perform(put("/api/branches/" + headquarters.getId()).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -154,7 +155,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void demotesTheHeadquartersLeavingTheCompanyWithoutOne() throws Exception {
 		mockMvc.perform(put("/api/branches/" + headquarters.getId()).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -167,7 +168,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void deletesTheHeadquartersToo() throws Exception {
 		mockMvc.perform(delete("/api/branches/" + headquarters.getId()).with(csrf()))
 				.andExpect(status().isNoContent());
@@ -176,7 +177,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void rejectsADuplicateBranchName() throws Exception {
 		mockMvc.perform(post("/api/branches").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -185,7 +186,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void requiresTheHeadquartersFlagToBeStated() throws Exception {
 		// Whether a site is the headquarters is never implied — the client says it.
 		mockMvc.perform(post("/api/branches").with(csrf())
@@ -195,7 +196,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void updatesABranch() throws Exception {
 		mockMvc.perform(put("/api/branches/" + filiale.getId()).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -206,7 +207,7 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void answersNotFoundForAnotherTenantsBranch() throws Exception {
 		mockMvc.perform(put("/api/branches/" + foreignBranch.getId()).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -218,9 +219,9 @@ class BranchControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void deletingABranchOnlyUnsetsTheUsersAssignment() throws Exception {
-		AppUser ben = appUserRepository.findUniqueByUsernameIgnoreCase("ben").orElseThrow();
+		AppUser ben = TestUsers.find(appUserRepository, "ben").orElseThrow();
 		ben.updateProfile(ben.getFirstName(), ben.getLastName(), null, null, filiale, null, null, null, null);
 		// The assignment survives until the branch itself goes away.
 		appUserRepository.save(ben);
@@ -229,12 +230,12 @@ class BranchControllerTest {
 				.andExpect(status().isNoContent());
 
 		assertThat(branchRepository.findById(filiale.getId())).isEmpty();
-		assertThat(appUserRepository.findUniqueByUsernameIgnoreCase("ben"))
+		assertThat(TestUsers.find(appUserRepository, "ben"))
 				.hasValueSatisfying(saved -> assertThat(saved.getBranch()).isNull());
 	}
 
 	@Test
-	@WithMockUser(username = "ben")
+	@AsUser("ben")
 	void deniesWritesToNonAdmins() throws Exception {
 		mockMvc.perform(post("/api/branches").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)

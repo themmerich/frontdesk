@@ -9,6 +9,11 @@ import java.util.UUID;
 public record CompanyResponse(String name, String website, LogoDisplay logoDisplay, String primaryColor,
 		boolean hasLogo, String replySignature, UUID signatureUserId) {
 
+	/** What stands in for a company while no tenant is open: the app's own name, unbranded. */
+	public static CompanyResponse frontdeskDefault() {
+		return new CompanyResponse("frontdesk", null, LogoDisplay.WITH_NAME, null, false, "", null);
+	}
+
 	public static CompanyResponse from(Tenant tenant, boolean hasLogo) {
 		return new CompanyResponse(tenant.getName(), tenant.getWebsite(), tenant.getLogoDisplay(),
 				tenant.getPrimaryColor(), hasLogo, tenant.getReplySignature(),

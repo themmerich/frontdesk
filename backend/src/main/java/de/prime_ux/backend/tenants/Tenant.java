@@ -18,8 +18,9 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
- * A tenant is one customer of frontdesk. Every user belongs to exactly one tenant, and all
- * business data will be scoped to a tenant so a single deployment can serve many customers.
+ * A tenant is one customer of frontdesk. Every tenant user belongs to exactly one tenant, and all
+ * business data is scoped to a tenant so a single deployment can serve many customers. Only the
+ * super-users stand outside.
  */
 @Entity
 @Table(name = "tenants")
@@ -33,6 +34,13 @@ public class Tenant {
 
 	@Column(nullable = false)
 	private String name;
+
+	/**
+	 * The Kennung: what a person types on the login page to say which tenant they belong to.
+	 * Lower case, letters, digits and single dashes; unique.
+	 */
+	@Column(nullable = false)
+	private String slug;
 
 	// Address and contact data live on the headquarters branch; the tenant
 	// keeps only its identity and branding.
@@ -60,11 +68,18 @@ public class Tenant {
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
-	public Tenant(String name) {
+	public Tenant(String name, String slug) {
 		this.name = name;
+		this.slug = slug;
 		this.logoDisplay = LogoDisplay.WITH_NAME;
 		this.replySignature = "";
 		this.createdAt = Instant.now();
+	}
+
+	/** What the Mandanten page manages: the name and the Kennung. */
+	public void updateIdentity(String name, String slug) {
+		this.name = name;
+		this.slug = slug;
 	}
 
 	/** The name is the tenant's name everywhere — renaming here renames the tenant. */

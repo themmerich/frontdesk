@@ -2,6 +2,8 @@ import { Routes } from '@angular/router';
 
 import { adminGuard } from './core/admin-guard';
 import { authGuard } from './core/auth-guard';
+import { superuserGuard } from './core/superuser-guard';
+import { tenantGuard } from './core/tenant-guard';
 import { Shell } from './core/feat-navigation/shell/shell';
 
 export const routes: Routes = [
@@ -17,8 +19,15 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       {
+        // The cases are about a tenant: a super-user with none open is sent to the tenants page.
         path: '',
+        canActivate: [tenantGuard],
         loadChildren: () => import('./domains/cases/api/cases-routes').then((m) => m.casesRoutes),
+      },
+      {
+        path: 'tenants',
+        canActivate: [superuserGuard],
+        loadChildren: () => import('./domains/tenants/api/tenants-routes').then((m) => m.tenantsRoutes),
       },
       {
         path: 'settings',
@@ -52,6 +61,7 @@ export const routes: Routes = [
       },
       {
         path: 'profile',
+        canActivate: [tenantGuard],
         loadComponent: () => import('./core/feat-profile/profile-page').then((m) => m.ProfilePage),
       },
     ],

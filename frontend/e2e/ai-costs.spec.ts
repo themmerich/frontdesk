@@ -6,7 +6,7 @@ const adminUser = {
   username: 'admin',
   displayName: 'Anna Admin',
   role: 'admin',
-  tenantName: 'Musterfirma GmbH',
+  tenant: { slug: 'musterfirma', name: 'Musterfirma GmbH' },
 };
 
 /** Thirty days of nothing but the last two, so the chart has something to draw. */

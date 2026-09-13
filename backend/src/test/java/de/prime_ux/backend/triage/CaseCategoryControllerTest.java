@@ -30,7 +30,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = { "frontdesk.mail.polling-enabled=false", "frontdesk.triage.enabled=false" })
@@ -76,8 +76,8 @@ class CaseCategoryControllerTest {
 		branchRepository.deleteAll();
 		// The configuration goes with its tenant (FK cascade).
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
-		otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
+		otherTenant = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 		appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Admin", "{noop}irrelevant", UserRole.ADMIN));
 		appUserRepository.save(new AppUser(tenant, "ben", "Ben", "Benutzer", "{noop}irrelevant", UserRole.USER));
 		orderStatus = caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS",
@@ -87,7 +87,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void listsOnlyTheOwnTenantsCategoriesInOrder() throws Exception {
 		caseCategoryRepository.save(new CaseCategory(otherTenant, "ORDER_STATUS", "Fremde Kategorie",
 				"Gehört jemand anderem.", CaseTier.MANUAL, 0));
@@ -103,7 +103,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ben")
+	@AsUser("ben")
 	void offersTheActiveCategoriesToWhoeverWorksInTheInbox() throws Exception {
 		invoice.update(invoice.getName(), invoice.getDescription(), invoice.getTier(), false);
 		caseCategoryRepository.save(invoice);
@@ -124,7 +124,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void createsACategoryAndDerivesItsCodeFromTheName() throws Exception {
 		mockMvc.perform(post("/api/case-categories").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -142,7 +142,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void keepsDerivedCodesApart() throws Exception {
 		String body = """
 				{"name": "%s", "description": "Egal.", "tier": "manual", "active": true}""";
@@ -157,7 +157,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void rejectsATakenName() throws Exception {
 		mockMvc.perform(post("/api/case-categories").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -167,7 +167,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void rejectsACategoryWithoutADescription() throws Exception {
 		// The description is the only thing telling the model when a category applies.
 		mockMvc.perform(post("/api/case-categories").with(csrf())
@@ -178,7 +178,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void editsACategoryWithoutTouchingItsCode() throws Exception {
 		mockMvc.perform(put("/api/case-categories/" + orderStatus.getId()).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -193,7 +193,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void putsAColourOnACategoryAndTakesItOffAgain() throws Exception {
 		String body = """
 				{"name": "Statusanfrage Bestellung", "description": "Frage nach dem Liefertermin.",
@@ -213,7 +213,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void createsACategoryWithAColourAndRefusesOneOutsideThePalette() throws Exception {
 		String body = """
 				{"name": "Werbung", "description": "Newsletter und Kaltakquise.",
@@ -232,7 +232,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void refusesToDeactivateTheLastActiveCategory() throws Exception {
 		String deactivate = """
 				{"name": "%s", "description": "Egal.", "tier": "manual", "active": false}""";
@@ -251,7 +251,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void countsTheCasesThatPointAtEachCategory() throws Exception {
 		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Lieferung 4711", Instant.now(), false, 2048);
 		classified.applyTriage(orderStatus, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
@@ -266,7 +266,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void refusesToDeleteACategoryThatCasesStillPointAt() throws Exception {
 		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Lieferung 4711", Instant.now(), false, 2048);
 		classified.applyTriage(orderStatus, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
@@ -280,7 +280,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void deletesACategoryNothingPointsAt() throws Exception {
 		// Cases of another category are none of its business.
 		Case elsewhere = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Rechnung", Instant.now(), false, 2048);
@@ -295,7 +295,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void answersNotFoundForAnotherTenantsCategory() throws Exception {
 		CaseCategory foreign = caseCategoryRepository.save(new CaseCategory(otherTenant, "FOREIGN", "Fremd",
 				"Gehört jemand anderem.", CaseTier.MANUAL, 0));
@@ -306,7 +306,7 @@ class CaseCategoryControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ben")
+	@AsUser("ben")
 	void deniesEverythingToNonAdmins() throws Exception {
 		mockMvc.perform(get("/api/case-categories")).andExpect(status().isForbidden());
 		mockMvc.perform(delete("/api/case-categories/" + orderStatus.getId()).with(csrf()))

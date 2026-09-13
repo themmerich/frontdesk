@@ -90,6 +90,11 @@ Gaps in what exists, each small enough for one PR.
       configurable period (GDPR).
 - [ ] **Tenant onboarding** — create a tenant through a UI or at least a command; today tenants
       are seeded at startup.
+  - [x] A **super-user** above the tenants, created from the configuration at first start; the
+        login asks for the tenant's Kennung, so the same username may exist in several tenants,
+        and a super-user signs in with a Kennung to act in that tenant or without one to reach
+        the tenants area. The tenant is a fact about the session, resolved in one place.
+  - [ ] The Mandanten page: create, edit, delete and open a tenant.
 - [ ] **Several mailboxes per tenant** — e.g. info@ and rechnung@ side by side, each with its
       own category mapping.
 - [ ] **Server-side paging and search** — the list loads all of a tenant's cases into the

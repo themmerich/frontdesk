@@ -5,11 +5,11 @@ import de.prime_ux.backend.cases.CaseDetailResponse;
 import de.prime_ux.backend.cases.CaseDetails;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.users.AppUser;
+import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.users.AppUserRepository;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,13 +26,15 @@ import org.springframework.web.server.ResponseStatusException;
 @Slf4j
 class ReplySendController {
 
+	private final CurrentSession currentSession;
 	private final CaseRepository caseRepository;
 	private final CaseDetails caseDetails;
 	private final AppUserRepository appUserRepository;
 	private final ReplySender replySender;
 
-	ReplySendController(CaseRepository caseRepository, CaseDetails caseDetails, AppUserRepository appUserRepository,
+	ReplySendController(CurrentSession currentSession, CaseRepository caseRepository, CaseDetails caseDetails, AppUserRepository appUserRepository,
 			ReplySender replySender) {
+		this.currentSession = currentSession;
 		this.caseRepository = caseRepository;
 		this.caseDetails = caseDetails;
 		this.appUserRepository = appUserRepository;
@@ -45,8 +47,8 @@ class ReplySendController {
 	 * upstream's failure, not the request's, and is said so.
 	 */
 	@PostMapping
-	CaseDetailResponse send(@PathVariable UUID id, Authentication authentication) {
-		AppUser person = currentUser(authentication);
+	CaseDetailResponse send(@PathVariable UUID id) {
+		AppUser person = currentSession.user();
 		Case aCase = ownCase(id, person);
 		try {
 			return caseDetails.of(replySender.send(aCase, person));
@@ -60,14 +62,10 @@ class ReplySendController {
 
 	/** A case of another tenant is not found rather than forbidden — the answer must not say that it exists. */
 	private Case ownCase(UUID id, AppUser person) {
-		UUID tenantId = person.getTenant().getId();
+		UUID tenantId = currentSession.tenant().getId();
 		return caseRepository.findWithCategoryById(id)
 				.filter(candidate -> candidate.getTenant().getId().equals(tenantId))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 	}
 
-	private AppUser currentUser(Authentication authentication) {
-		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
 }

@@ -4,6 +4,7 @@ import de.prime_ux.backend.cases.CaseMessageRepository.MessageCountPerCase;
 import de.prime_ux.backend.triage.CaseCategory;
 import de.prime_ux.backend.triage.CaseCategoryRepository;
 import de.prime_ux.backend.users.AppUser;
+import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.users.AppUserRepository;
 import jakarta.validation.Valid;
 import java.nio.charset.StandardCharsets;
@@ -19,7 +20,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,6 +35,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/cases")
 class CaseController {
 
+	private final CurrentSession currentSession;
 	private final CaseRepository caseRepository;
 	private final CaseMessageRepository caseMessageRepository;
 	private final CaseAttachmentRepository caseAttachmentRepository;
@@ -43,9 +44,10 @@ class CaseController {
 	private final CaseCategoryRepository caseCategoryRepository;
 	private final AppUserRepository appUserRepository;
 
-	CaseController(CaseRepository caseRepository, CaseMessageRepository caseMessageRepository,
+	CaseController(CurrentSession currentSession, CaseRepository caseRepository, CaseMessageRepository caseMessageRepository,
 			CaseAttachmentRepository caseAttachmentRepository, CaseDetails caseDetails, CaseEvents caseEvents,
 			CaseCategoryRepository caseCategoryRepository, AppUserRepository appUserRepository) {
+		this.currentSession = currentSession;
 		this.caseRepository = caseRepository;
 		this.caseMessageRepository = caseMessageRepository;
 		this.caseAttachmentRepository = caseAttachmentRepository;
@@ -60,8 +62,8 @@ class CaseController {
 	 * long each conversation is comes from one grouped query rather than one per row.
 	 */
 	@GetMapping
-	List<CaseResponse> listCases(Authentication authentication) {
-		UUID tenantId = currentTenantId(authentication);
+	List<CaseResponse> listCases() {
+		UUID tenantId = currentSession.tenant().getId();
 		Map<UUID, Long> messageCounts = caseMessageRepository.countPerCase(tenantId).stream()
 				.collect(Collectors.toMap(MessageCountPerCase::getCaseId, MessageCountPerCase::getMessageCount));
 		return caseRepository.findAllByTenantIdOrderByLastMessageAtDesc(tenantId).stream()
@@ -73,8 +75,8 @@ class CaseController {
 	 * is not found rather than forbidden — the answer must not say that it exists.
 	 */
 	@GetMapping("/{id}")
-	CaseDetailResponse getCase(@PathVariable UUID id, Authentication authentication) {
-		return caseDetails.of(ownCase(id, currentTenantId(authentication)));
+	CaseDetailResponse getCase(@PathVariable UUID id) {
+		return caseDetails.of(ownCase(id, currentSession.tenant().getId()));
 	}
 
 	/**
@@ -85,9 +87,8 @@ class CaseController {
 	 * away can be read until it is purged.
 	 */
 	@GetMapping("/{id}/attachments/{attachmentId}")
-	ResponseEntity<byte[]> getAttachment(@PathVariable UUID id, @PathVariable UUID attachmentId,
-			Authentication authentication) {
-		Case aCase = ownCase(id, currentTenantId(authentication));
+	ResponseEntity<byte[]> getAttachment(@PathVariable UUID id, @PathVariable UUID attachmentId) {
+		Case aCase = ownCase(id, currentSession.tenant().getId());
 		CaseAttachment attachment = caseAttachmentRepository.findByIdAndMailCaseId(attachmentId, aCase.getId())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 		MediaType type = mediaTypeOf(attachment.getContentType());
@@ -126,9 +127,9 @@ class CaseController {
 	@PutMapping("/{id}/classification")
 	@Transactional
 	CaseDetailResponse changeClassification(@PathVariable UUID id,
-			@Valid @RequestBody ChangeClassificationRequest request, Authentication authentication) {
-		AppUser person = currentUser(authentication);
-		UUID tenantId = person.getTenant().getId();
+			@Valid @RequestBody ChangeClassificationRequest request) {
+		AppUser person = currentSession.user();
+		UUID tenantId = currentSession.tenant().getId();
 		Case aCase = ownCase(id, tenantId);
 		CaseCategory category = request.categoryId() == null ? null : ownCategory(request.categoryId(), tenantId);
 		aCase.changeCategory(category);
@@ -146,10 +147,9 @@ class CaseController {
 	 */
 	@PutMapping("/{id}/handled")
 	@Transactional
-	CaseDetailResponse markHandled(@PathVariable UUID id, @Valid @RequestBody MarkHandledRequest request,
-			Authentication authentication) {
-		AppUser person = currentUser(authentication);
-		Case aCase = ownCase(id, person.getTenant().getId());
+	CaseDetailResponse markHandled(@PathVariable UUID id, @Valid @RequestBody MarkHandledRequest request) {
+		AppUser person = currentSession.user();
+		Case aCase = ownCase(id, currentSession.tenant().getId());
 		aCase.markHandled(request.handled());
 		Case saved = caseRepository.save(aCase);
 		caseEvents.record(saved, request.handled() ? CaseEventType.HANDLED : CaseEventType.REOPENED, person, Map.of());
@@ -164,9 +164,9 @@ class CaseController {
 	@DeleteMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Transactional
-	void deleteCases(@Valid @RequestBody DeleteCasesRequest request, Authentication authentication) {
-		AppUser person = currentUser(authentication);
-		List<Case> own = ownCases(request.ids(), person.getTenant().getId());
+	void deleteCases(@Valid @RequestBody DeleteCasesRequest request) {
+		AppUser person = currentSession.user();
+		List<Case> own = ownCases(request.ids(), currentSession.tenant().getId());
 		own.forEach(Case::moveToTrash);
 		caseRepository.saveAll(own).forEach(aCase -> caseEvents.record(aCase, CaseEventType.TRASHED, person, Map.of()));
 	}
@@ -175,9 +175,9 @@ class CaseController {
 	@PutMapping("/restore")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Transactional
-	void restoreCases(@Valid @RequestBody DeleteCasesRequest request, Authentication authentication) {
-		AppUser person = currentUser(authentication);
-		List<Case> own = ownCases(request.ids(), person.getTenant().getId());
+	void restoreCases(@Valid @RequestBody DeleteCasesRequest request) {
+		AppUser person = currentSession.user();
+		List<Case> own = ownCases(request.ids(), currentSession.tenant().getId());
 		own.forEach(Case::restore);
 		caseRepository.saveAll(own).forEach(aCase -> caseEvents.record(aCase, CaseEventType.RESTORED, person, Map.of()));
 	}
@@ -189,11 +189,11 @@ class CaseController {
 	@DeleteMapping("/purge")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Transactional
-	void purgeCases(@Valid @RequestBody DeleteCasesRequest request, Authentication authentication) {
-		List<UUID> inTheTrash = ownCases(request.ids(), currentTenantId(authentication)).stream()
+	void purgeCases(@Valid @RequestBody DeleteCasesRequest request) {
+		List<UUID> inTheTrash = ownCases(request.ids(), currentSession.tenant().getId()).stream()
 				.filter(aCase -> aCase.getDeletedAt() != null).map(Case::getId).toList();
 		if (!inTheTrash.isEmpty()) {
-			caseRepository.deleteByTenantIdAndIdIn(currentTenantId(authentication), inTheTrash);
+			caseRepository.deleteByTenantIdAndIdIn(currentSession.tenant().getId(), inTheTrash);
 		}
 	}
 
@@ -213,13 +213,5 @@ class CaseController {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 	}
 
-	private UUID currentTenantId(Authentication authentication) {
-		return currentUser(authentication).getTenant().getId();
-	}
 
-	/** Who is at the desk — what they do to a case is written down in their name. */
-	private AppUser currentUser(Authentication authentication) {
-		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
 }

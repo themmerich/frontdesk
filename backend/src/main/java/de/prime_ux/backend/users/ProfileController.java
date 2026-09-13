@@ -1,5 +1,6 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.branches.Branch;
 import de.prime_ux.backend.branches.BranchRepository;
 import jakarta.validation.Valid;
@@ -10,7 +11,6 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -37,13 +37,15 @@ class ProfileController {
 			MediaType.IMAGE_JPEG_VALUE, "image/webp");
 	private static final long MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
+	private final CurrentSession currentSession;
 	private final AppUserRepository appUserRepository;
 	private final UserAvatarRepository userAvatarRepository;
 	private final BranchRepository branchRepository;
 	private final PasswordEncoder passwordEncoder;
 
-	ProfileController(AppUserRepository appUserRepository, UserAvatarRepository userAvatarRepository,
+	ProfileController(CurrentSession currentSession, AppUserRepository appUserRepository, UserAvatarRepository userAvatarRepository,
 			BranchRepository branchRepository, PasswordEncoder passwordEncoder) {
+		this.currentSession = currentSession;
 		this.appUserRepository = appUserRepository;
 		this.userAvatarRepository = userAvatarRepository;
 		this.branchRepository = branchRepository;
@@ -51,15 +53,14 @@ class ProfileController {
 	}
 
 	@GetMapping
-	ProfileResponse profile(Authentication authentication) {
-		return ProfileResponse.from(currentUser(authentication));
+	ProfileResponse profile() {
+		return ProfileResponse.from(currentSession.user());
 	}
 
 	@PutMapping
 	@Transactional
-	ProfileResponse updateProfile(@Valid @RequestBody UpdateProfileRequest request,
-			Authentication authentication) {
-		AppUser user = currentUser(authentication);
+	ProfileResponse updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
+		AppUser user = currentSession.user();
 		user.updateProfile(request.firstName().trim(), request.lastName().trim(), request.birthDate(),
 				request.joinedAt(), resolveBranch(request.branchId(), user), normalize(request.email()),
 				normalize(request.phone()), normalize(request.fax()), normalize(request.position()));
@@ -69,8 +70,8 @@ class ProfileController {
 
 	@PutMapping("/password")
 	@Transactional
-	void changePassword(@Valid @RequestBody ChangePasswordRequest request, Authentication authentication) {
-		AppUser user = currentUser(authentication);
+	void changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+		AppUser user = currentSession.user();
 		if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "current password is wrong");
 		}
@@ -80,8 +81,8 @@ class ProfileController {
 
 	@PutMapping("/avatar")
 	@Transactional
-	void uploadAvatar(@RequestParam("file") MultipartFile file, Authentication authentication) {
-		AppUser user = currentUser(authentication);
+	void uploadAvatar(@RequestParam("file") MultipartFile file) {
+		AppUser user = currentSession.user();
 		if (file.isEmpty() || file.getSize() > MAX_IMAGE_BYTES) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "image must be between 1 byte and 2 MB");
 		}
@@ -96,8 +97,8 @@ class ProfileController {
 	}
 
 	@GetMapping("/avatar")
-	ResponseEntity<byte[]> getAvatar(Authentication authentication) {
-		AppUser user = currentUser(authentication);
+	ResponseEntity<byte[]> getAvatar() {
+		AppUser user = currentSession.user();
 		return userAvatarRepository.findByUserId(user.getId())
 				.map(avatar -> ResponseEntity.ok()
 						// The frontend busts the cache with a version query parameter after
@@ -111,8 +112,8 @@ class ProfileController {
 	@DeleteMapping("/avatar")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Transactional
-	void deleteAvatar(Authentication authentication) {
-		AppUser user = currentUser(authentication);
+	void deleteAvatar() {
+		AppUser user = currentSession.user();
 		userAvatarRepository.deleteByUserId(user.getId());
 	}
 
@@ -129,7 +130,7 @@ class ProfileController {
 		if (branchId == null) {
 			return null;
 		}
-		return branchRepository.findByIdAndTenantId(branchId, user.getTenant().getId())
+		return branchRepository.findByIdAndTenantId(branchId, currentSession.tenant().getId())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "unknown branch"));
 	}
 
@@ -141,8 +142,4 @@ class ProfileController {
 		return value.trim();
 	}
 
-	private AppUser currentUser(Authentication authentication) {
-		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
 }

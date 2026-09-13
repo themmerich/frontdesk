@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 // Backend-less like the other e2e specs: the API is mocked per test, the
 // assertions use the German texts because de is the default language.
-const mockUser = { username: 'admin', displayName: 'Anna Admin', role: 'admin', tenantName: 'Musterfirma GmbH' };
+const mockUser = { username: 'admin', displayName: 'Anna Admin', role: 'admin', tenant: { slug: 'musterfirma', name: 'Musterfirma GmbH' } };
 
 const listed = [
   {

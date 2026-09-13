@@ -17,11 +17,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Seeds a demo tenant with one admin, one regular user, and a GreenMail mailbox configuration.
+ * Seeds a demo tenant with one admin, one regular user, a GreenMail mailbox configuration, and a
+ * demo super-user.
  * Deliberately not a Flyway migration: migrations run in every environment, and demo credentials
  * must never exist in production. The property carrying the switch is off unless set; only
  * application-dev.properties sets it, and the dev profile is only activated by bootRun — a
- * packaged jar never seeds. Users are seeded only while the users table is empty; the mailbox
+ * packaged jar never seeds. The tenant is seeded only while there is none, the super-user only
+ * while there is none; the mailbox
  * configuration is added to any tenant still missing one, which also heals dev databases from
  * before mail settings existed.
  */
@@ -56,17 +58,22 @@ class DemoDataSeeder implements ApplicationRunner {
 	}
 
 	private void seedUsersIfEmpty() {
-		if (appUserRepository.count() > 0) {
-			return;
-		}
-		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
-		branchRepository.save(new Branch(tenant, tenant.getName(), true));
-		branchRepository.save(new Branch(tenant, "Filiale Hamburg", false));
 		// Same demo password as the GreenMail mailbox, so dev needs to remember only one.
 		String passwordHash = passwordEncoder.encode("secret");
-		appUserRepository.save(new AppUser(tenant, "admin", "Anna", "Admin", passwordHash, UserRole.ADMIN));
-		appUserRepository.save(new AppUser(tenant, "user", "Uwe", "User", passwordHash, UserRole.USER));
-		log.info("Seeded demo tenant '{}' with users admin and user", tenant.getName());
+		if (tenantRepository.count() == 0) {
+			Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
+			branchRepository.save(new Branch(tenant, tenant.getName(), true));
+			branchRepository.save(new Branch(tenant, "Filiale Hamburg", false));
+			appUserRepository.save(new AppUser(tenant, "admin", "Anna", "Admin", passwordHash, UserRole.ADMIN));
+			appUserRepository.save(new AppUser(tenant, "user", "Uwe", "User", passwordHash, UserRole.USER));
+			log.info("Seeded demo tenant '{}' ({}) with users admin and user", tenant.getName(), tenant.getSlug());
+		}
+		// The super-user stands outside the tenants and is checked on its own: a dev database
+		// from before super-users existed has a tenant and no super-user.
+		if (!appUserRepository.existsByRole(UserRole.SUPERUSER)) {
+			appUserRepository.save(AppUser.superuser("super", "Sina", "Super", passwordHash));
+			log.info("Seeded demo super-user 'super'");
+		}
 	}
 
 	private void seedMailSettingsWhereMissing() {

@@ -34,8 +34,8 @@ class CaseRepositoryTest {
 
 	@BeforeEach
 	void createTenants() {
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
-		otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
+		otherTenant = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 	}
 
 	@Test

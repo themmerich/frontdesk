@@ -4,14 +4,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.RequestCacheConfigurer;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -35,27 +31,30 @@ class SecurityConfig {
 		http
 			.authorizeHttpRequests(requests -> requests
 				.requestMatchers("/api/auth/login").permitAll()
-				// Tenant administration (mailbox settings, user management) is
-				// the admins' realm.
-				.requestMatchers("/api/settings/**").hasRole("ADMIN")
-				.requestMatchers("/api/users/**").hasRole("ADMIN")
+				// Tenant administration (mailbox settings, user management) is the
+				// admins' realm — and a super-user's, once they have opened a tenant;
+				// without one, CurrentSession answers every tenant-bound call with 403.
+				// Opening and closing a tenant is the super-user's alone.
+				.requestMatchers("/api/auth/tenant").hasRole("SUPERUSER")
+				.requestMatchers("/api/settings/**").hasAnyRole("ADMIN", "SUPERUSER")
+				.requestMatchers("/api/users/**").hasAnyRole("ADMIN", "SUPERUSER")
 				// What the model costs is the admin's concern, like the key that pays for it.
-				.requestMatchers("/api/ai-usage/**").hasRole("ADMIN")
+				.requestMatchers("/api/ai-usage/**").hasAnyRole("ADMIN", "SUPERUSER")
 				// Before the admin rule below, which would otherwise swallow it: whoever
 				// works in the inbox files cases under a category and needs to read the
 				// list of them. Managing the categories stays with the admins.
 				.requestMatchers(HttpMethod.GET, "/api/case-categories/selectable").authenticated()
-				.requestMatchers("/api/case-categories/**").hasRole("ADMIN")
-				.requestMatchers("/api/triage-settings/**").hasRole("ADMIN")
+				.requestMatchers("/api/case-categories/**").hasAnyRole("ADMIN", "SUPERUSER")
+				.requestMatchers("/api/triage-settings/**").hasAnyRole("ADMIN", "SUPERUSER")
 				// Everyone reads the company (the sidebar shows name and logo);
 				// only admins change it.
-				.requestMatchers(HttpMethod.PUT, "/api/company/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.DELETE, "/api/company/**").hasRole("ADMIN")
+				.requestMatchers(HttpMethod.PUT, "/api/company/**").hasAnyRole("ADMIN", "SUPERUSER")
+				.requestMatchers(HttpMethod.DELETE, "/api/company/**").hasAnyRole("ADMIN", "SUPERUSER")
 				// Everyone reads the branches (the profile offers them as a
 				// dropdown); only admins manage them.
-				.requestMatchers(HttpMethod.POST, "/api/branches/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.PUT, "/api/branches/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.DELETE, "/api/branches/**").hasRole("ADMIN")
+				.requestMatchers(HttpMethod.POST, "/api/branches/**").hasAnyRole("ADMIN", "SUPERUSER")
+				.requestMatchers(HttpMethod.PUT, "/api/branches/**").hasAnyRole("ADMIN", "SUPERUSER")
+				.requestMatchers(HttpMethod.DELETE, "/api/branches/**").hasAnyRole("ADMIN", "SUPERUSER")
 				.anyRequest().authenticated())
 			.csrf(csrf -> csrf
 				.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
@@ -77,10 +76,4 @@ class SecurityConfig {
 		return PasswordEncoderFactories.createDelegatingPasswordEncoder();
 	}
 
-	@Bean
-	AuthenticationManager authenticationManager(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
-		DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
-		provider.setPasswordEncoder(passwordEncoder);
-		return new ProviderManager(provider);
-	}
 }

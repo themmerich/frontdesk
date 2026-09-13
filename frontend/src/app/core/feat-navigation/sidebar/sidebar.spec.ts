@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection, signal } from '@angular/core';
+import { computed, provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
@@ -19,15 +19,32 @@ const translations = {
     profile: 'Profile',
     emailSettings: 'Email',
     signOut: 'Sign out',
+    tenants: 'Tenants',
+    tenantsOverview: 'Overview',
+    closeTenant: 'Close tenant',
   },
 };
 
+const musterfirma = { slug: 'musterfirma', name: 'Musterfirma GmbH' };
+
 describe('Sidebar', () => {
   const currentUser = signal<CurrentUser | null>(null);
+  let tenantsClosed: number;
   const authStoreStub = {
     currentUser,
     avatarUrl: signal<string | null>(null),
+    isSuperuser: computed(() => currentUser()?.role === 'superuser'),
+    hasTenant: computed(() => (currentUser()?.tenant ?? null) !== null),
+    canAdminister: computed(() => {
+      const user = currentUser();
+      return user?.role === 'admin' || (user?.role === 'superuser' && user.tenant !== null);
+    }),
     logout: () => Promise.resolve(),
+    closeTenant: () => {
+      tenantsClosed++;
+      currentUser.update((user) => (user ? { ...user, tenant: null } : user));
+      return Promise.resolve();
+    },
   } as unknown as AuthStore;
 
   const companyName = signal<string | undefined>(undefined);
@@ -43,11 +60,12 @@ describe('Sidebar', () => {
 
   beforeEach(async () => {
     forgotten = 0;
+    tenantsClosed = 0;
     currentUser.set({
       username: 'admin',
       displayName: 'Anna Admin',
       role: 'admin',
-      tenantName: 'Musterfirma GmbH',
+      tenant: musterfirma,
       hasAvatar: false,
     });
     companyName.set(undefined);
@@ -195,7 +213,7 @@ describe('Sidebar', () => {
       username: 'user',
       displayName: 'Uwe User',
       role: 'user',
-      tenantName: 'Musterfirma GmbH',
+      tenant: musterfirma,
       hasAvatar: false,
     });
     const userFixture = TestBed.createComponent(Sidebar);
@@ -214,11 +232,52 @@ describe('Sidebar', () => {
       username: 'user',
       displayName: 'Uwe User',
       role: 'user',
-      tenantName: 'Musterfirma GmbH',
+      tenant: musterfirma,
       hasAvatar: false,
     });
     const userFixture = TestBed.createComponent(Sidebar);
     userFixture.detectChanges();
     expect((userFixture.nativeElement as HTMLElement).querySelector('a[href="/settings"]')).toBeNull();
+  });
+  it('shows a super-user without a tenant the tenants group and nothing of any tenant', () => {
+    currentUser.set({ username: 'super', displayName: 'Sina Super', role: 'superuser', tenant: null, hasAvatar: false });
+    const fixture = TestBed.createComponent(Sidebar);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.textContent).toContain('Tenants');
+    expect(element.querySelector('a[href="/tenants"]')?.textContent).toContain('Overview');
+    expect(element.textContent).not.toContain('Cases');
+    expect(element.textContent).not.toContain('Administration');
+    expect(element.textContent).not.toContain('Close tenant');
+  });
+
+  it('shows a super-user with a tenant open all three groups, and lets them close it', async () => {
+    currentUser.set({ username: 'super', displayName: 'Sina Super', role: 'superuser', tenant: musterfirma, hasAvatar: false });
+    const router = TestBed.inject(Router);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(Sidebar);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.textContent).toContain('Cases');
+    expect(element.textContent).toContain('Administration');
+    expect(element.textContent).toContain('Tenants');
+
+    const close = Array.from(element.querySelectorAll('button')).find((button) => button.textContent?.includes('Close tenant'));
+    close?.click();
+    await fixture.whenStable();
+
+    expect(tenantsClosed).toBe(1);
+    // The brand was the tenant's; the next page must not keep showing it.
+    expect(forgotten).toBe(1);
+    expect(navigateSpy).toHaveBeenCalledWith(['/tenants']);
+  });
+
+  it('never shows the tenants group to a tenant admin', () => {
+    const fixture = TestBed.createComponent(Sidebar);
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('a[href="/tenants"]')).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import de.prime_ux.backend.cases.CaseEventType;
 import de.prime_ux.backend.cases.CaseEvents;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.users.AppUser;
+import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.users.AppUserRepository;
 
 import jakarta.validation.Valid;
@@ -14,7 +15,6 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,14 +34,16 @@ import org.springframework.web.server.ResponseStatusException;
 @Slf4j
 class ReplyDraftController {
 
+	private final CurrentSession currentSession;
 	private final CaseRepository caseRepository;
 	private final CaseDetails caseDetails;
 	private final CaseEvents caseEvents;
 	private final AppUserRepository appUserRepository;
 	private final ReplyDraftProcessor replyDraftProcessor;
 
-	ReplyDraftController(CaseRepository caseRepository, CaseDetails caseDetails, CaseEvents caseEvents,
+	ReplyDraftController(CurrentSession currentSession, CaseRepository caseRepository, CaseDetails caseDetails, CaseEvents caseEvents,
 			AppUserRepository appUserRepository, ReplyDraftProcessor replyDraftProcessor) {
+		this.currentSession = currentSession;
 		this.caseRepository = caseRepository;
 		this.caseDetails = caseDetails;
 		this.caseEvents = caseEvents;
@@ -57,9 +59,8 @@ class ReplyDraftController {
 	 */
 	@PostMapping
 	@Transactional
-	CaseDetailResponse generate(@PathVariable UUID id, @Valid @RequestBody(required = false) GenerateDraftRequest request,
-			Authentication authentication) {
-		AppUser person = currentUser(authentication);
+	CaseDetailResponse generate(@PathVariable UUID id, @Valid @RequestBody(required = false) GenerateDraftRequest request) {
+		AppUser person = currentSession.user();
 		Case aCase = ownDraftableCase(id, person);
 		try {
 			return caseDetails.of(
@@ -78,9 +79,8 @@ class ReplyDraftController {
 	 */
 	@PutMapping
 	@Transactional
-	CaseDetailResponse edit(@PathVariable UUID id, @Valid @RequestBody EditDraftRequest request,
-			Authentication authentication) {
-		AppUser person = currentUser(authentication);
+	CaseDetailResponse edit(@PathVariable UUID id, @Valid @RequestBody EditDraftRequest request) {
+		AppUser person = currentSession.user();
 		Case aCase = ownDraftableCase(id, person);
 		aCase.editDraft(request.text());
 		Case saved = caseRepository.save(aCase);
@@ -93,7 +93,7 @@ class ReplyDraftController {
 	 * it exists. A case in the trash is found, but nobody answers a mail that was thrown away.
 	 */
 	private Case ownDraftableCase(UUID id, AppUser person) {
-		UUID tenantId = person.getTenant().getId();
+		UUID tenantId = currentSession.tenant().getId();
 		Case aCase = caseRepository.findWithCategoryById(id)
 				.filter(candidate -> candidate.getTenant().getId().equals(tenantId))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
@@ -103,9 +103,4 @@ class ReplyDraftController {
 		return aCase;
 	}
 
-	/** Who is asking — the reply is signed in their name. */
-	private AppUser currentUser(Authentication authentication) {
-		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
 }

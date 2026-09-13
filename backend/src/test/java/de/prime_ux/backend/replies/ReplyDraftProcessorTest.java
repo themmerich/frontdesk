@@ -128,7 +128,7 @@ class ReplyDraftProcessorTest {
 		branchRepository.deleteAll();
 		// The configuration goes with its tenant (FK cascade).
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
 		stubReplyDraftService.reset();
 	}
 

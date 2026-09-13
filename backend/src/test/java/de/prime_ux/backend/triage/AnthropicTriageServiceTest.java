@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
  */
 class AnthropicTriageServiceTest {
 
-	private static final Tenant TENANT = new Tenant("Musterfirma GmbH");
+	private static final Tenant TENANT = new Tenant("Musterfirma GmbH", "musterfirma");
 
 	private static final String BODY = "Bitte um eine Kopie.";
 

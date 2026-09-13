@@ -24,7 +24,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = "frontdesk.mail.polling-enabled=false")
@@ -69,8 +69,8 @@ class UserControllerTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
-		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
+		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 		headquarters = branchRepository.save(new Branch(tenant, "Zentrale", true));
 		otherTenantsBranch = branchRepository.save(new Branch(otherTenant, "Fremde Filiale", true));
 		anna = appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Admin", "{noop}irrelevant",
@@ -83,7 +83,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void listsOnlyTheOwnTenantsUsersSortedByName() throws Exception {
 		mockMvc.perform(get("/api/users"))
 				.andExpect(status().isOk())
@@ -100,7 +100,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void createsAUserInTheAdminsOwnTenant() throws Exception {
 		mockMvc.perform(post("/api/users").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -116,7 +116,7 @@ class UserControllerTest {
 				.andExpect(jsonPath("$.role").value("user"))
 				.andExpect(jsonPath("$.active").value(true));
 
-		AppUser created = appUserRepository.findUniqueByUsernameIgnoreCase("clara").orElseThrow();
+		AppUser created = TestUsers.find(appUserRepository, "clara").orElseThrow();
 		assertThat(created.getTenant().getId()).isEqualTo(anna.getTenant().getId());
 		assertThat(created.getBranch().getId()).isEqualTo(headquarters.getId());
 		// The password is stored hashed, never as typed.
@@ -124,7 +124,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void createsAnInactiveAdminWithoutABranch() throws Exception {
 		mockMvc.perform(post("/api/users").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -135,12 +135,12 @@ class UserControllerTest {
 				.andExpect(jsonPath("$.role").value("admin"))
 				.andExpect(jsonPath("$.active").value(false));
 
-		AppUser created = appUserRepository.findUniqueByUsernameIgnoreCase("dora").orElseThrow();
+		AppUser created = TestUsers.find(appUserRepository, "dora").orElseThrow();
 		assertThat(created.getBranch()).isNull();
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void rejectsATakenUsername() throws Exception {
 		mockMvc.perform(post("/api/users").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -148,11 +148,11 @@ class UserControllerTest {
 						{"username": "BEN", "firstName": "Ben", "lastName": "Zweit",
 						 "password": "geheim1234", "role": "user", "active": true}"""))
 				.andExpect(status().isConflict());
-		assertThat(appUserRepository.findAllByUsernameIgnoreCase("ben")).hasSize(1);
+		assertThat(TestUsers.findAll(appUserRepository, "ben")).hasSize(1);
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void rejectsABranchOfAnotherTenant() throws Exception {
 		mockMvc.perform(post("/api/users").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -161,11 +161,11 @@ class UserControllerTest {
 						 "password": "geheim1234", "role": "user", "active": true,
 						 "branchId": "%s"}""".formatted(otherTenantsBranch.getId())))
 				.andExpect(status().isBadRequest());
-		assertThat(appUserRepository.findAllByUsernameIgnoreCase("erik")).isEmpty();
+		assertThat(TestUsers.findAll(appUserRepository, "erik")).isEmpty();
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void rejectsATooShortPassword() throws Exception {
 		mockMvc.perform(post("/api/users").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -173,11 +173,11 @@ class UserControllerTest {
 						{"username": "frida", "firstName": "Frida", "lastName": "Kurz",
 						 "password": "kurz", "role": "user", "active": true}"""))
 				.andExpect(status().isBadRequest());
-		assertThat(appUserRepository.findAllByUsernameIgnoreCase("frida")).isEmpty();
+		assertThat(TestUsers.findAll(appUserRepository, "frida")).isEmpty();
 	}
 
 	@Test
-	@WithMockUser(username = "ben")
+	@AsUser("ben")
 	void deniesCreationToNonAdmins() throws Exception {
 		mockMvc.perform(post("/api/users").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -188,7 +188,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void updatesAUserOfTheOwnTenantWithoutTouchingTheirPassword() throws Exception {
 		String passwordHash = ben.getPasswordHash();
 		mockMvc.perform(put("/api/users/" + ben.getId()).with(csrf())
@@ -211,7 +211,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void rejectsAnAdminTakingAwayTheirOwnAccess() throws Exception {
 		mockMvc.perform(put("/api/users/" + anna.getId()).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -224,7 +224,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void rejectsRenamingAUserToATakenName() throws Exception {
 		mockMvc.perform(put("/api/users/" + ben.getId()).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -236,7 +236,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void answersNotFoundWhenEditingAnotherTenantsUser() throws Exception {
 		mockMvc.perform(put("/api/users/" + fritz.getId()).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -249,7 +249,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void deactivatesAndReactivatesAUserOfTheOwnTenant() throws Exception {
 		mockMvc.perform(put("/api/users/" + ben.getId() + "/active").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -268,7 +268,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void rejectsAdminsDeactivatingThemselves() throws Exception {
 		mockMvc.perform(put("/api/users/" + anna.getId() + "/active").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -278,7 +278,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void answersNotFoundForAnotherTenantsUser() throws Exception {
 		mockMvc.perform(put("/api/users/" + fritz.getId() + "/active").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -288,7 +288,7 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ben")
+	@AsUser("ben")
 	void deniesDeactivationToNonAdmins() throws Exception {
 		mockMvc.perform(put("/api/users/" + anna.getId() + "/active").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -297,13 +297,13 @@ class UserControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ben")
+	@AsUser("ben")
 	void deniesTheListToNonAdmins() throws Exception {
 		mockMvc.perform(get("/api/users")).andExpect(status().isForbidden());
 	}
 
 	@Test
-	@WithMockUser(username = "ghost", roles = "ADMIN")
+	@AsUser(value = "ghost", role = "ADMIN")
 	void answersUnauthorizedWhenTheSessionUserNoLongerExists() throws Exception {
 		mockMvc.perform(get("/api/users")).andExpect(status().isUnauthorized());
 	}

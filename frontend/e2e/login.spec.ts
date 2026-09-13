@@ -6,7 +6,7 @@ const mockUser = {
   username: 'admin',
   displayName: 'Anna Admin',
   role: 'admin',
-  tenantName: 'Musterfirma GmbH',
+  tenant: { slug: 'musterfirma', name: 'Musterfirma GmbH' },
 };
 
 test.describe('Login', () => {
@@ -28,16 +28,23 @@ test.describe('Login', () => {
 
   test('signs in and lands on the cases page', async ({ page }) => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401 }));
-    await page.route('**/api/auth/login', (route) => route.fulfill({ json: mockUser }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
 
+    let sent: Record<string, unknown> | undefined;
+    await page.route('**/api/auth/login', (route) => {
+      sent = route.request().postDataJSON() as Record<string, unknown>;
+      return route.fulfill({ json: mockUser });
+    });
+
     await page.goto('/login');
+    await page.getByLabel('Mandant').fill('musterfirma');
     await page.getByLabel('Benutzername').fill('admin');
     await page.getByLabel('Passwort').fill('secret');
     await page.getByRole('button', { name: 'Anmelden' }).click();
 
     await expect(page.getByRole('heading', { name: 'Vorgänge' })).toBeVisible();
+    expect(sent).toEqual({ tenant: 'musterfirma', username: 'admin', password: 'secret' });
     // The sidebar footer shows who is signed in, and for which tenant; the
     // company name also brands the sidebar's top, hence first().
     await expect(page.getByText('Anna Admin')).toBeVisible();
@@ -71,5 +78,25 @@ test.describe('Login', () => {
     await expect(page.getByText('Bitte den Benutzernamen angeben.')).toBeVisible();
     await expect(page.getByText('Bitte das Passwort angeben.')).toBeVisible();
     expect(loginCalled).toBe(false);
+  });
+  test('sends a super-user without a tenant to the tenants page', async ({ page }) => {
+    const superuser = { username: 'super', displayName: 'Sina Super', role: 'superuser', tenant: null };
+    await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401 }));
+    await page.route('**/api/auth/login', (route) => route.fulfill({ json: superuser }));
+    await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'frontdesk', hasLogo: false } }));
+
+    await page.goto('/login');
+    // The tenant field stays empty: that is what says "super-user".
+    await page.getByLabel('Benutzername').fill('super');
+    await page.getByLabel('Passwort').fill('secret');
+    await page.getByRole('button', { name: 'Anmelden' }).click();
+
+    await expect(page).toHaveURL(/\/tenants$/);
+    await expect(page.getByRole('heading', { name: 'Mandanten' })).toBeVisible();
+    // Nothing of any tenant in the sidebar, only the tenants group.
+    const navigation = page.getByRole('navigation');
+    await expect(navigation.getByText('Mandanten')).toBeVisible();
+    await expect(navigation.getByText('Vorgänge')).toHaveCount(0);
+    await expect(navigation.getByText('Administration')).toHaveCount(0);
   });
 });

@@ -74,7 +74,7 @@ class AiCallsTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
 		mailCase = caseRepository.save(new Case(tenant, "<m@test>", "kunde@example.com", "info@musterfirma.de",
 				"Rechnung", Instant.parse("2026-09-01T10:00:00Z"), false, 2048));
 	}

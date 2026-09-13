@@ -22,7 +22,10 @@
     "preset": "Preset",
     "categories": "Kategorien",
     "aiSettings": "KI-Zugang",
-    "aiCosts": "KI-Kosten"
+    "aiCosts": "KI-Kosten",
+    "tenants": "Mandanten",
+    "tenantsOverview": "Übersicht",
+    "closeTenant": "Mandant schließen"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -502,8 +505,14 @@
     "loadError": "Profil konnte nicht geladen werden. Läuft das Backend?",
     "position": "Position"
   },
+  "tenants": {
+    "title": "Mandanten",
+    "comingSoon": "Die Verwaltung der Mandanten folgt: anlegen, bearbeiten, löschen und öffnen."
+  },
   "login": {
     "title": "Anmelden",
+    "tenant": "Mandant",
+    "tenantHint": "Kennung des Betriebs. Als Super-User leer lassen.",
     "username": "Benutzername",
     "password": "Passwort",
     "submit": "Anmelden",

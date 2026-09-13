@@ -29,7 +29,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = "frontdesk.mail.polling-enabled=false")
@@ -79,12 +79,12 @@ class AiSettingsControllerTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
 		appUserRepository.save(new AppUser(tenant, "admin", "Anna", "Admin", "{noop}irrelevant", UserRole.ADMIN));
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void reportsThatNoKeyIsStoredWhileTheTenantRunsOnThePlatformsCredentials() throws Exception {
 		mockMvc.perform(get("/api/settings/ai"))
 				.andExpect(status().isOk())
@@ -95,7 +95,7 @@ class AiSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void storesAKeyWithoutEverHandingItBack() throws Exception {
 		mockMvc.perform(put("/api/settings/ai").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON).content(KEY_JSON.formatted(A_KEY)))
@@ -116,7 +116,7 @@ class AiSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void putsTheTenantBackOnThePlatformsCredentials() throws Exception {
 		mockMvc.perform(put("/api/settings/ai").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON).content(KEY_JSON.formatted(A_KEY)))
@@ -130,7 +130,7 @@ class AiSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void refusesSomethingThatIsNotAKey() throws Exception {
 		// Catches a pasted mail address or a truncated line; whether the key works
 		// is the provider's answer, which is what the test endpoint is for.

@@ -83,7 +83,7 @@ class MailIngestServiceTest {
 		// this context's database.
 		tenantMailSettingsRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
 		greenMail.purgeEmailFromAllMailboxes();
 	}
 
@@ -178,7 +178,7 @@ class MailIngestServiceTest {
 
 	@Test
 	void attributesEachInboxToItsOwnTenant() {
-		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 		GreenMailUser inboxA = greenMail.setUser("a@frontdesk.local", "a@frontdesk.local", "secret");
 		GreenMailUser inboxB = greenMail.setUser("b@frontdesk.local", "b@frontdesk.local", "secret");
 		// The same mail delivered to both inboxes keeps its Message-ID — each

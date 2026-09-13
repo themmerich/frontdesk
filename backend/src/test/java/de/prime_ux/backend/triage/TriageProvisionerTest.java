@@ -66,7 +66,7 @@ class TriageProvisionerTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
 	}
 
 	@Test
@@ -151,7 +151,7 @@ class TriageProvisionerTest {
 
 	@Test
 	void configuresEveryTenantSeparately() {
-		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 
 		triageProvisioner.run(new DefaultApplicationArguments());
 

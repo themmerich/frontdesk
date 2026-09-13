@@ -9,6 +9,8 @@ import { MessageModule } from 'primeng/message';
 import { AuthStore } from '../data/auth-store';
 
 type Credentials = {
+  /** The tenant's Kennung; left empty by a super-user. */
+  tenant: string;
   username: string;
   password: string;
 };
@@ -24,7 +26,7 @@ export class LoginPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly credentials = signal<Credentials>({ username: '', password: '' });
+  protected readonly credentials = signal<Credentials>({ tenant: '', username: '', password: '' });
   protected readonly loginForm = form(this.credentials, (schemaPath) => {
     required(schemaPath.username);
     required(schemaPath.password);
@@ -43,9 +45,9 @@ export class LoginPage {
       this.hasLoginFailed.set(false);
       this.isSubmitting.set(true);
       try {
-        const { username, password } = this.credentials();
-        if (await this.authStore.login(username, password)) {
-          await this.router.navigateByUrl(this.route.snapshot.queryParamMap.get('returnUrl') ?? '/');
+        const { tenant, username, password } = this.credentials();
+        if (await this.authStore.login(tenant, username, password)) {
+          await this.router.navigateByUrl(this.landingUrl());
         } else {
           this.hasLoginFailed.set(true);
         }
@@ -53,5 +55,17 @@ export class LoginPage {
         this.isSubmitting.set(false);
       }
     });
+  }
+
+  /**
+   * Where to go once signed in: where the person wanted to go, or the inbox — unless the session
+   * is about no tenant yet, which is a super-user's case: then the Mandanten page, the one page
+   * that needs none.
+   */
+  private landingUrl(): string {
+    if (!this.authStore.hasTenant()) {
+      return '/tenants';
+    }
+    return this.route.snapshot.queryParamMap.get('returnUrl') ?? '/';
   }
 }

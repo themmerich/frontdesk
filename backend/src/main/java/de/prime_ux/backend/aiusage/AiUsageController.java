@@ -2,12 +2,12 @@ package de.prime_ux.backend.aiusage;
 
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.users.AppUser;
+import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.users.AppUserRepository;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,11 +22,13 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/ai-usage")
 class AiUsageController {
 
+	private final CurrentSession currentSession;
 	private final AiCallRepository aiCallRepository;
 	private final AppUserRepository appUserRepository;
 	private final AiPrices aiPrices;
 
-	AiUsageController(AiCallRepository aiCallRepository, AppUserRepository appUserRepository, AiPrices aiPrices) {
+	AiUsageController(CurrentSession currentSession, AiCallRepository aiCallRepository, AppUserRepository appUserRepository, AiPrices aiPrices) {
+		this.currentSession = currentSession;
 		this.aiCallRepository = aiCallRepository;
 		this.appUserRepository = appUserRepository;
 		this.aiPrices = aiPrices;
@@ -34,9 +36,9 @@ class AiUsageController {
 
 	@GetMapping
 	@Transactional(readOnly = true)
-	AiUsageResponse getUsage(Authentication authentication) {
+	AiUsageResponse getUsage() {
 		Instant now = Instant.now();
-		UUID tenantId = currentTenant(authentication).getId();
+		UUID tenantId = currentSession.tenant().getId();
 		// The server's zone decides where a day, a month and a year end; the tenants are German
 		// businesses and the server stands where they do.
 		ZoneId zone = ZoneId.systemDefault();
@@ -49,9 +51,4 @@ class AiUsageController {
 				now, zone, this.aiPrices);
 	}
 
-	private Tenant currentTenant(Authentication authentication) {
-		return this.appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.map(AppUser::getTenant)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
 }
