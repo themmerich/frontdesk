@@ -1,10 +1,12 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.tenants.TenantCount;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
@@ -32,4 +34,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 	Optional<AppUser> findByTenantIsNullAndUsernameIgnoreCase(String username);
 
 	boolean existsByRole(UserRole role);
+
+	/** Users per tenant for the Mandanten page, one query however many tenants; super-users are nobody's. */
+	@Query("select u.tenant.id as tenantId, count(u) as count from AppUser u where u.tenant is not null group by u.tenant.id")
+	List<TenantCount> countPerTenant();
 }

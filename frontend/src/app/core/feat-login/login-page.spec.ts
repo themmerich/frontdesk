@@ -3,14 +3,12 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
-import { AuthStore } from '../data/auth-store';
-import { LoginPage } from './login-page';
+import { AuthStore } from '../../shared/data/auth-store';
+import { LoginPage, TENANT_STORAGE_KEY } from './login-page';
 
 const translations = {
   login: {
-    title: 'Sign in',
     tenant: 'Tenant',
-    tenantHint: 'Leave empty as a super-user.',
     username: 'Username',
     password: 'Password',
     submit: 'Sign in',
@@ -37,6 +35,7 @@ describe('LoginPage', () => {
     loginResult = true;
     receivedCredentials = undefined;
     hasTenant.set(true);
+    localStorage.removeItem(TENANT_STORAGE_KEY);
     await TestBed.configureTestingModule({
       imports: [
         LoginPage,
@@ -75,7 +74,9 @@ describe('LoginPage', () => {
 
     const ids = Array.from(element.querySelectorAll('input')).map((input) => input.id);
     expect(ids).toEqual(['tenant', 'username', 'password']);
-    expect(element.textContent).toContain('Leave empty as a super-user.');
+    // The brand is the heading, as a logo; the fields carry their labels floating.
+    expect(element.querySelector('h1 svg[aria-label="frontdesk"]')).not.toBeNull();
+    expect(element.querySelectorAll('p-floatlabel')).toHaveLength(3);
     expect(element.querySelector('button[type="submit"]')?.textContent).toContain('Sign in');
   });
 
@@ -123,5 +124,35 @@ describe('LoginPage', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Sign-in failed.');
+  });
+  it('remembers the Kennung of a successful login and offers it next time', async () => {
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    const fixture = createFixture();
+
+    fillAndSubmit(fixture, ' musterfirma ', 'admin', 'secret');
+    await fixture.whenStable();
+    expect(localStorage.getItem(TENANT_STORAGE_KEY)).toBe('musterfirma');
+
+    const next = createFixture();
+    expect(((next.nativeElement as HTMLElement).querySelector('#tenant') as HTMLInputElement).value).toBe('musterfirma');
+  });
+
+  it('forgets the Kennung when a login without one succeeds, and keeps it when a login fails', async () => {
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    localStorage.setItem(TENANT_STORAGE_KEY, 'musterfirma');
+
+    loginResult = false;
+    const failed = createFixture();
+    fillAndSubmit(failed, 'tippfehler', 'admin', 'wrong');
+    await failed.whenStable();
+    // A typo is not worth remembering.
+    expect(localStorage.getItem(TENANT_STORAGE_KEY)).toBe('musterfirma');
+
+    loginResult = true;
+    hasTenant.set(false);
+    const superuserLogin = createFixture();
+    fillAndSubmit(superuserLogin, '', 'super', 'secret');
+    await superuserLogin.whenStable();
+    expect(localStorage.getItem(TENANT_STORAGE_KEY)).toBeNull();
   });
 });

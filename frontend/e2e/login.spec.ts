@@ -49,6 +49,10 @@ test.describe('Login', () => {
     // company name also brands the sidebar's top, hence first().
     await expect(page.getByText('Anna Admin')).toBeVisible();
     await expect(page.getByText('Musterfirma GmbH').first()).toBeVisible();
+
+    // The Kennung is remembered at this browser and offered on the next visit.
+    await page.goto('/login');
+    await expect(page.getByLabel('Mandant')).toHaveValue('musterfirma');
   });
 
   test('shows an error for rejected credentials and stays on the login page', async ({ page }) => {
@@ -84,6 +88,9 @@ test.describe('Login', () => {
     await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401 }));
     await page.route('**/api/auth/login', (route) => route.fulfill({ json: superuser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'frontdesk', hasLogo: false } }));
+    // The tenants page asks for the list as soon as it opens; unanswered, the real backend's 401
+    // would send the browser back to the login.
+    await page.route('**/api/tenants', (route) => route.fulfill({ json: [] }));
 
     await page.goto('/login');
     // The tenant field stays empty: that is what says "super-user".

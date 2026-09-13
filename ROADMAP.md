@@ -88,13 +88,14 @@ Gaps in what exists, each small enough for one PR.
       a password and hands it over by other means.
 - [ ] **Retention** — empty the trash after 30 days automatically, delete cases after a
       configurable period (GDPR).
-- [ ] **Tenant onboarding** — create a tenant through a UI or at least a command; today tenants
-      are seeded at startup.
+- [x] **Tenant onboarding** — a super-user creates, renames, opens and deletes tenants on the
+      Mandanten page; a new tenant comes with mailbox defaults and the default categories.
   - [x] A **super-user** above the tenants, created from the configuration at first start; the
         login asks for the tenant's Kennung, so the same username may exist in several tenants,
         and a super-user signs in with a Kennung to act in that tenant or without one to reach
         the tenants area. The tenant is a fact about the session, resolved in one place.
-  - [ ] The Mandanten page: create, edit, delete and open a tenant.
+  - [x] The Mandanten page: create, edit, delete (final, after typing the name) and open a
+        tenant; the counts of users and cases say how much hangs on it.
 - [ ] **Several mailboxes per tenant** — e.g. info@ and rechnung@ side by side, each with its
       own category mapping.
 - [ ] **Server-side paging and search** — the list loads all of a tenant's cases into the

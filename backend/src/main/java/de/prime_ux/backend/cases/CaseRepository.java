@@ -1,5 +1,6 @@
 package de.prime_ux.backend.cases;
 
+import de.prime_ux.backend.tenants.TenantCount;
 import de.prime_ux.backend.triage.CaseTier;
 import java.time.Instant;
 import java.util.Collection;
@@ -78,4 +79,11 @@ public interface CaseRepository extends JpaRepository<Case, UUID> {
 	 * so a guessed id deletes nothing instead of leaking that it exists.
 	 */
 	long deleteByTenantIdAndIdIn(UUID tenantId, Collection<UUID> ids);
+
+	/**
+	 * Cases per tenant for the Mandanten page, the trash included: the number says how much hangs
+	 * on the tenant, which is what somebody about to delete it wants to know.
+	 */
+	@Query("select c.tenant.id as tenantId, count(c) as count from Case c group by c.tenant.id")
+	List<TenantCount> countPerTenant();
 }

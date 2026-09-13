@@ -4,7 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
 import { CompanyService } from '../../../shared/data/company-service';
-import { AuthStore, CurrentUser } from '../../data/auth-store';
+import { AuthStore, CurrentUser } from '../../../shared/data/auth-store';
 import { Sidebar } from './sidebar';
 
 const translations = {
@@ -150,7 +150,7 @@ describe('Sidebar', () => {
     const element = fixture.nativeElement as HTMLElement;
 
     expect(element.textContent).toContain('frontdesk');
-    expect(element.querySelector('svg')).not.toBeNull();
+    expect(element.querySelector('svg[aria-label="frontdesk"]')).not.toBeNull();
     expect(element.querySelector('img[src^="/api/company/logo"]')).toBeNull();
 
     companyName.set('Musterfirma AG');

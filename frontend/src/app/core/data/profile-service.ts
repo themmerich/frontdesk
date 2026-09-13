@@ -2,7 +2,7 @@ import { HttpClient, httpResource } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { AuthStore } from './auth-store';
+import { AuthStore } from '../../shared/data/auth-store';
 
 /** The signed-in user's own profile, as served and stored by the backend. Dates are ISO strings. */
 export type Profile = {
