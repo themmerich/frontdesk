@@ -22,7 +22,10 @@
     "preset": "Preset",
     "categories": "Categories",
     "aiSettings": "AI access",
-    "aiCosts": "AI costs"
+    "aiCosts": "AI costs",
+    "tenants": "Tenants",
+    "tenantsOverview": "Overview",
+    "closeTenant": "Close tenant"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -502,8 +505,14 @@
     "loadError": "Could not load the profile. Is the backend running?",
     "position": "Position"
   },
+  "tenants": {
+    "title": "Tenants",
+    "comingSoon": "Managing tenants follows: create, edit, delete and open."
+  },
   "login": {
     "title": "Sign in",
+    "tenant": "Tenant",
+    "tenantHint": "The business's Kennung. Leave empty as a super-user.",
     "username": "Username",
     "password": "Password",
     "submit": "Sign in",

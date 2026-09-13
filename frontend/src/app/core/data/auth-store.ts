@@ -3,11 +3,19 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
 
+/** The tenant a session is about, as the sidebar and the guards need it. */
+export type CurrentTenant = {
+  /** The Kennung, what the login page asks for. */
+  slug: string;
+  name: string;
+};
+
 export type CurrentUser = {
   username: string;
   displayName: string;
-  role: 'admin' | 'user';
-  tenantName: string;
+  role: 'admin' | 'user' | 'superuser';
+  /** A tenant user's own tenant; a super-user's opened one, or null while none is open. */
+  tenant: CurrentTenant | null;
   hasAvatar: boolean;
 };
 
@@ -37,6 +45,14 @@ export const AuthStore = signalStore(
     isAuthenticated: computed(() => currentUser() !== null),
     /** URL of the signed-in user's profile picture, or null when there is none. */
     avatarUrl: computed(() => (currentUser()?.hasAvatar ? `/api/profile/avatar?v=${_avatarVersion()}` : null)),
+    isSuperuser: computed(() => currentUser()?.role === 'superuser'),
+    /** Whether the session is about a tenant: always for tenant users, for super-users once one is open. */
+    hasTenant: computed(() => (currentUser()?.tenant ?? null) !== null),
+    /** Who sees a tenant's administration: its admins, and a super-user who has it open. */
+    canAdminister: computed(() => {
+      const user = currentUser();
+      return user?.role === 'admin' || (user?.role === 'superuser' && user.tenant !== null);
+    }),
   })),
   withMethods((store) => {
     const http = inject(HttpClient);
@@ -62,15 +78,30 @@ export const AuthStore = signalStore(
         patchState(store, { _isSessionResolved: true });
       },
 
-      /** Returns whether the credentials were accepted. */
-      async login(username: string, password: string): Promise<boolean> {
+      /**
+       * Returns whether the credentials were accepted.
+       *
+       * @param tenant the Kennung of the tenant to sign in to; blank means a super-user is signing in
+       */
+      async login(tenant: string, username: string, password: string): Promise<boolean> {
         try {
-          const currentUser = await firstValueFrom(http.post<CurrentUser>('/api/auth/login', { username, password }));
+          const body = { tenant: tenant.trim() || null, username, password };
+          const currentUser = await firstValueFrom(http.post<CurrentUser>('/api/auth/login', body));
           patchState(store, { currentUser, _isSessionResolved: true });
           return true;
         } catch {
           return false;
         }
+      },
+
+      /** A super-user opens a tenant: the session is about it from here on. */
+      async openTenant(slug: string): Promise<void> {
+        patchState(store, { currentUser: await firstValueFrom(http.put<CurrentUser>('/api/auth/tenant', { slug })) });
+      },
+
+      /** Back to the plain super-user view. */
+      async closeTenant(): Promise<void> {
+        patchState(store, { currentUser: await firstValueFrom(http.delete<CurrentUser>('/api/auth/tenant')) });
       },
 
       async logout(): Promise<void> {

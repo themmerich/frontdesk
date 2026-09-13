@@ -1,12 +1,12 @@
 package de.prime_ux.backend.branches;
 
 import de.prime_ux.backend.users.AppUser;
+import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.users.AppUserRepository;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,31 +29,33 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/branches")
 class BranchController {
 
+	private final CurrentSession currentSession;
 	private final AppUserRepository appUserRepository;
 	private final BranchRepository branchRepository;
 
-	BranchController(AppUserRepository appUserRepository, BranchRepository branchRepository) {
+	BranchController(CurrentSession currentSession, AppUserRepository appUserRepository, BranchRepository branchRepository) {
+		this.currentSession = currentSession;
 		this.appUserRepository = appUserRepository;
 		this.branchRepository = branchRepository;
 	}
 
 	@GetMapping
-	List<BranchResponse> listBranches(Authentication authentication) {
-		UUID tenantId = currentTenantId(authentication);
+	List<BranchResponse> listBranches() {
+		UUID tenantId = currentSession.tenant().getId();
 		return branchRepository.findAllByTenantIdOrderByHeadquartersDescNameAsc(tenantId).stream()
 				.map(BranchResponse::from).toList();
 	}
 
 	@PostMapping
 	@Transactional
-	BranchResponse createBranch(@Valid @RequestBody BranchRequest request, Authentication authentication) {
-		AppUser admin = currentUser(authentication);
-		UUID tenantId = admin.getTenant().getId();
+	BranchResponse createBranch(@Valid @RequestBody BranchRequest request) {
+		AppUser admin = currentSession.user();
+		UUID tenantId = currentSession.tenant().getId();
 		String name = request.name().trim();
 		if (branchRepository.existsByTenantIdAndNameIgnoreCase(tenantId, name)) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "a branch with this name already exists");
 		}
-		Branch branch = new Branch(admin.getTenant(), name, false);
+		Branch branch = new Branch(currentSession.tenant(), name, false);
 		applyRequest(branch, request, tenantId);
 		return BranchResponse.from(branchRepository.save(branch));
 	}
@@ -61,9 +63,8 @@ class BranchController {
 	/** Branches of other tenants answer 404 as if they did not exist. */
 	@PutMapping("/{id}")
 	@Transactional
-	BranchResponse updateBranch(@PathVariable UUID id, @Valid @RequestBody BranchRequest request,
-			Authentication authentication) {
-		Branch branch = ownBranch(id, authentication);
+	BranchResponse updateBranch(@PathVariable UUID id, @Valid @RequestBody BranchRequest request) {
+		Branch branch = ownBranch(id);
 		UUID tenantId = branch.getTenant().getId();
 		String name = request.name().trim();
 		boolean nameTaken = !name.equalsIgnoreCase(branch.getName())
@@ -82,8 +83,8 @@ class BranchController {
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Transactional
-	void deleteBranch(@PathVariable UUID id, Authentication authentication) {
-		branchRepository.delete(ownBranch(id, authentication));
+	void deleteBranch(@PathVariable UUID id) {
+		branchRepository.delete(ownBranch(id));
 	}
 
 	private void applyRequest(Branch branch, BranchRequest request, UUID tenantId) {
@@ -112,17 +113,10 @@ class BranchController {
 		return value == null || value.isBlank() ? null : value.trim();
 	}
 
-	private Branch ownBranch(UUID id, Authentication authentication) {
-		return branchRepository.findByIdAndTenantId(id, currentTenantId(authentication))
+	private Branch ownBranch(UUID id) {
+		return branchRepository.findByIdAndTenantId(id, currentSession.tenant().getId())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 	}
 
-	private UUID currentTenantId(Authentication authentication) {
-		return currentUser(authentication).getTenant().getId();
-	}
 
-	private AppUser currentUser(Authentication authentication) {
-		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
 }

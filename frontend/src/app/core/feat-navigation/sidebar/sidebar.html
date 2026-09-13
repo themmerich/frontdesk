@@ -32,63 +32,67 @@
       </div>
       <nav class="flex flex-1 flex-col gap-4 overflow-y-auto p-2">
         <ul class="m-0 flex list-none flex-col">
-          <li>
-            <div
-              pStyleClass="@next"
-              enterFromClass="hidden"
-              enterActiveClass="animate-slidedown"
-              leaveToClass="hidden"
-              leaveActiveClass="animate-slideup"
-              class="flex cursor-pointer items-center gap-4 rounded-lg p-3 text-surface-0 transition-colors duration-150 hover:bg-primary-emphasis"
-            >
-              <span class="text-base leading-tight font-semibold text-primary-contrast">{{ t('shell.cases') }}</span>
-              <i class="pi pi-angle-down ml-auto text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
-            </div>
-            <ul class="m-0 flex list-none flex-col gap-1 overflow-hidden p-0">
-              <li>
-                <a
-                  routerLink="/dashboard"
-                  routerLinkActive="bg-primary-emphasis"
-                  class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
-                >
-                  <i class="pi pi-chart-bar text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
-                  <span class="text-base leading-tight font-medium">{{ t('shell.dashboard') }}</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  routerLink="/"
-                  routerLinkActive="bg-primary-emphasis"
-                  [routerLinkActiveOptions]="{ exact: true }"
-                  class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
-                >
-                  <i class="pi pi-inbox text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
-                  <span class="text-base leading-tight font-medium">{{ t('shell.inbox') }}</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  routerLink="/archive"
-                  routerLinkActive="bg-primary-emphasis"
-                  class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
-                >
-                  <i class="pi pi-box text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
-                  <span class="text-base leading-tight font-medium">{{ t('shell.archive') }}</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  routerLink="/trash"
-                  routerLinkActive="bg-primary-emphasis"
-                  class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
-                >
-                  <i class="pi pi-trash text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
-                  <span class="text-base leading-tight font-medium">{{ t('shell.trash') }}</span>
-                </a>
-              </li>
-            </ul>
-          </li>
-          @if (authStore.currentUser()?.role === 'admin') {
+          <!-- The cases and the administration are about a tenant; a super-user with none open
+               sees neither, only the Mandanten group below. -->
+          @if (authStore.hasTenant()) {
+            <li>
+              <div
+                pStyleClass="@next"
+                enterFromClass="hidden"
+                enterActiveClass="animate-slidedown"
+                leaveToClass="hidden"
+                leaveActiveClass="animate-slideup"
+                class="flex cursor-pointer items-center gap-4 rounded-lg p-3 text-surface-0 transition-colors duration-150 hover:bg-primary-emphasis"
+              >
+                <span class="text-base leading-tight font-semibold text-primary-contrast">{{ t('shell.cases') }}</span>
+                <i class="pi pi-angle-down ml-auto text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+              </div>
+              <ul class="m-0 flex list-none flex-col gap-1 overflow-hidden p-0">
+                <li>
+                  <a
+                    routerLink="/dashboard"
+                    routerLinkActive="bg-primary-emphasis"
+                    class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+                  >
+                    <i class="pi pi-chart-bar text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+                    <span class="text-base leading-tight font-medium">{{ t('shell.dashboard') }}</span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    routerLink="/"
+                    routerLinkActive="bg-primary-emphasis"
+                    [routerLinkActiveOptions]="{ exact: true }"
+                    class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+                  >
+                    <i class="pi pi-inbox text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+                    <span class="text-base leading-tight font-medium">{{ t('shell.inbox') }}</span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    routerLink="/archive"
+                    routerLinkActive="bg-primary-emphasis"
+                    class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+                  >
+                    <i class="pi pi-box text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+                    <span class="text-base leading-tight font-medium">{{ t('shell.archive') }}</span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    routerLink="/trash"
+                    routerLinkActive="bg-primary-emphasis"
+                    class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+                  >
+                    <i class="pi pi-trash text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+                    <span class="text-base leading-tight font-medium">{{ t('shell.trash') }}</span>
+                  </a>
+                </li>
+              </ul>
+            </li>
+          }
+          @if (authStore.canAdminister()) {
             <li>
               <div
                 pStyleClass="@next"
@@ -165,6 +169,47 @@
               </ul>
             </li>
           }
+          @if (authStore.isSuperuser()) {
+            <li>
+              <div
+                pStyleClass="@next"
+                enterFromClass="hidden"
+                enterActiveClass="animate-slidedown"
+                leaveToClass="hidden"
+                leaveActiveClass="animate-slideup"
+                class="flex cursor-pointer items-center gap-4 rounded-lg p-3 text-surface-0 transition-colors duration-150 hover:bg-primary-emphasis"
+              >
+                <span class="text-base leading-tight font-semibold text-primary-contrast">{{ t('shell.tenants') }}</span>
+                <i class="pi pi-angle-down ml-auto text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+              </div>
+              <ul class="m-0 flex list-none flex-col gap-1 overflow-hidden p-0">
+                <li>
+                  <a
+                    routerLink="/tenants"
+                    routerLinkActive="bg-primary-emphasis"
+                    class="flex cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+                  >
+                    <i class="pi pi-sitemap text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+                    <span class="text-base leading-tight font-medium">{{ t('shell.tenantsOverview') }}</span>
+                  </a>
+                </li>
+                @if (authStore.hasTenant()) {
+                  <!-- Back to the plain super-user view: the session forgets the tenant, and with it
+                       the cases and the administration above. -->
+                  <li>
+                    <button
+                      type="button"
+                      (click)="onCloseTenant()"
+                      class="flex w-full cursor-pointer items-center gap-2 rounded-lg p-3 text-primary-contrast transition-colors duration-150 hover:bg-primary-emphasis"
+                    >
+                      <i class="pi pi-sign-out text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
+                      <span class="text-base leading-tight font-medium">{{ t('shell.closeTenant') }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            </li>
+          }
         </ul>
       </nav>
       <div class="mt-auto border-t border-primary-400 py-2 dark:border-primary-300">
@@ -205,7 +250,7 @@
           <span class="flex flex-col">
             <span class="text-base leading-tight font-medium">{{ authStore.currentUser()?.displayName }}</span>
             <!-- The live company name; the session's tenant name only bridges the initial load. -->
-            <span class="text-xs leading-tight opacity-80">{{ companyService.name() ?? authStore.currentUser()?.tenantName }}</span>
+            <span class="text-xs leading-tight opacity-80">{{ companyService.name() ?? authStore.currentUser()?.tenant?.name }}</span>
           </span>
           <i class="pi pi-angle-up ml-auto text-base! leading-none! text-primary-contrast" aria-hidden="true"></i>
         </a>

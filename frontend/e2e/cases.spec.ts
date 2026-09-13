@@ -41,7 +41,7 @@ const mockUser = {
   username: 'admin',
   displayName: 'Anna Admin',
   role: 'admin',
-  tenantName: 'Musterfirma GmbH',
+  tenant: { slug: 'musterfirma', name: 'Musterfirma GmbH' },
 };
 
 test.describe('Cases page', () => {

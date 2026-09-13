@@ -1,12 +1,12 @@
 package de.prime_ux.backend.users;
 
+import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.branches.Branch;
 import de.prime_ux.backend.branches.BranchRepository;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,12 +24,14 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/users")
 class UserController {
 
+	private final CurrentSession currentSession;
 	private final AppUserRepository appUserRepository;
 	private final BranchRepository branchRepository;
 	private final PasswordEncoder passwordEncoder;
 
-	UserController(AppUserRepository appUserRepository, BranchRepository branchRepository,
+	UserController(CurrentSession currentSession, AppUserRepository appUserRepository, BranchRepository branchRepository,
 			PasswordEncoder passwordEncoder) {
+		this.currentSession = currentSession;
 		this.appUserRepository = appUserRepository;
 		this.branchRepository = branchRepository;
 		this.passwordEncoder = passwordEncoder;
@@ -37,9 +39,9 @@ class UserController {
 
 	/** Only the users of the signed-in admin's tenant — tenants never see each other's people. */
 	@GetMapping
-	List<UserResponse> listUsers(Authentication authentication) {
-		AppUser admin = currentUser(authentication);
-		return appUserRepository.findAllByTenantIdOrderByLastNameAscFirstNameAsc(admin.getTenant().getId()).stream()
+	List<UserResponse> listUsers() {
+		AppUser admin = currentSession.user();
+		return appUserRepository.findAllByTenantIdOrderByLastNameAscFirstNameAsc(currentSession.tenant().getId()).stream()
 				.map(UserResponse::from).toList();
 	}
 
@@ -51,16 +53,16 @@ class UserController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	@Transactional
-	UserResponse createUser(@Valid @RequestBody CreateUserRequest request, Authentication authentication) {
-		AppUser admin = currentUser(authentication);
+	UserResponse createUser(@Valid @RequestBody CreateUserRequest request) {
+		AppUser admin = currentSession.user();
 		String username = request.username().trim();
-		if (appUserRepository.existsByUsernameIgnoreCase(username)) {
+		if (appUserRepository.existsByTenantIdAndUsernameIgnoreCase(currentSession.tenant().getId(), username)) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "a user with this name already exists");
 		}
-		AppUser user = new AppUser(admin.getTenant(), username, request.firstName().trim(),
+		AppUser user = new AppUser(currentSession.tenant(), username, request.firstName().trim(),
 				request.lastName().trim(), passwordEncoder.encode(request.password()), request.toRole());
 		user.updateAccount(username, request.firstName().trim(), request.lastName().trim(), request.toRole(),
-				resolveBranch(request.branchId(), admin.getTenant().getId()), blankToNull(request.position()));
+				resolveBranch(request.branchId(), currentSession.tenant().getId()), blankToNull(request.position()));
 		if (!request.active()) {
 			user.deactivate();
 		}
@@ -74,15 +76,14 @@ class UserController {
 	 */
 	@PutMapping("/{id}")
 	@Transactional
-	UserResponse updateUser(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request,
-			Authentication authentication) {
-		AppUser admin = currentUser(authentication);
-		UUID tenantId = admin.getTenant().getId();
+	UserResponse updateUser(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request) {
+		AppUser admin = currentSession.user();
+		UUID tenantId = currentSession.tenant().getId();
 		AppUser user = appUserRepository.findByIdAndTenantId(id, tenantId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 		String username = request.username().trim();
 		boolean nameTaken = !username.equalsIgnoreCase(user.getUsername())
-				&& appUserRepository.existsByUsernameIgnoreCase(username);
+				&& appUserRepository.existsByTenantIdAndUsernameIgnoreCase(tenantId, username);
 		if (nameTaken) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "a user with this name already exists");
 		}
@@ -109,10 +110,9 @@ class UserController {
 	 * end up without a working admin through this endpoint.
 	 */
 	@PutMapping("/{id}/active")
-	UserResponse setActive(@PathVariable UUID id, @Valid @RequestBody UpdateUserActiveRequest request,
-			Authentication authentication) {
-		AppUser admin = currentUser(authentication);
-		AppUser user = appUserRepository.findByIdAndTenantId(id, admin.getTenant().getId())
+	UserResponse setActive(@PathVariable UUID id, @Valid @RequestBody UpdateUserActiveRequest request) {
+		AppUser admin = currentSession.user();
+		AppUser user = appUserRepository.findByIdAndTenantId(id, currentSession.tenant().getId())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 		if (user.getId().equals(admin.getId()) && !request.active()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Admins cannot deactivate themselves");
@@ -134,10 +134,6 @@ class UserController {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "unknown branch"));
 	}
 
-	private AppUser currentUser(Authentication authentication) {
-		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
 
 	/** A position left empty is no position, not an empty one. */
 	private static String blankToNull(String value) {

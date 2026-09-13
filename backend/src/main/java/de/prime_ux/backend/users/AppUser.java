@@ -21,8 +21,9 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
- * A person who can sign in, always belonging to exactly one tenant. Named AppUser because "user"
- * collides with both SQL (reserved word — the table quotes it) and Spring Security's User class.
+ * A person who can sign in: a tenant's user, belonging to exactly one tenant, or a super-user,
+ * belonging to none. Named AppUser because "user" collides with both SQL (reserved word — the
+ * table quotes it) and Spring Security's User class.
  */
 @Entity
 @Table(name = "users")
@@ -34,7 +35,8 @@ public class AppUser {
 	@UuidGenerator
 	private UUID id;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	/** Null for a super-user, who stands outside the tenants. */
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "tenant_id")
 	private Tenant tenant;
 
@@ -97,6 +99,15 @@ public class AppUser {
 		this.role = role;
 		this.active = true;
 		this.createdAt = Instant.now();
+	}
+
+	/** A person above the tenants: no tenant of their own, and the run of the Mandanten page. */
+	public static AppUser superuser(String username, String firstName, String lastName, String passwordHash) {
+		return new AppUser(null, username, firstName, lastName, passwordHash, UserRole.SUPERUSER);
+	}
+
+	public boolean isSuperuser() {
+		return role == UserRole.SUPERUSER;
 	}
 
 	/** First and last name joined for display, e.g. in the sidebar and the user list. */

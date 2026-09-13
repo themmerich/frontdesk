@@ -26,7 +26,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = { "frontdesk.mail.polling-enabled=false", "frontdesk.triage.enabled=false" })
@@ -72,13 +72,13 @@ class TriageSettingsControllerTest {
 		branchRepository.deleteAll();
 		// The configuration goes with its tenant (FK cascade).
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
 		appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Admin", "{noop}irrelevant", UserRole.ADMIN));
 		appUserRepository.save(new AppUser(tenant, "ben", "Ben", "Benutzer", "{noop}irrelevant", UserRole.USER));
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void answersWithTheDefaultsWhileNothingIsStored() throws Exception {
 		mockMvc.perform(get("/api/triage-settings"))
 				.andExpect(status().isOk())
@@ -88,7 +88,7 @@ class TriageSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void savesWhatTheRepliesAreToBeLike() throws Exception {
 		mockMvc.perform(put("/api/triage-settings").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -103,7 +103,7 @@ class TriageSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void savesTheThresholdAndTheTenantsOwnInstructions() throws Exception {
 		mockMvc.perform(put("/api/triage-settings").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -120,7 +120,7 @@ class TriageSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void treatsAMissingAddendumAsAnEmptyOne() throws Exception {
 		mockMvc.perform(put("/api/triage-settings").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -133,7 +133,7 @@ class TriageSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void rejectsAThresholdOutsideZeroToOne() throws Exception {
 		// A fraction, not a percentage — 80 would mean "always uncertain".
 		mockMvc.perform(put("/api/triage-settings").with(csrf())
@@ -145,9 +145,9 @@ class TriageSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void keepsEachTenantsSettingsApart() throws Exception {
-		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 		tenantTriageSettingsRepository
 				.save(new TenantTriageSettings(otherTenant, "Fremde Anweisung.", new BigDecimal("0.10")));
 
@@ -164,7 +164,7 @@ class TriageSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ben")
+	@AsUser("ben")
 	void deniesEverythingToNonAdmins() throws Exception {
 		mockMvc.perform(get("/api/triage-settings")).andExpect(status().isForbidden());
 		mockMvc.perform(put("/api/triage-settings").with(csrf())
@@ -175,7 +175,7 @@ class TriageSettingsControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna", roles = "ADMIN")
+	@AsUser("anna")
 	void leavesTheCategoriesAlone() throws Exception {
 		caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS", "Statusanfrage",
 				"Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0));

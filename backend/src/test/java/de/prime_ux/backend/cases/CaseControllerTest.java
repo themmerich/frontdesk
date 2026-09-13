@@ -35,7 +35,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = "frontdesk.mail.polling-enabled=false")
@@ -90,8 +90,8 @@ class CaseControllerTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
-		otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
+		otherTenant = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 		appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster", "{noop}irrelevant",
 				UserRole.USER));
 	}
@@ -103,7 +103,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void listsOnlyTheOwnTenantsCasesNewestFirst() throws Exception {
 		caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "info@example.com", "Delivery status", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
 		// Reached the tenant through an alias, which the list has to show as it came in.
@@ -131,7 +131,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void namesTheCategoryAndTierOfATriagedCase() throws Exception {
 		CaseCategory category = new CaseCategory(tenant, "ORDER_STATUS", "Statusanfrage Bestellung",
 				"Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0);
@@ -156,7 +156,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void carriesTheMailBodyOnTheDetailButNotInTheList() throws Exception {
 		// Triaged on purpose: the category is a lazy reference, and reading it while
 		// building the answer is exactly where the detail view broke once.
@@ -187,7 +187,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void listsTheAttachmentsOnTheDetailAndServesEachByItsType() throws Exception {
 		Case aCase = caseRepository.save(new Case(tenant, "<attached@test>", "anna@example.com", "info@example.com",
 				"Angebot", Instant.parse("2026-08-01T10:00:00Z"), true, 40_000));
@@ -232,7 +232,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void doesNotServeAnotherTenantsAttachmentNorOneThroughTheWrongCase() throws Exception {
 		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com",
 				"Fremd", Instant.parse("2026-08-03T10:00:00Z"), true, 1024));
@@ -248,7 +248,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void writesDownWhatAPersonDoesToACaseAndListsTheTrailOldestFirst() throws Exception {
 		CaseCategory complaint = caseCategoryRepository.save(new CaseCategory(tenant, "COMPLAINT", "Reklamation",
 				"Beschwerde über eine Lieferung.", CaseTier.MANUAL, 1));
@@ -280,7 +280,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void writesDownEveryCaseOfASelectionThatIsThrownAwayOrFetchedBack() throws Exception {
 		Case first = caseRepository.save(new Case(tenant, "<one@test>", "anna@example.com", "info@example.com", "Eins", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
 		Case second = caseRepository.save(new Case(tenant, "<two@test>", "ben@example.com", "info@example.com", "Zwei", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
@@ -299,7 +299,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void doesNotFindAnotherTenantsCase() throws Exception {
 		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Fremd", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
@@ -311,7 +311,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void letsAPersonOverruleCategoryAndTierWithoutLosingWhatTheModelSaid() throws Exception {
 		CaseCategory statusRequest = caseCategoryRepository.save(new CaseCategory(tenant, "ORDER_STATUS",
 				"Statusanfrage Bestellung", "Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0));
@@ -348,7 +348,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void marksACaseAsTakenNoteOfAndTakesItBackAgain() throws Exception {
 		Case aCase = new Case(tenant, "<news@test>", "news@example.com", "info@example.com", "Wochenrückblick", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		aCase.applyTriage(null, CaseTier.INFO, new BigDecimal("0.88"), "Branchennews der Woche.");
@@ -387,7 +387,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void doesNotTakeNoteOfAnotherTenantsCase() throws Exception {
 		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Fremd", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
@@ -399,7 +399,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void doesNotFileACaseUnderAnotherTenantsCategory() throws Exception {
 		CaseCategory theirs = caseCategoryRepository.save(new CaseCategory(otherTenant, "THEIRS", "Fremde Kategorie",
 				"Gehört jemand anderem.", CaseTier.MANUAL, 0));
@@ -416,7 +416,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void movesTheSelectedCasesToTheTrashAndLeavesTheRestAlone() throws Exception {
 		Case first = caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "info@example.com", "Weg damit", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
 		Case second = caseRepository.save(new Case(tenant, "<second@test>", "ben@example.com", "info@example.com", "Auch weg", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
@@ -436,7 +436,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void fetchesACaseBackOutOfTheTrashWithWhatWasKnownAboutIt() throws Exception {
 		Case aCase = new Case(tenant, "<back@test>", "anna@example.com", "info@example.com", "Doch nicht", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		aCase.applyTriage(null, CaseTier.INFO, new BigDecimal("0.80"), "Newsletter der Woche.");
@@ -458,7 +458,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void deletesForGoodOnlyWhatIsInTheTrash() throws Exception {
 		Case thrownAway = caseRepository.save(new Case(tenant, "<gone@test>", "anna@example.com", "info@example.com", "Endgültig weg", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
 		Case inTheInbox = caseRepository.save(new Case(tenant, "<here@test>", "ben@example.com", "info@example.com", "Steht noch im Posteingang", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
@@ -475,7 +475,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void refusesToDeleteAnotherTenantsCase() throws Exception {
 		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Fremd", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
@@ -494,7 +494,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void refusesADeleteWithoutAnySelection() throws Exception {
 		mockMvc.perform(delete("/api/cases").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON).content("{\"ids\": []}"))
@@ -502,7 +502,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void returnsAnEmptyListWhenTheTenantHasNoCases() throws Exception {
 		caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Foreign case", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
@@ -512,7 +512,7 @@ class CaseControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "ghost")
+	@AsUser("ghost")
 	void answersUnauthorizedWhenTheSessionUserNoLongerExists() throws Exception {
 		mockMvc.perform(get("/api/cases")).andExpect(status().isUnauthorized());
 	}

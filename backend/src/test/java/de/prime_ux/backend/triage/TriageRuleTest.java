@@ -17,7 +17,7 @@ class TriageRuleTest {
 
 	private static final BigDecimal THRESHOLD = new BigDecimal("0.80");
 
-	private final Tenant tenant = new Tenant("Musterfirma GmbH");
+	private final Tenant tenant = new Tenant("Musterfirma GmbH", "musterfirma");
 	private final CaseCategory orderStatus = new CaseCategory(tenant, "ORDER_STATUS", "Statusanfrage",
 			"Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0);
 	private final CaseCategory inquiry = new CaseCategory(tenant, "GENERAL_INQUIRY", "Anfrage",

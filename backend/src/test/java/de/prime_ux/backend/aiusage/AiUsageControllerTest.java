@@ -24,7 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -76,8 +76,8 @@ class AiUsageControllerTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
-		otherTenant = tenantRepository.save(new Tenant("Andere AG"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
+		otherTenant = tenantRepository.save(new Tenant("Andere AG", "andere-ag"));
 		appUserRepository.save(new AppUser(tenant, "admin", "Anna", "Admin", "{noop}irrelevant", UserRole.ADMIN));
 		appUserRepository.save(new AppUser(tenant, "user", "Uwe", "User", "{noop}irrelevant", UserRole.USER));
 	}
@@ -88,7 +88,7 @@ class AiUsageControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void addsTheTenantsCallsUpAndLeavesTheOthersOut() throws Exception {
 		call(tenant, AiCallKind.TRIAGE, "0.010000", Duration.ofHours(1));
 		call(tenant, AiCallKind.DRAFT, "0.040000", Duration.ofHours(2));
@@ -120,7 +120,7 @@ class AiUsageControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "admin", roles = "ADMIN")
+	@AsUser("admin")
 	void answersWithZerosWhenNothingWasCalled() throws Exception {
 		mockMvc.perform(get("/api/ai-usage"))
 				.andExpect(status().isOk())
@@ -132,7 +132,7 @@ class AiUsageControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "user", roles = "USER")
+	@AsUser("user")
 	void isNotForUsers() throws Exception {
 		mockMvc.perform(get("/api/ai-usage")).andExpect(status().isForbidden());
 	}

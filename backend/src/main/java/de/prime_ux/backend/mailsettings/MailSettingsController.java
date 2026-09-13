@@ -1,10 +1,10 @@
 package de.prime_ux.backend.mailsettings;
 
 import de.prime_ux.backend.users.AppUser;
+import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.users.AppUserRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,31 +23,32 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/settings/mail")
 class MailSettingsController {
 
+	private final CurrentSession currentSession;
 	private final TenantMailSettingsRepository tenantMailSettingsRepository;
 	private final AppUserRepository appUserRepository;
 	private final MailConnectionTester mailConnectionTester;
 
-	MailSettingsController(TenantMailSettingsRepository tenantMailSettingsRepository,
+	MailSettingsController(CurrentSession currentSession, TenantMailSettingsRepository tenantMailSettingsRepository,
 			AppUserRepository appUserRepository, MailConnectionTester mailConnectionTester) {
+		this.currentSession = currentSession;
 		this.tenantMailSettingsRepository = tenantMailSettingsRepository;
 		this.appUserRepository = appUserRepository;
 		this.mailConnectionTester = mailConnectionTester;
 	}
 
 	@GetMapping
-	MailSettingsResponse getMailSettings(Authentication authentication) {
-		AppUser user = currentUser(authentication);
-		return tenantMailSettingsRepository.findByTenantId(user.getTenant().getId())
+	MailSettingsResponse getMailSettings() {
+		AppUser user = currentSession.user();
+		return tenantMailSettingsRepository.findByTenantId(currentSession.tenant().getId())
 				.map(MailSettingsResponse::from)
-				.orElseGet(() -> MailSettingsResponse.from(TenantMailSettings.greenMailDefaults(user.getTenant())));
+				.orElseGet(() -> MailSettingsResponse.from(TenantMailSettings.greenMailDefaults(currentSession.tenant())));
 	}
 
 	@PutMapping
-	MailSettingsResponse updateMailSettings(@Valid @RequestBody UpdateMailSettingsRequest request,
-			Authentication authentication) {
-		AppUser user = currentUser(authentication);
-		TenantMailSettings settings = tenantMailSettingsRepository.findByTenantId(user.getTenant().getId())
-				.orElseGet(() -> TenantMailSettings.greenMailDefaults(user.getTenant()));
+	MailSettingsResponse updateMailSettings(@Valid @RequestBody UpdateMailSettingsRequest request) {
+		AppUser user = currentSession.user();
+		TenantMailSettings settings = tenantMailSettingsRepository.findByTenantId(currentSession.tenant().getId())
+				.orElseGet(() -> TenantMailSettings.greenMailDefaults(currentSession.tenant()));
 
 		if (request.mode() == MailSettingsMode.GREENMAIL) {
 			settings.applyGreenMailDefaults(request.pollingEnabled());
@@ -63,15 +64,14 @@ class MailSettingsController {
 	 * means the stored one, mirroring the save semantics.
 	 */
 	@PostMapping("/test")
-	MailConnectionTester.MailConnectionTestResult testConnection(@Valid @RequestBody UpdateMailSettingsRequest request,
-			Authentication authentication) {
-		AppUser user = currentUser(authentication);
+	MailConnectionTester.MailConnectionTestResult testConnection(@Valid @RequestBody UpdateMailSettingsRequest request) {
+		AppUser user = currentSession.user();
 		requireText(request.imapHost(), "imapHost");
 		requirePort(request.imapPort(), "imapPort");
 		requireText(request.username(), "username");
 		requireText(request.folder(), "folder");
 		String password = StringUtils.hasText(request.password()) ? request.password()
-				: tenantMailSettingsRepository.findByTenantId(user.getTenant().getId())
+				: tenantMailSettingsRepository.findByTenantId(currentSession.tenant().getId())
 						.map(TenantMailSettings::getPassword).orElse("");
 		if (!StringUtils.hasText(password)) {
 			throw badRequest("password is required — nothing stored to fall back to");
@@ -113,8 +113,4 @@ class MailSettingsController {
 		return new ResponseStatusException(HttpStatus.BAD_REQUEST, reason);
 	}
 
-	private AppUser currentUser(Authentication authentication) {
-		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
 }

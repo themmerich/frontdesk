@@ -28,7 +28,7 @@ class SignatureRendererTest {
 	private final Tenant company = company();
 
 	private static Tenant company() {
-		Tenant tenant = new Tenant("Pfenning Elektroanlagen GmbH");
+		Tenant tenant = new Tenant("Pfenning Elektroanlagen GmbH", "pfenning");
 		tenant.updateCompany(tenant.getName(), "https://pfenning.example", tenant.getLogoDisplay(), null, "", null);
 		return tenant;
 	}

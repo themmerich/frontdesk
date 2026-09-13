@@ -6,7 +6,7 @@ const adminUser = {
   username: 'admin',
   displayName: 'Anna Admin',
   role: 'admin',
-  tenantName: 'Musterfirma GmbH',
+  tenant: { slug: 'musterfirma', name: 'Musterfirma GmbH' },
 };
 
 const regularUser = { ...adminUser, username: 'user', displayName: 'Uwe User', role: 'user' };

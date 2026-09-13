@@ -17,6 +17,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -60,22 +61,22 @@ class AuthIntegrationTest {
 
 	@Test
 	void loginWithSeededAdminReturnsTheCurrentUserAndASessionCookie() throws Exception {
-		ResponseEntity<CurrentUserResponse> response = login("admin", "secret");
+		ResponseEntity<CurrentUserResponse> response = login("musterfirma", "admin", "secret");
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(cookieValue(response, "SESSION")).isNotEmpty();
 		assertThat(response.getBody()).isEqualTo(
-				new CurrentUserResponse("admin", "Anna Admin", "admin", "Musterfirma GmbH", false));
+				new CurrentUserResponse("admin", "Anna Admin", "admin", MUSTERFIRMA, false));
 	}
 
 	@Test
 	void loginWithWrongPasswordIsRejected() {
-		assertThat(login("admin", "wrong").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(login("musterfirma", "admin", "wrong").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
 	void loginWithUnknownUsernameAnswersLikeAWrongPassword() {
-		assertThat(login("nobody", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(login("musterfirma", "nobody", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
@@ -91,7 +92,7 @@ class AuthIntegrationTest {
 	void loginWithoutCsrfTokenIsRejected() {
 		ResponseEntity<Void> response = client.post().uri("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
-				.body("{\"username\": \"admin\", \"password\": \"secret\"}")
+				.body("{\"tenant\": \"musterfirma\", \"username\": \"admin\", \"password\": \"secret\"}")
 				.retrieve().toBodilessEntity();
 
 		// The CSRF failure surfaces as 401, not 403: for anonymous callers the
@@ -101,7 +102,7 @@ class AuthIntegrationTest {
 
 	@Test
 	void theSessionCookieFromLoginAuthenticatesLaterRequests() {
-		String sessionCookie = "SESSION=" + cookieValue(login("user", "secret"), "SESSION");
+		String sessionCookie = "SESSION=" + cookieValue(login("musterfirma", "user", "secret"), "SESSION");
 
 		ResponseEntity<Void> cases = client.get().uri("/api/cases")
 				.header(HttpHeaders.COOKIE, sessionCookie)
@@ -113,7 +114,7 @@ class AuthIntegrationTest {
 		assertThat(cases.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(me.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(me.getBody())
-				.isEqualTo(new CurrentUserResponse("user", "Uwe User", "user", "Musterfirma GmbH", false));
+				.isEqualTo(new CurrentUserResponse("user", "Uwe User", "user", MUSTERFIRMA, false));
 	}
 
 	@Test
@@ -122,7 +123,7 @@ class AuthIntegrationTest {
 		Tenant tenant = tenantRepository.findAll().getFirst();
 		AppUser doomedUser = appUserRepository
 				.save(new AppUser(tenant, "doomed", "Doomed", "User", passwordEncoder.encode("secret"), UserRole.USER));
-		String sessionCookie = "SESSION=" + cookieValue(login("doomed", "secret"), "SESSION");
+		String sessionCookie = "SESSION=" + cookieValue(login("musterfirma", "doomed", "secret"), "SESSION");
 
 		appUserRepository.delete(doomedUser);
 
@@ -146,7 +147,7 @@ class AuthIntegrationTest {
 		dormantUser.deactivate();
 		appUserRepository.save(dormantUser);
 
-		assertThat(login("dormant", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(login("musterfirma", "dormant", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
@@ -155,7 +156,7 @@ class AuthIntegrationTest {
 		Tenant tenant = tenantRepository.findAll().getFirst();
 		AppUser benchedUser = appUserRepository.save(
 				new AppUser(tenant, "benched", "Benched", "User", passwordEncoder.encode("secret"), UserRole.USER));
-		String sessionCookie = "SESSION=" + cookieValue(login("benched", "secret"), "SESSION");
+		String sessionCookie = "SESSION=" + cookieValue(login("musterfirma", "benched", "secret"), "SESSION");
 
 		benchedUser.deactivate();
 		appUserRepository.save(benchedUser);
@@ -174,7 +175,7 @@ class AuthIntegrationTest {
 
 	@Test
 	void logoutEndsTheSession() {
-		String session = cookieValue(login("user", "secret"), "SESSION");
+		String session = cookieValue(login("musterfirma", "user", "secret"), "SESSION");
 		String csrfToken = fetchCsrfToken();
 
 		ResponseEntity<Void> logout = client.post().uri("/api/auth/logout")
@@ -189,15 +190,157 @@ class AuthIntegrationTest {
 		assertThat(meAfterLogout.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
-	private ResponseEntity<CurrentUserResponse> login(String username, String password) {
+	@Test
+	void aTenantUserCannotSignInWithoutTheirKennung() {
+		// Without a Kennung only super-users are looked at; the name alone says nothing.
+		assertThat(login(null, "admin", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(login("nobody-here", "admin", "secret").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
+	void theKennungIsReadTrimmedAndRegardlessOfCase() {
+		assertThat(login("  Musterfirma ", "admin", "secret").getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void theSameUsernameInTwoTenantsSignsInToTheOneNamed() {
+		Tenant other = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
+		appUserRepository.save(new AppUser(other, "admin", "Bernd", "Beispiel", passwordEncoder.encode("secret"),
+				UserRole.ADMIN));
+
+		ResponseEntity<CurrentUserResponse> response = login("beispiel-ag", "admin", "secret");
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(response.getBody()).isEqualTo(new CurrentUserResponse("admin", "Bernd Beispiel", "admin",
+				new CurrentUserResponse.TenantRef("beispiel-ag", "Beispiel AG"), false));
+	}
+
+	@Test
+	void aSuperuserSignsInWithoutAKennungAndHasNoTenantOpen() {
+		ResponseEntity<CurrentUserResponse> response = login(null, "super", "secret");
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(response.getBody()).isEqualTo(new CurrentUserResponse("super", "Sina Super", "superuser", null, false));
+
+		// Nothing of any tenant is open to them yet.
+		String sessionCookie = "SESSION=" + cookieValue(response, "SESSION");
+		ResponseEntity<Void> cases = client.get().uri("/api/cases")
+				.header(HttpHeaders.COOKIE, sessionCookie)
+				.retrieve().toBodilessEntity();
+		assertThat(cases.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
+	@Test
+	void aSuperuserSignsInWithAKennungAndActsInThatTenant() {
+		ResponseEntity<CurrentUserResponse> response = login("musterfirma", "super", "secret");
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(response.getBody().tenant()).isEqualTo(MUSTERFIRMA);
+		String sessionCookie = "SESSION=" + cookieValue(response, "SESSION");
+		ResponseEntity<Void> cases = client.get().uri("/api/cases")
+				.header(HttpHeaders.COOKIE, sessionCookie)
+				.retrieve().toBodilessEntity();
+		ResponseEntity<Void> users = client.get().uri("/api/users")
+				.header(HttpHeaders.COOKIE, sessionCookie)
+				.retrieve().toBodilessEntity();
+		assertThat(cases.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(users.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void aSuperuserOpensAndClosesATenantWithoutSigningInAgain() {
+		String sessionCookie = "SESSION=" + cookieValue(login(null, "super", "secret"), "SESSION");
+
+		ResponseEntity<CurrentUserResponse> opened = switchTenant(sessionCookie, "musterfirma");
+		assertThat(opened.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(opened.getBody().tenant()).isEqualTo(MUSTERFIRMA);
+		assertThat(meWith(sessionCookie).getBody().tenant()).isEqualTo(MUSTERFIRMA);
+
+		ResponseEntity<CurrentUserResponse> closed = closeTenant(sessionCookie);
+		assertThat(closed.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(closed.getBody().tenant()).isNull();
+		assertThat(meWith(sessionCookie).getBody().tenant()).isNull();
+
+		assertThat(switchTenantStatus(sessionCookie, "no-such-tenant")).isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void onlyASuperuserMayOpenOrCloseATenant() {
+		String sessionCookie = "SESSION=" + cookieValue(login("musterfirma", "admin", "secret"), "SESSION");
+
+		assertThat(switchTenantStatus(sessionCookie, "musterfirma")).isEqualTo(HttpStatus.FORBIDDEN);
+		assertThat(closeTenantStatus(sessionCookie)).isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
+	@Test
+	void aSuperuserWhoseOpenedTenantWasDeletedIsLeftWithNone() {
+		Tenant doomed = tenantRepository.save(new Tenant("Kurzlebig KG", "kurzlebig"));
+		String sessionCookie = "SESSION=" + cookieValue(login("kurzlebig", "super", "secret"), "SESSION");
+		assertThat(meWith(sessionCookie).getBody().tenant().slug()).isEqualTo("kurzlebig");
+
+		tenantRepository.delete(doomed);
+
+		assertThat(meWith(sessionCookie).getBody().tenant()).isNull();
+	}
+
+	/** @param tenant the Kennung, or null to sign in as a super-user */
+	private ResponseEntity<CurrentUserResponse> login(String tenant, String username, String password) {
 		String csrfToken = fetchCsrfToken();
+		String tenantField = tenant == null ? "" : "\"tenant\": \"" + tenant + "\", ";
 		return client.post().uri("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.header(HttpHeaders.COOKIE, "XSRF-TOKEN=" + csrfToken)
 				.header("X-XSRF-TOKEN", csrfToken)
-				.body("{\"username\": \"" + username + "\", \"password\": \"" + password + "\"}")
+				.body("{" + tenantField + "\"username\": \"" + username + "\", \"password\": \"" + password + "\"}")
 				.retrieve().toEntity(CurrentUserResponse.class);
 	}
+
+	/** A signed-in call with the session cookie of that login. */
+	private ResponseEntity<CurrentUserResponse> meWith(String sessionCookie) {
+		return client.get().uri("/api/auth/me")
+				.header(HttpHeaders.COOKIE, sessionCookie)
+				.retrieve().toEntity(CurrentUserResponse.class);
+	}
+
+	private ResponseEntity<CurrentUserResponse> switchTenant(String sessionCookie, String slug) {
+		String csrfToken = fetchCsrfToken();
+		return client.put().uri("/api/auth/tenant")
+				.contentType(MediaType.APPLICATION_JSON)
+				.header(HttpHeaders.COOKIE, sessionCookie + "; XSRF-TOKEN=" + csrfToken)
+				.header("X-XSRF-TOKEN", csrfToken)
+				.body("{\"slug\": \"" + slug + "\"}")
+				.retrieve().toEntity(CurrentUserResponse.class);
+	}
+
+	/** The status alone, for the answers that carry no user: 403, 404. */
+	private HttpStatusCode switchTenantStatus(String sessionCookie, String slug) {
+		String csrfToken = fetchCsrfToken();
+		return client.put().uri("/api/auth/tenant")
+				.contentType(MediaType.APPLICATION_JSON)
+				.header(HttpHeaders.COOKIE, sessionCookie + "; XSRF-TOKEN=" + csrfToken)
+				.header("X-XSRF-TOKEN", csrfToken)
+				.body("{\"slug\": \"" + slug + "\"}")
+				.retrieve().toBodilessEntity().getStatusCode();
+	}
+
+	private HttpStatusCode closeTenantStatus(String sessionCookie) {
+		String csrfToken = fetchCsrfToken();
+		return client.delete().uri("/api/auth/tenant")
+				.header(HttpHeaders.COOKIE, sessionCookie + "; XSRF-TOKEN=" + csrfToken)
+				.header("X-XSRF-TOKEN", csrfToken)
+				.retrieve().toBodilessEntity().getStatusCode();
+	}
+
+	private ResponseEntity<CurrentUserResponse> closeTenant(String sessionCookie) {
+		String csrfToken = fetchCsrfToken();
+		return client.delete().uri("/api/auth/tenant")
+				.header(HttpHeaders.COOKIE, sessionCookie + "; XSRF-TOKEN=" + csrfToken)
+				.header("X-XSRF-TOKEN", csrfToken)
+				.retrieve().toEntity(CurrentUserResponse.class);
+	}
+
+	private static final CurrentUserResponse.TenantRef MUSTERFIRMA = new CurrentUserResponse.TenantRef("musterfirma",
+			"Musterfirma GmbH");
 
 	/** Any request yields the XSRF-TOKEN cookie — even an unauthenticated 401, as the SPA relies on. */
 	private String fetchCsrfToken() {

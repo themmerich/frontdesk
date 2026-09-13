@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 /** Trying a key out, and what is written down about it. No Spring context, no provider. */
 class ApiKeyTesterTest {
 
-	private static final Tenant TENANT = new Tenant("Musterfirma GmbH");
+	private static final Tenant TENANT = new Tenant("Musterfirma GmbH", "musterfirma");
 
 	@Test
 	void recordsTheTestCallForTheTenantWithoutACase() {

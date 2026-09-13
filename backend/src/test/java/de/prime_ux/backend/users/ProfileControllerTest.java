@@ -29,7 +29,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = "frontdesk.mail.polling-enabled=false")
@@ -77,7 +77,7 @@ class ProfileControllerTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		Tenant tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
 		branchRepository.save(new Branch(tenant, "Musterfirma GmbH", true));
 		filiale = branchRepository.save(new Branch(tenant, "Filiale Hamburg", false));
 		user = appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster",
@@ -85,7 +85,7 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void servesTheStoredProfile() throws Exception {
 		mockMvc.perform(get("/api/profile"))
 				.andExpect(status().isOk())
@@ -97,7 +97,7 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void updatesTheSignedInUsersProfile() throws Exception {
 		mockMvc.perform(put("/api/profile").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -115,7 +115,7 @@ class ProfileControllerTest {
 				// Whitespace-only optional fields are stored as "not set".
 				.andExpect(jsonPath("$.fax").isEmpty());
 
-		assertThat(appUserRepository.findUniqueByUsernameIgnoreCase("anna"))
+		assertThat(TestUsers.find(appUserRepository, "anna"))
 				.hasValueSatisfying(saved -> {
 					assertThat(saved.getDisplayName()).isEqualTo("Anna Andere");
 					assertThat(saved.getJoinedAt()).isEqualTo("2020-01-01");
@@ -126,9 +126,9 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void rejectsABranchOfAnotherTenant() throws Exception {
-		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		Tenant otherTenant = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 		Branch foreignBranch = branchRepository.save(new Branch(otherTenant, "Filiale Wien", false));
 
 		mockMvc.perform(put("/api/profile").with(csrf())
@@ -139,7 +139,7 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void rejectsABlankName() throws Exception {
 		mockMvc.perform(put("/api/profile").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -148,7 +148,7 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void rejectsAnInvalidMailAddress() throws Exception {
 		mockMvc.perform(put("/api/profile").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -157,33 +157,33 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void changesThePasswordWhenTheCurrentOneMatches() throws Exception {
 		mockMvc.perform(put("/api/profile/password").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"currentPassword\": \"altes-passwort\", \"newPassword\": \"neues-passwort\"}"))
 				.andExpect(status().isOk());
 
-		String storedHash = appUserRepository.findUniqueByUsernameIgnoreCase("anna")
+		String storedHash = TestUsers.find(appUserRepository, "anna")
 				.orElseThrow().getPasswordHash();
 		assertThat(passwordEncoder.matches("neues-passwort", storedHash)).isTrue();
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void rejectsAPasswordChangeWithTheWrongCurrentPassword() throws Exception {
 		mockMvc.perform(put("/api/profile/password").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"currentPassword\": \"falsch\", \"newPassword\": \"neues-passwort\"}"))
 				.andExpect(status().isBadRequest());
 
-		String storedHash = appUserRepository.findUniqueByUsernameIgnoreCase("anna")
+		String storedHash = TestUsers.find(appUserRepository, "anna")
 				.orElseThrow().getPasswordHash();
 		assertThat(passwordEncoder.matches("altes-passwort", storedHash)).isTrue();
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void rejectsATooShortNewPassword() throws Exception {
 		mockMvc.perform(put("/api/profile/password").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -192,7 +192,7 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void storesServesAndDeletesTheAvatar() throws Exception {
 		byte[] image = new byte[] { 1, 2, 3, 4 };
 		mockMvc.perform(multipart(HttpMethod.PUT, "/api/profile/avatar")
@@ -212,7 +212,7 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void replacesAnExistingAvatarOnASecondUpload() throws Exception {
 		mockMvc.perform(multipart(HttpMethod.PUT, "/api/profile/avatar")
 				.file(new MockMultipartFile("file", "one.png", MediaType.IMAGE_PNG_VALUE, new byte[] { 1 }))
@@ -230,7 +230,7 @@ class ProfileControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void rejectsAnUnsupportedImageType() throws Exception {
 		mockMvc.perform(multipart(HttpMethod.PUT, "/api/profile/avatar")
 				.file(new MockMultipartFile("file", "evil.svg", "image/svg+xml", new byte[] { 1 }))

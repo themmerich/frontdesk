@@ -26,7 +26,7 @@ import org.springframework.ai.chat.model.Generation;
  */
 class AnthropicReplyDraftServiceTest {
 
-	private static final Tenant TENANT = new Tenant("Musterfirma GmbH");
+	private static final Tenant TENANT = new Tenant("Musterfirma GmbH", "musterfirma");
 
 	private static Case aCase(String body) {
 		return new Case(TENANT, "<m@test>", "kunde@example.com", "info@musterfirma.de", "Lieferung 4711",

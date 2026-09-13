@@ -65,7 +65,7 @@ class MailPasswordEncryptionTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
 	}
 
 	private String storedPassword(UUID id) {

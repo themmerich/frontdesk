@@ -41,7 +41,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -102,7 +102,7 @@ class ReplySendControllerTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
 		// A regular user: sending a reply is nobody's admin job.
 		appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster", "{noop}irrelevant", UserRole.USER));
 		greenMail.purgeEmailFromAllMailboxes();
@@ -137,7 +137,7 @@ class ReplySendControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void sendsTheReplyThreadedOntoTheCustomersMailAndPutsItIntoTheConversation() throws Exception {
 		mailboxOnPort(greenMail.getSmtp().getPort());
 		Case aCase = drafted("rechnung@musterfirma.de", "Lieferung 4711");
@@ -189,7 +189,7 @@ class ReplySendControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void answersTheCustomersLatestMailWithTheWholeConversationInReferences() throws Exception {
 		mailboxOnPort(greenMail.getSmtp().getPort());
 		Case aCase = drafted("inbox@frontdesk.local", "Lieferung 4711");
@@ -214,7 +214,7 @@ class ReplySendControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void letsAFurtherReplyBeWrittenAndSentAfterTheFirst() throws Exception {
 		mailboxOnPort(greenMail.getSmtp().getPort());
 		Case aCase = drafted("inbox@frontdesk.local", "AW: Lieferung 4711");
@@ -239,7 +239,7 @@ class ReplySendControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void refusesWhatCannotBeSentAndSaysWhy() throws Exception {
 		mailboxOnPort(greenMail.getSmtp().getPort());
 		Case trashed = drafted("info@musterfirma.de", "Im Papierkorb");
@@ -255,7 +255,7 @@ class ReplySendControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void refusesToSendWithoutAMailServerToSendThrough() throws Exception {
 		Case aCase = drafted("info@musterfirma.de", "Lieferung 4711");
 
@@ -266,7 +266,7 @@ class ReplySendControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void leavesTheCaseAsItWasWhenTheMailServerCannotBeReached() throws Exception {
 		// Port 1: nothing listens there.
 		mailboxOnPort(1);
@@ -282,9 +282,9 @@ class ReplySendControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void doesNotFindAnotherTenantsCase() throws Exception {
-		Tenant other = tenantRepository.save(new Tenant("Beispiel AG"));
+		Tenant other = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 		Case foreign = caseRepository.save(new Case(other, "<foreign@test>", "fritz@example.com", "info@beispiel.de",
 				"Fremd", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 

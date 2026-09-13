@@ -8,34 +8,28 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
-	// Tenant and branch come along eagerly: every caller needs the tenant right
-	// away (and the profile the branch), and outside a transaction the lazy
-	// proxies could not be resolved anymore.
-	@EntityGraph(attributePaths = { "tenant", "branch" })
-	List<AppUser> findAllByUsernameIgnoreCase(String username);
-
 	// The branch comes along eagerly: the responses carry its id, which a lazy
 	// proxy could not resolve anymore outside the transaction.
 	@EntityGraph(attributePaths = "branch")
 	List<AppUser> findAllByTenantIdOrderByLastNameAscFirstNameAsc(UUID tenantId);
 
-	/**
-	 * Names are unique per tenant in the database, but the login resolves them globally (see
-	 * below), so a name taken anywhere is refused when creating a user — otherwise the new
-	 * account and the existing namesake would both be locked out.
-	 */
-	boolean existsByUsernameIgnoreCase(String username);
+	/** Usernames are unique within a tenant; creating or renaming a user checks against that. */
+	boolean existsByTenantIdAndUsernameIgnoreCase(UUID tenantId, String username);
 
 	@EntityGraph(attributePaths = "branch")
 	Optional<AppUser> findByIdAndTenantId(UUID id, UUID tenantId);
 
-	/**
-	 * Usernames are unique per tenant only. The login (and the session principal) carries no
-	 * tenant yet, so a name existing in several tenants cannot be resolved and answers empty —
-	 * nobody ever signs in to the wrong tenant. Resolving that needs a tenant choice at login.
-	 */
-	default Optional<AppUser> findUniqueByUsernameIgnoreCase(String username) {
-		List<AppUser> users = findAllByUsernameIgnoreCase(username);
-		return users.size() == 1 ? Optional.of(users.getFirst()) : Optional.empty();
-	}
+	// Tenant and branch come along eagerly: the session resolves the user on
+	// every request and needs the tenant right away, outside any transaction.
+	@EntityGraph(attributePaths = { "tenant", "branch" })
+	Optional<AppUser> findWithTenantById(UUID id);
+
+	/** The login with a Kennung: the name is looked for in that tenant and nowhere else. */
+	@EntityGraph(attributePaths = { "tenant", "branch" })
+	Optional<AppUser> findByTenantIdAndUsernameIgnoreCase(UUID tenantId, String username);
+
+	/** The login without a Kennung: only a super-user can be meant. */
+	Optional<AppUser> findByTenantIsNullAndUsernameIgnoreCase(String username);
+
+	boolean existsByRole(UserRole role);
 }

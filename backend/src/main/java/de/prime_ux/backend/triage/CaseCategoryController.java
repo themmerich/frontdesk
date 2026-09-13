@@ -3,6 +3,7 @@ package de.prime_ux.backend.triage;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.users.AppUser;
+import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.users.AppUserRepository;
 
 import jakarta.validation.Valid;
@@ -12,7 +13,6 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,12 +37,14 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/case-categories")
 class CaseCategoryController {
 
+	private final CurrentSession currentSession;
 	private final AppUserRepository appUserRepository;
 	private final CaseCategoryRepository caseCategoryRepository;
 	private final CaseRepository caseRepository;
 
-	CaseCategoryController(AppUserRepository appUserRepository, CaseCategoryRepository caseCategoryRepository,
+	CaseCategoryController(CurrentSession currentSession, AppUserRepository appUserRepository, CaseCategoryRepository caseCategoryRepository,
 			CaseRepository caseRepository) {
+		this.currentSession = currentSession;
 		this.appUserRepository = appUserRepository;
 		this.caseCategoryRepository = caseCategoryRepository;
 		this.caseRepository = caseRepository;
@@ -50,8 +52,8 @@ class CaseCategoryController {
 
 	/** Every category of the tenant, active or not, in the order the prompt lists them. */
 	@GetMapping
-	List<CaseCategoryResponse> listCategories(Authentication authentication) {
-		UUID tenantId = currentTenant(authentication).getId();
+	List<CaseCategoryResponse> listCategories() {
+		UUID tenantId = currentSession.tenant().getId();
 		Map<UUID, Long> counts = caseRepository.countPerCategory(tenantId).stream()
 				.collect(Collectors.toMap(CaseRepository.CaseCountPerCategory::getCategoryId,
 						CaseRepository.CaseCountPerCategory::getCaseCount));
@@ -66,17 +68,16 @@ class CaseCategoryController {
 	 * put new cases into, and the one a case already sits in travels with the case itself.
 	 */
 	@GetMapping("/selectable")
-	List<SelectableCategoryResponse> listSelectableCategories(Authentication authentication) {
-		return caseCategoryRepository.findAllByTenantIdOrderBySortOrderAsc(currentTenant(authentication).getId())
+	List<SelectableCategoryResponse> listSelectableCategories() {
+		return caseCategoryRepository.findAllByTenantIdOrderBySortOrderAsc(currentSession.tenant().getId())
 				.stream().filter(CaseCategory::isActive).map(SelectableCategoryResponse::from).toList();
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	@Transactional
-	CaseCategoryResponse createCategory(@Valid @RequestBody CaseCategoryRequest request,
-			Authentication authentication) {
-		Tenant tenant = currentTenant(authentication);
+	CaseCategoryResponse createCategory(@Valid @RequestBody CaseCategoryRequest request) {
+		Tenant tenant = currentSession.tenant();
 		String name = request.name().trim();
 		if (caseCategoryRepository.existsByTenantIdAndNameIgnoreCase(tenant.getId(), name)) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "a category with this name already exists");
@@ -96,9 +97,8 @@ class CaseCategoryController {
 	 */
 	@PutMapping("/{id}")
 	@Transactional
-	CaseCategoryResponse updateCategory(@PathVariable UUID id, @Valid @RequestBody CaseCategoryRequest request,
-			Authentication authentication) {
-		UUID tenantId = currentTenant(authentication).getId();
+	CaseCategoryResponse updateCategory(@PathVariable UUID id, @Valid @RequestBody CaseCategoryRequest request) {
+		UUID tenantId = currentSession.tenant().getId();
 		CaseCategory category = ownCategory(id, tenantId);
 		String name = request.name().trim();
 		boolean nameTaken = !name.equalsIgnoreCase(category.getName())
@@ -124,8 +124,8 @@ class CaseCategoryController {
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Transactional
-	void deleteCategory(@PathVariable UUID id, Authentication authentication) {
-		UUID tenantId = currentTenant(authentication).getId();
+	void deleteCategory(@PathVariable UUID id) {
+		UUID tenantId = currentSession.tenant().getId();
 		CaseCategory category = ownCategory(id, tenantId);
 		long caseCount = caseRepository.countByCategoryId(id);
 		if (caseCount > 0) {
@@ -179,9 +179,4 @@ class CaseCategoryController {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 	}
 
-	private Tenant currentTenant(Authentication authentication) {
-		AppUser user = appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-		return user.getTenant();
-	}
 }

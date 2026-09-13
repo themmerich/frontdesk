@@ -30,7 +30,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import de.prime_ux.backend.auth.AsUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /** The draft as the detail page works with it, with the model replaced by the processor test's stand-in. */
@@ -75,8 +75,8 @@ class ReplyDraftControllerTest {
 		appUserRepository.deleteAll();
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
-		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
-		otherTenant = tenantRepository.save(new Tenant("Beispiel AG"));
+		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
+		otherTenant = tenantRepository.save(new Tenant("Beispiel AG", "beispiel-ag"));
 		// A regular user: answering mail is nobody's admin job.
 		appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster", "{noop}irrelevant", UserRole.USER));
 		stubReplyDraftService.reset();
@@ -93,7 +93,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void writesADraftOnRequest() throws Exception {
 		Case aCase = caseOf(tenant, "Lieferung 4711");
 		stubReplyDraftService.answer("Guten Tag, wir prüfen das.");
@@ -110,7 +110,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void passesThePersonsLineOnToTheModelAndKeepsNothingOfIt() throws Exception {
 		Case aCase = caseOf(tenant, "Stellenangebot");
 
@@ -126,7 +126,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void refusesALineThatIsALetter() throws Exception {
 		Case aCase = caseOf(tenant, "Zu viel");
 
@@ -139,7 +139,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void signsTheReplyInTheNameOfWhoeverAsked() throws Exception {
 		tenant.updateCompany(tenant.getName(), null, tenant.getLogoDisplay(), null,
 				"Mit freundlichen Grüßen\n{{vorname}} {{nachname}}\n{{firma}}", null);
@@ -153,7 +153,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void savesAPersonsVersionAndKeepsTheModelsBesideIt() throws Exception {
 		Case aCase = caseOf(tenant, "Lieferung 4711");
 		aCase.applyDraft("Die Antwort des Modells.");
@@ -173,7 +173,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void letsAPersonWriteADraftWhereTheModelNeverDid() throws Exception {
 		Case aCase = caseOf(tenant, "Ohne Modell");
 
@@ -189,7 +189,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void refusesAnEmptyDraft() throws Exception {
 		Case aCase = caseOf(tenant, "Leer");
 
@@ -203,7 +203,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void doesNotFindAnotherTenantsCase() throws Exception {
 		Case foreign = caseOf(otherTenant, "Fremd");
 
@@ -221,7 +221,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void answersNoMailThatWasThrownAway() throws Exception {
 		Case trashed = caseOf(tenant, "Im Papierkorb");
 		trashed.moveToTrash();
@@ -240,7 +240,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void saysSoWhenTheModelGaveNoDraft() throws Exception {
 		Case aCase = caseOf(tenant, "Kein Glück");
 		stubReplyDraftService.fail();
@@ -253,7 +253,7 @@ class ReplyDraftControllerTest {
 	}
 
 	@Test
-	@WithMockUser(username = "anna")
+	@AsUser("anna")
 	void tellsTheInboxWhichCasesHaveADraft() throws Exception {
 		Case drafted = caseOf(tenant, "Mit Entwurf");
 		drafted.applyDraft("Guten Tag.");

@@ -1,6 +1,7 @@
 package de.prime_ux.backend.tenants;
 
 import de.prime_ux.backend.users.AppUser;
+import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.users.AppUserRepository;
 import jakarta.validation.Valid;
 import java.io.IOException;
@@ -9,7 +10,6 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,27 +36,34 @@ class CompanyController {
 			MediaType.IMAGE_JPEG_VALUE, "image/webp", MediaType.IMAGE_GIF_VALUE);
 	private static final long MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
+	private final CurrentSession currentSession;
 	private final AppUserRepository appUserRepository;
 	private final TenantRepository tenantRepository;
 	private final TenantLogoRepository tenantLogoRepository;
 
-	CompanyController(AppUserRepository appUserRepository, TenantRepository tenantRepository,
+	CompanyController(CurrentSession currentSession, AppUserRepository appUserRepository, TenantRepository tenantRepository,
 			TenantLogoRepository tenantLogoRepository) {
+		this.currentSession = currentSession;
 		this.appUserRepository = appUserRepository;
 		this.tenantRepository = tenantRepository;
 		this.tenantLogoRepository = tenantLogoRepository;
 	}
 
+	/**
+	 * Everyone signed in reads this — the sidebar shows the company's name and logo. A super-user
+	 * with no tenant open gets frontdesk's own brand, so the sidebar has something to show.
+	 */
 	@GetMapping
-	CompanyResponse getCompany(Authentication authentication) {
-		Tenant tenant = currentTenant(authentication);
-		return CompanyResponse.from(tenant, tenantLogoRepository.existsByTenantId(tenant.getId()));
+	CompanyResponse getCompany() {
+		return currentSession.tenantIfAny()
+				.map(tenant -> CompanyResponse.from(tenant, tenantLogoRepository.existsByTenantId(tenant.getId())))
+				.orElseGet(CompanyResponse::frontdeskDefault);
 	}
 
 	@PutMapping
 	@Transactional
-	CompanyResponse updateCompany(@Valid @RequestBody UpdateCompanyRequest request, Authentication authentication) {
-		Tenant tenant = currentTenant(authentication);
+	CompanyResponse updateCompany(@Valid @RequestBody UpdateCompanyRequest request) {
+		Tenant tenant = currentSession.tenant();
 		// The stand-in signs the scheduler's drafts; one of another tenant is not found rather than
 		// forbidden, so the answer does not say that they exist.
 		AppUser signatureUser = request.signatureUserId() == null ? null
@@ -70,8 +77,8 @@ class CompanyController {
 
 	@PutMapping("/logo")
 	@Transactional
-	void uploadLogo(@RequestParam("file") MultipartFile file, Authentication authentication) {
-		Tenant tenant = currentTenant(authentication);
+	void uploadLogo(@RequestParam("file") MultipartFile file) {
+		Tenant tenant = currentSession.tenant();
 		if (file.isEmpty() || file.getSize() > MAX_IMAGE_BYTES) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "image must be between 1 byte and 2 MB");
 		}
@@ -86,8 +93,8 @@ class CompanyController {
 	}
 
 	@GetMapping("/logo")
-	ResponseEntity<byte[]> getLogo(Authentication authentication) {
-		Tenant tenant = currentTenant(authentication);
+	ResponseEntity<byte[]> getLogo() {
+		Tenant tenant = currentSession.tenant();
 		return tenantLogoRepository.findByTenantId(tenant.getId())
 				.map(logo -> ResponseEntity.ok()
 						// The frontend busts the cache with a version query parameter after
@@ -101,8 +108,8 @@ class CompanyController {
 	@DeleteMapping("/logo")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Transactional
-	void deleteLogo(Authentication authentication) {
-		tenantLogoRepository.deleteByTenantId(currentTenant(authentication).getId());
+	void deleteLogo() {
+		tenantLogoRepository.deleteByTenantId(currentSession.tenant().getId());
 	}
 
 	private String blankToNull(String value) {
@@ -117,10 +124,4 @@ class CompanyController {
 		}
 	}
 
-	private Tenant currentTenant(Authentication authentication) {
-		// The tenant comes along eagerly with the user lookup (entity graph).
-		return appUserRepository.findUniqueByUsernameIgnoreCase(authentication.getName())
-				.map(AppUser::getTenant)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
 }
