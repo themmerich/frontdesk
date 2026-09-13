@@ -21,45 +21,62 @@ import jakarta.mail.internet.ParseException;
 import jakarta.mail.search.FlagTerm;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Pulls unseen mails from one tenant's IMAP inbox and persists each one as a {@link Case} of
- * that tenant, with whatever was attached to it as that case's {@link CaseAttachment}s.
+ * Pulls unseen mails from one tenant's IMAP inbox. Each one either joins the conversation it
+ * answers — found through its threading headers, or through the same sender writing about the
+ * same subject — or opens a {@link Case} of its own. Either way the mail becomes a
+ * {@link CaseMessage}, with whatever was attached to it as that message's {@link CaseAttachment}s.
  *
  * <p>Processed mails are marked SEEN on the server, so every poll only touches new arrivals. A
- * mail whose Message-ID was already ingested for this tenant is skipped (protects against
- * re-ingesting when the SEEN flag is lost, e.g. after a mailbox reset).
+ * mail whose Message-ID is already part of one of the tenant's conversations is skipped (protects
+ * against re-ingesting when the SEEN flag is lost, e.g. after a mailbox reset).
  */
 @Service
 public class MailIngestService {
 
 	private static final Logger log = LoggerFactory.getLogger(MailIngestService.class);
 
+	/** How long a customer may take to write again without threading headers before it is a new matter. */
+	static final Duration FOLLOW_UP_WINDOW = Duration.ofDays(30);
+
+	/** What mail clients put in front of a subject when replying or forwarding, in either language. */
+	private static final Pattern SUBJECT_PREFIXES = Pattern.compile("^(?:(?:re|aw|fwd?|wg)\\s*:\\s*)+",
+			Pattern.CASE_INSENSITIVE);
+
 	/** What a nameless part is called, by what it is; the rest goes without an extension. */
 	private static final Map<String, String> EXTENSIONS = Map.of("image/png", ".png", "image/jpeg", ".jpg",
 			"image/gif", ".gif", "image/webp", ".webp", "application/pdf", ".pdf", "text/plain", ".txt");
 
 	private final CaseRepository caseRepository;
+	private final CaseMessageRepository caseMessageRepository;
 	private final CaseAttachmentRepository caseAttachmentRepository;
 	private final CaseEvents caseEvents;
 	private final TransactionTemplate transaction;
 
-	public MailIngestService(CaseRepository caseRepository, CaseAttachmentRepository caseAttachmentRepository,
-			CaseEvents caseEvents, PlatformTransactionManager transactionManager) {
+	public MailIngestService(CaseRepository caseRepository, CaseMessageRepository caseMessageRepository,
+			CaseAttachmentRepository caseAttachmentRepository, CaseEvents caseEvents,
+			PlatformTransactionManager transactionManager) {
 		this.caseRepository = caseRepository;
+		this.caseMessageRepository = caseMessageRepository;
 		this.caseAttachmentRepository = caseAttachmentRepository;
 		this.caseEvents = caseEvents;
 		this.transaction = new TransactionTemplate(transactionManager);
@@ -101,14 +118,14 @@ public class MailIngestService {
 	}
 
 	/**
-	 * One mail becomes one case with its attachments, in one transaction: a case without the
-	 * invoice that came with it would be half a mail. A part that cannot be read fails the whole
-	 * mail, which is then not marked seen and tried again on the next poll — the same as a body
-	 * that cannot be read.
+	 * One mail becomes one message with its attachments, in one transaction — of the conversation
+	 * it answers, or of a new case: a case without the invoice that came with it would be half a
+	 * mail. A part that cannot be read fails the whole mail, which is then not marked seen and
+	 * tried again on the next poll — the same as a body that cannot be read.
 	 */
 	private void ingest(MimeMessage message, Tenant tenant) throws MessagingException {
 		String messageId = message.getMessageID();
-		if (messageId != null && caseRepository.existsByTenantIdAndMessageId(tenant.getId(), messageId)) {
+		if (messageId != null && caseMessageRepository.existsByMailCaseTenantIdAndMessageId(tenant.getId(), messageId)) {
 			log.debug("Skipping already ingested mail {}", messageId);
 			return;
 		}
@@ -116,21 +133,96 @@ public class MailIngestService {
 		// The paperclip in the list stands for something a person would open. A signature's
 		// logo is not that, so a mail with nothing but inline pictures carries none.
 		boolean hasAttachments = attachments.stream().anyMatch(attachment -> !attachment.inline());
-		Case newCase = new Case(tenant, messageId, senderOf(message), recipientOf(message),
-				Objects.requireNonNullElse(message.getSubject(), ""), bodyTextOf(message), bodyHtmlOf(message),
-				receivedAtOf(message), hasAttachments, sizeOf(message));
-		transaction.executeWithoutResult(status -> {
-			Case saved = caseRepository.save(newCase);
+		String sender = senderOf(message);
+		String recipient = recipientOf(message);
+		String subject = Objects.requireNonNullElse(message.getSubject(), "");
+		String bodyText = bodyTextOf(message);
+		String bodyHtml = bodyHtmlOf(message);
+		Instant receivedAt = receivedAtOf(message);
+		long size = sizeOf(message);
+		Optional<UUID> conversation = conversationFor(message, tenant, sender, subject);
+
+		Case stored = transaction.execute(status -> {
+			Case aCase;
+			int position;
+			if (conversation.isPresent()) {
+				aCase = caseRepository.findById(conversation.get()).orElseThrow();
+				position = caseMessageRepository.countByMailCaseId(aCase.getId());
+				aCase.receiveFollowUp(receivedAt, hasAttachments);
+				aCase = caseRepository.save(aCase);
+			} else {
+				aCase = caseRepository.save(new Case(tenant, messageId, sender, recipient, subject, receivedAt,
+						hasAttachments, size));
+				position = 0;
+			}
+			CaseMessage saved = caseMessageRepository.save(CaseMessage.incoming(aCase, position, messageId, sender,
+					recipient, subject, bodyText, bodyHtml, receivedAt, size));
 			for (AttachmentPart attachment : attachments) {
 				caseAttachmentRepository.save(new CaseAttachment(saved, attachment.position(), attachment.fileName(),
 						attachment.contentType(), attachment.contentId(), attachment.inline(), attachment.content()));
 			}
-			// The first step of the trail; nobody did this, the mail came.
-			caseEvents.record(saved, CaseEventType.INGESTED, null,
-					CaseEvents.details("sender", saved.getSender(), "messageId", messageId));
+			// A step of the trail either way; nobody did this, the mail came.
+			caseEvents.record(aCase, position == 0 ? CaseEventType.INGESTED : CaseEventType.FOLLOW_UP_RECEIVED, null,
+					CaseEvents.details("sender", sender, "subject", subject, "messageId", messageId));
+			return aCase;
 		});
-		log.info("Ingested mail '{}' from {} as case {} with {} attachment(s)", newCase.getSubject(),
-				newCase.getSender(), newCase.getId(), attachments.size());
+		log.info("Ingested mail '{}' from {} as {} of case {} with {} attachment(s)", subject, sender,
+				conversation.isPresent() ? "a follow-up" : "the opening mail", stored.getId(), attachments.size());
+	}
+
+	/**
+	 * The conversation a mail belongs to, if any. First by what the mail itself says: the
+	 * Message-IDs it names in In-Reply-To and References, matched against every message of the
+	 * tenant's conversations, ours and theirs. Then, for clients that set no such headers, by the
+	 * same customer writing about the same subject within {@link #FOLLOW_UP_WINDOW}. A case in the
+	 * trash never matches: a customer writing again about something that was thrown away is a new
+	 * matter.
+	 */
+	private Optional<UUID> conversationFor(MimeMessage message, Tenant tenant, String sender, String subject)
+			throws MessagingException {
+		List<String> referenced = referencedMessageIds(message);
+		if (!referenced.isEmpty()) {
+			// The message's case is a lazy reference that gives up nothing but its id out here, so
+			// the case is read again to see whether it still stands.
+			Optional<Case> byHeaders = caseMessageRepository
+					.findFirstByMailCaseTenantIdAndMessageIdInOrderByOccurredAtDesc(tenant.getId(), referenced)
+					.flatMap(referencedMessage -> caseRepository.findById(referencedMessage.getMailCase().getId()))
+					.filter(aCase -> aCase.getDeletedAt() == null);
+			if (byHeaders.isPresent()) {
+				return byHeaders.map(Case::getId);
+			}
+		}
+		String wanted = normalizedSubject(subject);
+		return caseRepository
+				.findAllByTenantIdAndSenderIgnoreCaseAndDeletedAtIsNullAndLastMessageAtAfterOrderByLastMessageAtDesc(
+						tenant.getId(), sender, Instant.now().minus(FOLLOW_UP_WINDOW))
+				.stream()
+				.filter(candidate -> normalizedSubject(candidate.getSubject()).equals(wanted))
+				.findFirst()
+				.map(Case::getId);
+	}
+
+	/** Every Message-ID the mail says it answers, as the headers spell them, angle brackets and all. */
+	private static List<String> referencedMessageIds(MimeMessage message) throws MessagingException {
+		List<String> ids = new ArrayList<>();
+		for (String name : new String[] { "In-Reply-To", "References" }) {
+			String[] values = message.getHeader(name);
+			if (values != null) {
+				for (String value : values) {
+					Arrays.stream(value.trim().split("\\s+")).filter(id -> !id.isBlank()).forEach(ids::add);
+				}
+			}
+		}
+		return ids;
+	}
+
+	/**
+	 * A subject as a customer means it: without the "Re:", "AW:", "Fwd:" or "WG:" their client
+	 * put in front, however many, and without regard to case or surrounding blanks.
+	 */
+	static String normalizedSubject(String subject) {
+		String trimmed = subject == null ? "" : subject.trim();
+		return SUBJECT_PREFIXES.matcher(trimmed).replaceFirst("").trim().toLowerCase(Locale.ROOT);
 	}
 
 	/** Raw message size in bytes as reported by the server (RFC822.SIZE); 0 if unknown. */

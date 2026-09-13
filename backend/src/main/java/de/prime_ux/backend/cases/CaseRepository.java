@@ -1,6 +1,7 @@
 package de.prime_ux.backend.cases;
 
 import de.prime_ux.backend.triage.CaseTier;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -13,9 +14,19 @@ import org.springframework.data.jpa.repository.Query;
 public interface CaseRepository extends JpaRepository<Case, UUID> {
 
 	// The category comes along eagerly: the inbox names it, and the lazy proxy
-	// could not be resolved anymore outside the transaction.
+	// could not be resolved anymore outside the transaction. Ordered by the last
+	// move of the conversation: a customer writing again puts the case on top.
 	@EntityGraph(attributePaths = "category")
-	List<Case> findAllByTenantIdOrderByReceivedAtDesc(UUID tenantId);
+	List<Case> findAllByTenantIdOrderByLastMessageAtDesc(UUID tenantId);
+
+	/**
+	 * Where a mail without threading headers might belong: the tenant's open conversations with
+	 * this customer that moved after the given moment, newest first. Which of them has the same
+	 * subject is decided by the caller — a subject is compared without its "Re:" and "AW:", which
+	 * no query can do.
+	 */
+	List<Case> findAllByTenantIdAndSenderIgnoreCaseAndDeletedAtIsNullAndLastMessageAtAfterOrderByLastMessageAtDesc(
+			UUID tenantId, String sender, Instant since);
 
 	/**
 	 * The category comes along eagerly here for the same reason as in the list: the detail names

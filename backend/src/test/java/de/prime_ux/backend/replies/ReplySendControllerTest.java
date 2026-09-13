@@ -3,6 +3,7 @@ package de.prime_ux.backend.replies;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -14,6 +15,8 @@ import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseEvent;
 import de.prime_ux.backend.cases.CaseEventRepository;
 import de.prime_ux.backend.cases.CaseEventType;
+import de.prime_ux.backend.cases.CaseMessage;
+import de.prime_ux.backend.cases.CaseMessageRepository;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.mailsettings.MailSettingsMode;
 import de.prime_ux.backend.mailsettings.TenantMailSettings;
@@ -29,6 +32,7 @@ import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,12 +40,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * A reply leaves the house: through the tenant's own mailbox, here an embedded GreenMail as the
- * SMTP server, threaded onto the customer's mail and written down on the case.
+ * SMTP server, threaded onto the customer's latest mail and put into the conversation.
  */
 @SpringBootTest(properties = "frontdesk.mail.polling-enabled=false")
 @AutoConfigureMockMvc
@@ -62,6 +67,9 @@ class ReplySendControllerTest {
 	private CaseRepository caseRepository;
 
 	@Autowired
+	private CaseMessageRepository caseMessageRepository;
+
+	@Autowired
 	private CaseEventRepository caseEventRepository;
 
 	@Autowired
@@ -80,7 +88,6 @@ class ReplySendControllerTest {
 	private BranchRepository branchRepository;
 
 	private Tenant tenant;
-	private AppUser anna;
 
 	@AfterAll
 	static void stopGreenMail() {
@@ -97,7 +104,7 @@ class ReplySendControllerTest {
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH"));
 		// A regular user: sending a reply is nobody's admin job.
-		anna = appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster", "{noop}irrelevant", UserRole.USER));
+		appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster", "{noop}irrelevant", UserRole.USER));
 		greenMail.purgeEmailFromAllMailboxes();
 		greenMail.setUser("inbox@frontdesk.local", "secret");
 	}
@@ -108,31 +115,46 @@ class ReplySendControllerTest {
 				false, "localhost", smtpPort, false, "inbox@frontdesk.local", "secret", "INBOX", false));
 	}
 
-	/** A case with a reply waiting, from a customer who wrote to the given address. */
+	/** A case with its opening mail and a reply waiting, from a customer who wrote to the given address. */
 	private Case drafted(String recipient, String subject) {
-		Case aCase = new Case(tenant, "<" + subject.replace(' ', '-') + "@example.com>", "kunde@example.com", recipient, subject,
-				"Wann kommt die Lieferung?", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		String messageId = "<" + subject.replace(' ', '-') + "@example.com>";
+		Case aCase = new Case(tenant, messageId, "kunde@example.com", recipient, subject,
+				Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		aCase.applyTriage(null, CaseTier.DRAFT, new BigDecimal("0.8"), "Kunde fragt nach.");
 		aCase.applyDraft("Guten Tag,\n\ndie Lieferung ist unterwegs.\n\nMit freundlichen Grüßen\nMusterfirma GmbH");
-		return caseRepository.save(aCase);
+		Case saved = caseRepository.save(aCase);
+		caseMessageRepository.save(CaseMessage.incoming(saved, 0, messageId, "kunde@example.com", recipient, subject,
+				"Wann kommt die Lieferung?", null, saved.getReceivedAt(), 2048));
+		return saved;
 	}
 
 	private Case reload(Case aCase) {
 		return caseRepository.findById(aCase.getId()).orElseThrow();
 	}
 
+	private List<CaseMessage> conversationOf(Case aCase) {
+		return caseMessageRepository.findAllByMailCaseIdOrderByPositionAsc(aCase.getId());
+	}
+
 	@Test
 	@WithMockUser(username = "anna")
-	void sendsTheReplyThreadedOntoTheCustomersMailAndWritesItDown() throws Exception {
+	void sendsTheReplyThreadedOntoTheCustomersMailAndPutsItIntoTheConversation() throws Exception {
 		mailboxOnPort(greenMail.getSmtp().getPort());
 		Case aCase = drafted("rechnung@musterfirma.de", "Lieferung 4711");
 
 		mockMvc.perform(post("/api/cases/{id}/send", aCase.getId()).with(csrf()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.sentAt").exists())
-				.andExpect(jsonPath("$.sentByName").value("Anna Muster"))
 				// Sending is taking note: the case has left the inbox.
 				.andExpect(jsonPath("$.handledAt").exists())
+				// The reply is a message now, and the box is empty for the next one.
+				.andExpect(jsonPath("$.draftText").doesNotExist())
+				.andExpect(jsonPath("$.messages.length()").value(2))
+				.andExpect(jsonPath("$.messages[1].direction").value("outgoing"))
+				.andExpect(jsonPath("$.messages[1].sender").value("inbox@frontdesk.local"))
+				.andExpect(jsonPath("$.messages[1].recipient").value("kunde@example.com"))
+				.andExpect(jsonPath("$.messages[1].subject").value("Re: Lieferung 4711"))
+				.andExpect(jsonPath("$.messages[1].bodyText").value(aCase.getDraftText()))
+				.andExpect(jsonPath("$.messages[1].sentByName").value("Anna Muster"))
 				.andExpect(jsonPath("$.events[-1].type").value("sent"))
 				.andExpect(jsonPath("$.events[-1].actorName").value("Anna Muster"))
 				.andExpect(jsonPath("$.events[-1].details.to").value("kunde@example.com"))
@@ -154,9 +176,12 @@ class ReplySendControllerTest {
 		assertThat((String) sent.getContent()).contains("die Lieferung ist unterwegs.").contains("Grüßen");
 
 		Case stored = reload(aCase);
-		assertThat(stored.getSentAt()).isNotNull();
-		assertThat(stored.getSentMessageId()).isEqualTo(sent.getMessageID());
+		assertThat(stored.getDraftText()).isNull();
 		assertThat(stored.getHandledAt()).isNotNull();
+		List<CaseMessage> conversation = conversationOf(stored);
+		assertThat(conversation).hasSize(2);
+		assertThat(conversation.get(1).getMessageId()).isEqualTo(sent.getMessageID());
+		assertThat(stored.getLastMessageAt()).isEqualTo(conversation.get(1).getOccurredAt());
 		// One step for the click, not two: sent says it all.
 		assertThat(caseEventRepository.findAllByMailCaseIdOrderByOccurredAtAsc(stored.getId()))
 				.extracting(CaseEvent::getType)
@@ -165,17 +190,52 @@ class ReplySendControllerTest {
 
 	@Test
 	@WithMockUser(username = "anna")
-	void keepsTheSubjectThatAlreadySaysReplyAndSetsNoReplyToForTheMailboxItself() throws Exception {
+	void answersTheCustomersLatestMailWithTheWholeConversationInReferences() throws Exception {
 		mailboxOnPort(greenMail.getSmtp().getPort());
-		Case aCase = drafted("inbox@frontdesk.local", "AW: Lieferung 4711");
+		Case aCase = drafted("inbox@frontdesk.local", "Lieferung 4711");
+		// One round already: our reply, and the customer writing again from another address.
+		caseMessageRepository.save(CaseMessage.outgoing(aCase, 1, "<r1@frontdesk.local>", "inbox@frontdesk.local",
+				"kunde@example.com", "Re: Lieferung 4711", "Morgen.", Instant.parse("2026-08-01T11:00:00Z"), "Anna Muster"));
+		caseMessageRepository.save(CaseMessage.incoming(aCase, 2, "<m2@example.com>", "kunde.privat@example.com",
+				"inbox@frontdesk.local", "AW: Lieferung 4711", "Welche Sendungsnummer?", null,
+				Instant.parse("2026-08-01T12:00:00Z"), 1024));
 
 		mockMvc.perform(post("/api/cases/{id}/send", aCase.getId()).with(csrf())).andExpect(status().isOk());
 
 		assertThat(greenMail.waitForIncomingEmail(5000, 1)).isTrue();
 		MimeMessage sent = greenMail.getReceivedMessages()[0];
-		assertThat(sent.getSubject()).isEqualTo("AW: Lieferung 4711");
+		// To the address the customer last wrote from, under their latest mail, over the whole thread.
+		assertThat(((InternetAddress) sent.getAllRecipients()[0]).getAddress()).isEqualTo("kunde.privat@example.com");
+		assertThat(sent.getHeader("In-Reply-To")[0]).isEqualTo("<m2@example.com>");
+		assertThat(sent.getHeader("References")[0]).isEqualTo("<Lieferung-4711@example.com> <r1@frontdesk.local> <m2@example.com>");
 		// The customer wrote to the mailbox itself: nothing to redirect the answer to.
 		assertThat(sent.getHeader("Reply-To")).isNull();
+		assertThat(conversationOf(aCase)).hasSize(4);
+	}
+
+	@Test
+	@WithMockUser(username = "anna")
+	void letsAFurtherReplyBeWrittenAndSentAfterTheFirst() throws Exception {
+		mailboxOnPort(greenMail.getSmtp().getPort());
+		Case aCase = drafted("inbox@frontdesk.local", "AW: Lieferung 4711");
+
+		mockMvc.perform(post("/api/cases/{id}/send", aCase.getId()).with(csrf())).andExpect(status().isOk());
+		// Nothing to send until something is in the box again.
+		mockMvc.perform(post("/api/cases/{id}/send", aCase.getId()).with(csrf())).andExpect(status().isConflict());
+
+		mockMvc.perform(put("/api/cases/{id}/draft", aCase.getId()).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{"text": "Nachtrag: die Sendungsnummer lautet 4711."}"""))
+				.andExpect(status().isOk());
+		mockMvc.perform(post("/api/cases/{id}/send", aCase.getId()).with(csrf())).andExpect(status().isOk());
+
+		assertThat(greenMail.waitForIncomingEmail(5000, 2)).isTrue();
+		MimeMessage[] both = greenMail.getReceivedMessages();
+		// A subject that already says it is a reply is left alone.
+		assertThat(both[0].getSubject()).isEqualTo("AW: Lieferung 4711");
+		assertThat((String) both[1].getContent()).contains("Nachtrag");
+		assertThat(conversationOf(aCase)).hasSize(3);
 	}
 
 	@Test
@@ -186,17 +246,12 @@ class ReplySendControllerTest {
 		trashed.moveToTrash();
 		caseRepository.save(trashed);
 		Case blank = caseRepository.save(new Case(tenant, "<blank@test>", "kunde@example.com", "info@musterfirma.de",
-				"Ohne Entwurf", "Hallo?", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
-		Case sent = drafted("info@musterfirma.de", "Schon beantwortet");
-		sent.markSent(anna, "<earlier@frontdesk.local>");
-		caseRepository.save(sent);
+				"Ohne Entwurf", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
 
 		mockMvc.perform(post("/api/cases/{id}/send", trashed.getId()).with(csrf())).andExpect(status().isConflict());
 		mockMvc.perform(post("/api/cases/{id}/send", blank.getId()).with(csrf())).andExpect(status().isConflict());
-		mockMvc.perform(post("/api/cases/{id}/send", sent.getId()).with(csrf())).andExpect(status().isConflict());
 
 		assertThat(greenMail.getReceivedMessages()).isEmpty();
-		assertThat(reload(sent).getSentMessageId()).isEqualTo("<earlier@frontdesk.local>");
 	}
 
 	@Test
@@ -207,7 +262,7 @@ class ReplySendControllerTest {
 		// No mail settings at all for this tenant.
 		mockMvc.perform(post("/api/cases/{id}/send", aCase.getId()).with(csrf())).andExpect(status().isConflict());
 
-		assertThat(reload(aCase).getSentAt()).isNull();
+		assertThat(reload(aCase).getDraftText()).isNotNull();
 	}
 
 	@Test
@@ -220,8 +275,9 @@ class ReplySendControllerTest {
 		mockMvc.perform(post("/api/cases/{id}/send", aCase.getId()).with(csrf())).andExpect(status().isBadGateway());
 
 		Case unchanged = reload(aCase);
-		assertThat(unchanged.getSentAt()).isNull();
+		assertThat(unchanged.getDraftText()).isNotNull();
 		assertThat(unchanged.getHandledAt()).isNull();
+		assertThat(conversationOf(unchanged)).hasSize(1);
 		assertThat(caseEventRepository.findAllByMailCaseIdOrderByOccurredAtAsc(aCase.getId())).isEmpty();
 	}
 
@@ -230,7 +286,7 @@ class ReplySendControllerTest {
 	void doesNotFindAnotherTenantsCase() throws Exception {
 		Tenant other = tenantRepository.save(new Tenant("Beispiel AG"));
 		Case foreign = caseRepository.save(new Case(other, "<foreign@test>", "fritz@example.com", "info@beispiel.de",
-				"Fremd", "body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+				"Fremd", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
 		mockMvc.perform(post("/api/cases/{id}/send", foreign.getId()).with(csrf())).andExpect(status().isNotFound());
 	}

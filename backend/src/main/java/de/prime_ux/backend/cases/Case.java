@@ -3,7 +3,6 @@ package de.prime_ux.backend.cases;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.triage.CaseCategory;
 import de.prime_ux.backend.triage.CaseTier;
-import de.prime_ux.backend.users.AppUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -23,7 +22,9 @@ import org.hibernate.annotations.UuidGenerator;
 
 /**
  * A case ("Vorgang") — the central entity of frontdesk. Every ingested mail becomes a case and
- * later travels through triage, drafting, and approval.
+ * later travels through triage, drafting, and approval. The case holds the facts about the mail
+ * that opened it and the verdict on it; the mails themselves — the opening one, what followed,
+ * what went out — are its {@link CaseMessage}s.
  */
 @Entity
 @Table(name = "cases")
@@ -53,16 +54,13 @@ public class Case {
 	@Column(nullable = false)
 	private String subject;
 
-	@Column(name = "body_text", nullable = false)
-	private String bodyText;
-
-	// The mail as it was written, where it was written in HTML. Null for the ones
-	// that carry no HTML part; the text above is what the triage reads either way.
-	@Column(name = "body_html")
-	private String bodyHtml;
-
+	// When the opening mail came in. The dashboard counts arrivals by it.
 	@Column(name = "received_at", nullable = false)
 	private Instant receivedAt;
+
+	// When the conversation last moved, in either direction: the list sorts by it.
+	@Column(name = "last_message_at", nullable = false)
+	private Instant lastMessageAt;
 
 	@Column(name = "ingested_at", nullable = false)
 	private Instant ingestedAt;
@@ -111,9 +109,9 @@ public class Case {
 	@Column(name = "draft_generated_text")
 	private String draftGeneratedText;
 
-	// The reply as it stands: what a person edits, and what step 5 will send.
-	// Null means the case has no draft, which is how the runner finds the cases
-	// still waiting for one.
+	// The next reply as it stands: what a person edits, and what the send button
+	// sends. Null means the case has no draft, which is how the runner finds the
+	// cases still waiting for one; cleared again once the reply went out.
 	@Column(name = "draft_text")
 	private String draftText;
 
@@ -123,41 +121,32 @@ public class Case {
 	@Column(name = "draft_updated_at")
 	private Instant draftUpdatedAt;
 
-	// The reply as it went out: when, by whom, and under which Message-ID, so a
-	// customer's next mail can be threaded onto it. The text is the draft, which
-	// does not change any more once these are set.
-	@Column(name = "sent_at")
-	private Instant sentAt;
-
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "sent_by_user_id")
-	private AppUser sentBy;
-
-	@Column(name = "sent_message_id")
-	private String sentMessageId;
-
-	public Case(Tenant tenant, String messageId, String sender, String recipient, String subject, String bodyText,
-			Instant receivedAt, boolean hasAttachments, long sizeBytes) {
-		this(tenant, messageId, sender, recipient, subject, bodyText, null, receivedAt, hasAttachments, sizeBytes);
-	}
-
-	/**
-	 * A mail that was written in HTML as well. Both bodies are kept: the text is what the triage
-	 * reads, the HTML what a person is shown.
-	 */
-	public Case(Tenant tenant, String messageId, String sender, String recipient, String subject, String bodyText,
-			String bodyHtml, Instant receivedAt, boolean hasAttachments, long sizeBytes) {
+	/** A case as its opening mail makes it; the mail itself goes in as the first message. */
+	public Case(Tenant tenant, String messageId, String sender, String recipient, String subject, Instant receivedAt,
+			boolean hasAttachments, long sizeBytes) {
 		this.tenant = tenant;
 		this.messageId = messageId;
 		this.sender = sender;
 		this.recipient = recipient;
 		this.subject = subject;
-		this.bodyText = bodyText;
-		this.bodyHtml = bodyHtml;
 		this.receivedAt = receivedAt;
+		this.lastMessageAt = receivedAt;
 		this.ingestedAt = Instant.now();
 		this.hasAttachments = hasAttachments;
 		this.sizeBytes = sizeBytes;
+	}
+
+	/**
+	 * The customer wrote again. Whatever was settled is open again: the case goes back into the
+	 * inbox, and the paperclip stays on once anything in the conversation had an attachment.
+	 * Category, tier and a reply somebody started to write are left as they are. Refused in the
+	 * trash — what was thrown away does not come back through the customer.
+	 */
+	public void receiveFollowUp(Instant receivedAt, boolean withAttachments) {
+		requireNotTrashed();
+		this.handledAt = null;
+		this.lastMessageAt = receivedAt;
+		this.hasAttachments = this.hasAttachments || withAttachments;
 	}
 
 	/**
@@ -237,7 +226,6 @@ public class Case {
 	 */
 	public void applyDraft(String text) {
 		requireNotTrashed();
-		requireNotSent();
 		Instant now = Instant.now();
 		this.draftGeneratedText = text;
 		this.draftText = text;
@@ -251,31 +239,24 @@ public class Case {
 	 */
 	public void editDraft(String text) {
 		requireNotTrashed();
-		requireNotSent();
 		this.draftText = text;
 		this.draftUpdatedAt = Instant.now();
 	}
 
 	/**
-	 * The reply went out. Sending is also taking note: the case leaves the inbox for the archive,
-	 * unless somebody ticked it off before. The draft is frozen from here on — what was sent is
-	 * what stays on the case.
+	 * The reply went out and is a message of the conversation now, so the box is emptied for the
+	 * next one. Sending is also taking note: the case leaves the inbox for the archive, unless
+	 * somebody ticked it off before.
 	 */
-	public void markSent(AppUser person, String messageId) {
+	public void markSent(Instant sentAt) {
 		requireNotTrashed();
-		requireNotSent();
-		Instant now = Instant.now();
-		this.sentAt = now;
-		this.sentBy = person;
-		this.sentMessageId = messageId;
+		this.draftText = null;
+		this.draftGeneratedText = null;
+		this.draftGeneratedAt = null;
+		this.draftUpdatedAt = null;
+		this.lastMessageAt = sentAt;
 		if (this.handledAt == null) {
-			this.handledAt = now;
-		}
-	}
-
-	private void requireNotSent() {
-		if (this.sentAt != null) {
-			throw new IllegalStateException("A sent reply is not changed");
+			this.handledAt = sentAt;
 		}
 	}
 

@@ -56,7 +56,7 @@ public class CaseEvents {
 	}
 
 	/** The name as it stands now; the event keeps it even if the account changes or goes. */
-	static String nameOf(AppUser actor) {
+	public static String nameOf(AppUser actor) {
 		if (actor == null) {
 			return null;
 		}

@@ -50,6 +50,9 @@ class CaseControllerTest {
 	private CaseRepository caseRepository;
 
 	@Autowired
+	private CaseMessageRepository caseMessageRepository;
+
+	@Autowired
 	private CaseAttachmentRepository caseAttachmentRepository;
 
 	@Autowired
@@ -93,17 +96,20 @@ class CaseControllerTest {
 				UserRole.USER));
 	}
 
+	/** The mail that opened a case, as its first message. */
+	private CaseMessage opening(Case aCase, String bodyText, String bodyHtml) {
+		return caseMessageRepository.save(CaseMessage.incoming(aCase, 0, aCase.getMessageId(), aCase.getSender(),
+				aCase.getRecipient(), aCase.getSubject(), bodyText, bodyHtml, aCase.getReceivedAt(), aCase.getSizeBytes()));
+	}
+
 	@Test
 	@WithMockUser(username = "anna")
 	void listsOnlyTheOwnTenantsCasesNewestFirst() throws Exception {
-		caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "info@example.com", "Delivery status",
-				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+		caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "info@example.com", "Delivery status", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
 		// Reached the tenant through an alias, which the list has to show as it came in.
-		caseRepository.save(new Case(tenant, "<second@test>", "ben@example.com", "rechnung@musterfirma.de",
-				"Invoice copy", "body", Instant.parse("2026-08-02T10:00:00Z"), true, 512_000));
+		caseRepository.save(new Case(tenant, "<second@test>", "ben@example.com", "rechnung@musterfirma.de", "Invoice copy", Instant.parse("2026-08-02T10:00:00Z"), true, 512_000));
 		// Another tenant's case must never show up in this tenant's list.
-		caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Foreign case",
-				"body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+		caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Foreign case", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
 		mockMvc.perform(get("/api/cases"))
 				.andExpect(status().isOk())
@@ -131,8 +137,7 @@ class CaseControllerTest {
 				"Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0);
 		category.recolor(CategoryColor.BLUE);
 		caseCategoryRepository.save(category);
-		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "info@example.com", "Lieferung 4711", "body",
-				Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "info@example.com", "Lieferung 4711", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		triaged.applyTriage(category, CaseTier.DRAFT, new BigDecimal("0.72"),
 				"Kunde fragt nach dem Liefertermin zu Bestellung 4711.");
 		caseRepository.save(triaged);
@@ -157,48 +162,56 @@ class CaseControllerTest {
 		// building the answer is exactly where the detail view broke once.
 		CaseCategory category = caseCategoryRepository.save(new CaseCategory(tenant, "INVOICE", "Rechnung",
 				"Eingehende Rechnung.", CaseTier.MANUAL, 0));
-		Case aCase = new Case(tenant, "<detail@test>", "anna@example.com", "info@example.com",
-				"Rechnung 2026-081", "Bitte um eine Kopie.", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		Case aCase = new Case(tenant, "<detail@test>", "anna@example.com", "info@example.com", "Rechnung 2026-081", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		aCase.applyTriage(category, CaseTier.DRAFT, new BigDecimal("0.72"), "Kunde bittet um eine Kopie.");
 		caseRepository.save(aCase);
+		opening(aCase, "Bitte um eine Kopie.", null);
 
 		mockMvc.perform(get("/api/cases/" + aCase.getId()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.subject").value("Rechnung 2026-081"))
-				.andExpect(jsonPath("$.bodyText").value("Bitte um eine Kopie."))
+				.andExpect(jsonPath("$.messages.length()").value(1))
+				.andExpect(jsonPath("$.messages[0].direction").value("incoming"))
+				.andExpect(jsonPath("$.messages[0].sender").value("anna@example.com"))
+				.andExpect(jsonPath("$.messages[0].bodyText").value("Bitte um eine Kopie."))
 				// Written in plain text, so there is no HTML version of it to hand over.
-				.andExpect(jsonPath("$.bodyHtml").doesNotExist())
+				.andExpect(jsonPath("$.messages[0].bodyHtml").doesNotExist())
 				.andExpect(jsonPath("$.categoryName").value("Rechnung"));
 
-		// The list would pay for every body on every reload and never shows one.
-		mockMvc.perform(get("/api/cases")).andExpect(jsonPath("$[0].bodyText").doesNotExist());
+		// The list would pay for every conversation on every reload and never shows one; it
+		// says how long the conversation is and when it last moved.
+		mockMvc.perform(get("/api/cases"))
+				.andExpect(jsonPath("$[0].messages").doesNotExist())
+				.andExpect(jsonPath("$[0].messageCount").value(1))
+				.andExpect(jsonPath("$[0].lastMessageAt").value("2026-08-01T10:00:00Z"));
 	}
 
 	@Test
 	@WithMockUser(username = "anna")
 	void listsTheAttachmentsOnTheDetailAndServesEachByItsType() throws Exception {
 		Case aCase = caseRepository.save(new Case(tenant, "<attached@test>", "anna@example.com", "info@example.com",
-				"Angebot", "Anbei.", "<p>Anbei.</p><img src=\"cid:logo\">", Instant.parse("2026-08-01T10:00:00Z"), true,
-				40_000));
-		CaseAttachment logo = caseAttachmentRepository.save(new CaseAttachment(aCase, 0, "logo.png", "image/png",
+				"Angebot", Instant.parse("2026-08-01T10:00:00Z"), true, 40_000));
+		CaseMessage mail = opening(aCase, "Anbei.", "<p>Anbei.</p><img src=\"cid:logo\">");
+		CaseAttachment logo = caseAttachmentRepository.save(new CaseAttachment(mail, 0, "logo.png", "image/png",
 				"logo", true, "png-bytes".getBytes()));
-		CaseAttachment offer = caseAttachmentRepository.save(new CaseAttachment(aCase, 1, "Angebot Frühjahr.pdf",
+		CaseAttachment offer = caseAttachmentRepository.save(new CaseAttachment(mail, 1, "Angebot Frühjahr.pdf",
 				"application/pdf", null, false, "pdf-bytes".getBytes()));
-		CaseAttachment sheet = caseAttachmentRepository.save(new CaseAttachment(aCase, 2, "Preise.xlsx",
+		CaseAttachment sheet = caseAttachmentRepository.save(new CaseAttachment(mail, 2, "Preise.xlsx",
 				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", null, false, "xlsx-bytes".getBytes()));
 
-		// The detail lists them in the order of the mail, without their bytes.
+		// The detail lists them with the message they came with, in the order of the mail,
+		// without their bytes.
 		mockMvc.perform(get("/api/cases/" + aCase.getId()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.attachments.length()").value(3))
-				.andExpect(jsonPath("$.attachments[0].id").value(logo.getId().toString()))
-				.andExpect(jsonPath("$.attachments[0].inline").value(true))
-				.andExpect(jsonPath("$.attachments[0].contentId").value("logo"))
-				.andExpect(jsonPath("$.attachments[1].fileName").value("Angebot Frühjahr.pdf"))
-				.andExpect(jsonPath("$.attachments[1].contentType").value("application/pdf"))
-				.andExpect(jsonPath("$.attachments[1].sizeBytes").value("pdf-bytes".length()))
-				.andExpect(jsonPath("$.attachments[1].inline").value(false))
-				.andExpect(jsonPath("$.attachments[1].content").doesNotExist());
+				.andExpect(jsonPath("$.messages[0].attachments.length()").value(3))
+				.andExpect(jsonPath("$.messages[0].attachments[0].id").value(logo.getId().toString()))
+				.andExpect(jsonPath("$.messages[0].attachments[0].inline").value(true))
+				.andExpect(jsonPath("$.messages[0].attachments[0].contentId").value("logo"))
+				.andExpect(jsonPath("$.messages[0].attachments[1].fileName").value("Angebot Frühjahr.pdf"))
+				.andExpect(jsonPath("$.messages[0].attachments[1].contentType").value("application/pdf"))
+				.andExpect(jsonPath("$.messages[0].attachments[1].sizeBytes").value("pdf-bytes".length()))
+				.andExpect(jsonPath("$.messages[0].attachments[1].inline").value(false))
+				.andExpect(jsonPath("$.messages[0].attachments[1].content").doesNotExist());
 
 		// A PDF is shown, with its name escaped for the header; a spreadsheet is saved.
 		mockMvc.perform(get("/api/cases/" + aCase.getId() + "/attachments/" + offer.getId()))
@@ -221,12 +234,11 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void doesNotServeAnotherTenantsAttachmentNorOneThroughTheWrongCase() throws Exception {
-		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com",
-				"info@example.com", "Fremd", "body", Instant.parse("2026-08-03T10:00:00Z"), true, 1024));
-		CaseAttachment foreignFile = caseAttachmentRepository.save(new CaseAttachment(foreign, 0, "geheim.pdf",
-				"application/pdf", null, false, "secret".getBytes()));
-		Case own = caseRepository.save(new Case(tenant, "<own@test>", "anna@example.com", "info@example.com", "Eigen",
-				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 1024));
+		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com",
+				"Fremd", Instant.parse("2026-08-03T10:00:00Z"), true, 1024));
+		CaseAttachment foreignFile = caseAttachmentRepository.save(new CaseAttachment(opening(foreign, "body", null), 0,
+				"geheim.pdf", "application/pdf", null, false, "secret".getBytes()));
+		Case own = caseRepository.save(new Case(tenant, "<own@test>", "anna@example.com", "info@example.com", "Eigen", Instant.parse("2026-08-01T10:00:00Z"), false, 1024));
 
 		// Not forbidden but not found, in both cases: the answer must not say that it exists.
 		mockMvc.perform(get("/api/cases/" + foreign.getId() + "/attachments/" + foreignFile.getId()))
@@ -240,8 +252,7 @@ class CaseControllerTest {
 	void writesDownWhatAPersonDoesToACaseAndListsTheTrailOldestFirst() throws Exception {
 		CaseCategory complaint = caseCategoryRepository.save(new CaseCategory(tenant, "COMPLAINT", "Reklamation",
 				"Beschwerde über eine Lieferung.", CaseTier.MANUAL, 1));
-		Case aCase = caseRepository.save(new Case(tenant, "<trail@test>", "anna@example.com", "info@example.com",
-				"Lieferung 4711", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+		Case aCase = caseRepository.save(new Case(tenant, "<trail@test>", "anna@example.com", "info@example.com", "Lieferung 4711", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
 
 		mockMvc.perform(put("/api/cases/" + aCase.getId() + "/classification").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -271,10 +282,8 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void writesDownEveryCaseOfASelectionThatIsThrownAwayOrFetchedBack() throws Exception {
-		Case first = caseRepository.save(new Case(tenant, "<one@test>", "anna@example.com", "info@example.com", "Eins",
-				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
-		Case second = caseRepository.save(new Case(tenant, "<two@test>", "ben@example.com", "info@example.com", "Zwei",
-				"body", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
+		Case first = caseRepository.save(new Case(tenant, "<one@test>", "anna@example.com", "info@example.com", "Eins", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+		Case second = caseRepository.save(new Case(tenant, "<two@test>", "ben@example.com", "info@example.com", "Zwei", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
 		String ids = "{\"ids\": [\"" + first.getId() + "\", \"" + second.getId() + "\"]}";
 
 		mockMvc.perform(delete("/api/cases").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ids))
@@ -292,8 +301,7 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void doesNotFindAnotherTenantsCase() throws Exception {
-		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com",
-				"info@example.com", "Fremd", "body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Fremd", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
 		// Not forbidden but not found: the answer must not say that it exists.
 		mockMvc.perform(get("/api/cases/" + foreign.getId())).andExpect(status().isNotFound());
@@ -311,8 +319,7 @@ class CaseControllerTest {
 				"Beschwerde über eine Lieferung.", CaseTier.MANUAL, 1));
 		complaint.recolor(CategoryColor.RED);
 		caseCategoryRepository.save(complaint);
-		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "info@example.com", "Lieferung 4711",
-				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		Case triaged = new Case(tenant, "<triaged@test>", "anna@example.com", "info@example.com", "Lieferung 4711", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		triaged.applyTriage(statusRequest, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
 		caseRepository.save(triaged);
 
@@ -343,8 +350,7 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void marksACaseAsTakenNoteOfAndTakesItBackAgain() throws Exception {
-		Case aCase = new Case(tenant, "<news@test>", "news@example.com", "info@example.com", "Wochenrückblick",
-				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		Case aCase = new Case(tenant, "<news@test>", "news@example.com", "info@example.com", "Wochenrückblick", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		aCase.applyTriage(null, CaseTier.INFO, new BigDecimal("0.88"), "Branchennews der Woche.");
 		caseRepository.save(aCase);
 
@@ -383,8 +389,7 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void doesNotTakeNoteOfAnotherTenantsCase() throws Exception {
-		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com",
-				"info@example.com", "Fremd", "body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Fremd", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
 		mockMvc.perform(put("/api/cases/" + foreign.getId() + "/handled").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON).content("{\"handled\": true}"))
@@ -398,8 +403,7 @@ class CaseControllerTest {
 	void doesNotFileACaseUnderAnotherTenantsCategory() throws Exception {
 		CaseCategory theirs = caseCategoryRepository.save(new CaseCategory(otherTenant, "THEIRS", "Fremde Kategorie",
 				"Gehört jemand anderem.", CaseTier.MANUAL, 0));
-		Case ours = caseRepository.save(new Case(tenant, "<ours@test>", "anna@example.com", "info@example.com",
-				"Unsere Mail", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+		Case ours = caseRepository.save(new Case(tenant, "<ours@test>", "anna@example.com", "info@example.com", "Unsere Mail", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
 
 		mockMvc.perform(put("/api/cases/" + ours.getId() + "/classification").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -414,12 +418,9 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void movesTheSelectedCasesToTheTrashAndLeavesTheRestAlone() throws Exception {
-		Case first = caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "info@example.com",
-				"Weg damit", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
-		Case second = caseRepository.save(new Case(tenant, "<second@test>", "ben@example.com", "info@example.com",
-				"Auch weg", "body", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
-		Case kept = caseRepository.save(new Case(tenant, "<third@test>", "cara@example.com", "info@example.com",
-				"Bleibt", "body", Instant.parse("2026-08-03T10:00:00Z"), false, 2048));
+		Case first = caseRepository.save(new Case(tenant, "<first@test>", "anna@example.com", "info@example.com", "Weg damit", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+		Case second = caseRepository.save(new Case(tenant, "<second@test>", "ben@example.com", "info@example.com", "Auch weg", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
+		Case kept = caseRepository.save(new Case(tenant, "<third@test>", "cara@example.com", "info@example.com", "Bleibt", Instant.parse("2026-08-03T10:00:00Z"), false, 2048));
 
 		mockMvc.perform(delete("/api/cases").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -437,8 +438,7 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void fetchesACaseBackOutOfTheTrashWithWhatWasKnownAboutIt() throws Exception {
-		Case aCase = new Case(tenant, "<back@test>", "anna@example.com", "info@example.com", "Doch nicht",
-				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+		Case aCase = new Case(tenant, "<back@test>", "anna@example.com", "info@example.com", "Doch nicht", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
 		aCase.applyTriage(null, CaseTier.INFO, new BigDecimal("0.80"), "Newsletter der Woche.");
 		aCase.markHandled(true);
 		caseRepository.save(aCase);
@@ -460,10 +460,8 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void deletesForGoodOnlyWhatIsInTheTrash() throws Exception {
-		Case thrownAway = caseRepository.save(new Case(tenant, "<gone@test>", "anna@example.com",
-				"info@example.com", "Endgültig weg", "body", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
-		Case inTheInbox = caseRepository.save(new Case(tenant, "<here@test>", "ben@example.com", "info@example.com",
-				"Steht noch im Posteingang", "body", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
+		Case thrownAway = caseRepository.save(new Case(tenant, "<gone@test>", "anna@example.com", "info@example.com", "Endgültig weg", Instant.parse("2026-08-01T10:00:00Z"), false, 2048));
+		Case inTheInbox = caseRepository.save(new Case(tenant, "<here@test>", "ben@example.com", "info@example.com", "Steht noch im Posteingang", Instant.parse("2026-08-02T10:00:00Z"), false, 2048));
 		mockMvc.perform(delete("/api/cases").with(csrf()).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"ids\": [\"%s\"]}".formatted(thrownAway.getId()))).andExpect(status().isNoContent());
 
@@ -479,8 +477,7 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void refusesToDeleteAnotherTenantsCase() throws Exception {
-		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com",
-				"info@example.com", "Fremd", "body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+		Case foreign = caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Fremd", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
 		// A guessed id answers the same way whether it exists or not, and touches nothing —
 		// neither on the way into the trash, nor back out of it, nor out of the world.
@@ -507,8 +504,7 @@ class CaseControllerTest {
 	@Test
 	@WithMockUser(username = "anna")
 	void returnsAnEmptyListWhenTheTenantHasNoCases() throws Exception {
-		caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Foreign case",
-				"body", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+		caseRepository.save(new Case(otherTenant, "<foreign@test>", "fritz@example.com", "info@example.com", "Foreign case", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
 		mockMvc.perform(get("/api/cases"))
 				.andExpect(status().isOk())

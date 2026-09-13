@@ -6,6 +6,7 @@ import de.prime_ux.backend.TestcontainersConfiguration;
 import de.prime_ux.backend.branches.Branch;
 import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseMessage;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import de.prime_ux.backend.tenants.Tenant;
@@ -50,7 +51,8 @@ class ReplyDraftProcessorTest {
 		String lastInstruction;
 
 		@Override
-		public String draft(Case mailCase, TenantTriageSettings settings, String instruction, String signature) {
+		public String draft(Case mailCase, List<CaseMessage> conversation, TenantTriageSettings settings,
+				String instruction, String signature) {
 			draftedSubjects.add(mailCase.getSubject());
 			lastSignature = signature;
 			lastInstruction = instruction;
@@ -135,8 +137,7 @@ class ReplyDraftProcessorTest {
 	}
 
 	private Case triaged(String subject, CaseTier tier, Instant receivedAt) {
-		Case aCase = new Case(tenant, "<" + subject + "@example.com>", "kunde@example.com", "info@example.com",
-				subject, "Guten Tag, wann kommt die Lieferung?", receivedAt, false, 2048);
+		Case aCase = new Case(tenant, "<" + subject + "@example.com>", "kunde@example.com", "info@example.com", subject, receivedAt, false, 2048);
 		aCase.applyTriage(null, tier, new BigDecimal("0.95"), "Kunde fragt nach dem Liefertermin.");
 		return caseRepository.save(aCase);
 	}

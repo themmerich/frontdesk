@@ -5,6 +5,7 @@ import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseEventType;
 import de.prime_ux.backend.cases.CaseEvents;
+import de.prime_ux.backend.cases.CaseMessageRepository;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.tenants.TenantRepository;
@@ -37,6 +38,7 @@ public class ReplyDraftProcessor {
 	static final List<CaseTier> DRAFTED_TIERS = List.of(CaseTier.AUTOMATIC, CaseTier.DRAFT);
 
 	private final CaseRepository caseRepository;
+	private final CaseMessageRepository caseMessageRepository;
 	private final CaseEvents caseEvents;
 	private final TenantTriageSettingsRepository tenantTriageSettingsRepository;
 	private final TenantRepository tenantRepository;
@@ -44,10 +46,12 @@ public class ReplyDraftProcessor {
 	private final BranchRepository branchRepository;
 	private final ReplyDraftService replyDraftService;
 
-	ReplyDraftProcessor(CaseRepository caseRepository, CaseEvents caseEvents,
-			TenantTriageSettingsRepository tenantTriageSettingsRepository, TenantRepository tenantRepository,
-			AppUserRepository appUserRepository, BranchRepository branchRepository, ReplyDraftService replyDraftService) {
+	ReplyDraftProcessor(CaseRepository caseRepository, CaseMessageRepository caseMessageRepository,
+			CaseEvents caseEvents, TenantTriageSettingsRepository tenantTriageSettingsRepository,
+			TenantRepository tenantRepository, AppUserRepository appUserRepository, BranchRepository branchRepository,
+			ReplyDraftService replyDraftService) {
 		this.caseRepository = caseRepository;
+		this.caseMessageRepository = caseMessageRepository;
 		this.caseEvents = caseEvents;
 		this.tenantTriageSettingsRepository = tenantTriageSettingsRepository;
 		this.tenantRepository = tenantRepository;
@@ -126,7 +130,9 @@ public class ReplyDraftProcessor {
 	/** @param person who asked, or null when the scheduler did on its own */
 	private Case draft(Case mailCase, TenantTriageSettings settings, String instruction, String signature,
 			AppUser person) {
-		String text = replyDraftService.draft(mailCase, settings, instruction, signature);
+		String text = replyDraftService.draft(mailCase,
+				caseMessageRepository.findAllByMailCaseIdOrderByPositionAsc(mailCase.getId()), settings, instruction,
+				signature);
 		mailCase.applyDraft(text);
 		Case saved = caseRepository.save(mailCase);
 		caseEvents.record(saved, CaseEventType.DRAFT_GENERATED, person, CaseEvents.details("onRequest", person != null));

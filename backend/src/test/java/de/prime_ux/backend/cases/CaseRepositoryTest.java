@@ -40,22 +40,18 @@ class CaseRepositoryTest {
 
 	@Test
 	void findsATenantsCasesNewestFirstAndOnlyItsOwn() {
-		Case older = caseRepository.save(new Case(tenant, "<older@test>", "a@example.com", "info@example.com", "Older",
-				"body", Instant.parse("2026-08-01T10:00:00Z"), false, 1024));
-		Case newer = caseRepository.save(new Case(tenant, "<newer@test>", "b@example.com", "info@example.com", "Newer",
-				"body", Instant.parse("2026-08-02T10:00:00Z"), false, 1024));
-		caseRepository.save(new Case(otherTenant, "<foreign@test>", "c@example.com", "info@example.com", "Foreign", "body",
-				Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
+		Case older = caseRepository.save(new Case(tenant, "<older@test>", "a@example.com", "info@example.com", "Older", Instant.parse("2026-08-01T10:00:00Z"), false, 1024));
+		Case newer = caseRepository.save(new Case(tenant, "<newer@test>", "b@example.com", "info@example.com", "Newer", Instant.parse("2026-08-02T10:00:00Z"), false, 1024));
+		caseRepository.save(new Case(otherTenant, "<foreign@test>", "c@example.com", "info@example.com", "Foreign", Instant.parse("2026-08-03T10:00:00Z"), false, 1024));
 
-		List<Case> cases = caseRepository.findAllByTenantIdOrderByReceivedAtDesc(tenant.getId());
+		List<Case> cases = caseRepository.findAllByTenantIdOrderByLastMessageAtDesc(tenant.getId());
 
 		assertThat(cases).extracting(Case::getId).containsExactly(newer.getId(), older.getId());
 	}
 
 	@Test
 	void knowsWhichMessageIdsWereAlreadyIngestedPerTenant() {
-		caseRepository.save(new Case(tenant, "<seen@test>", "a@example.com", "info@example.com", "Subject", "body",
-				Instant.now(), false, 1024));
+		caseRepository.save(new Case(tenant, "<seen@test>", "a@example.com", "info@example.com", "Subject", Instant.now(), false, 1024));
 
 		assertThat(caseRepository.existsByTenantIdAndMessageId(tenant.getId(), "<seen@test>")).isTrue();
 		assertThat(caseRepository.existsByTenantIdAndMessageId(tenant.getId(), "<unseen@test>")).isFalse();
@@ -65,16 +61,13 @@ class CaseRepositoryTest {
 
 	@Test
 	void allowsTheSameMessageIdForTwoTenantsButNotTwiceForOneTenant() {
-		caseRepository.saveAndFlush(new Case(tenant, "<shared@test>", "a@example.com", "info@example.com", "Subject",
-				"body", Instant.now(), false, 1024));
+		caseRepository.saveAndFlush(new Case(tenant, "<shared@test>", "a@example.com", "info@example.com", "Subject", Instant.now(), false, 1024));
 
 		// Legitimate: the same mail can arrive in two tenants' inboxes.
-		caseRepository.saveAndFlush(new Case(otherTenant, "<shared@test>", "a@example.com", "info@example.com", "Subject",
-				"body", Instant.now(), false, 1024));
+		caseRepository.saveAndFlush(new Case(otherTenant, "<shared@test>", "a@example.com", "info@example.com", "Subject", Instant.now(), false, 1024));
 
 		// Duplicate within one tenant hits the partial unique index.
-		assertThatThrownBy(() -> caseRepository.saveAndFlush(new Case(tenant, "<shared@test>", "a@example.com",
-				"info@example.com", "Subject", "body", Instant.now(), false, 1024)))
+		assertThatThrownBy(() -> caseRepository.saveAndFlush(new Case(tenant, "<shared@test>", "a@example.com", "info@example.com", "Subject", Instant.now(), false, 1024)))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 }

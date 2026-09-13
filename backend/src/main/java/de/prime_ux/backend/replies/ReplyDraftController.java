@@ -90,8 +90,7 @@ class ReplyDraftController {
 
 	/**
 	 * A case of another tenant is not found rather than forbidden — the answer must not say that
-	 * it exists. A case in the trash is found, but nobody answers a mail that was thrown away; a
-	 * case whose reply went out is found, but what was sent is what stays.
+	 * it exists. A case in the trash is found, but nobody answers a mail that was thrown away.
 	 */
 	private Case ownDraftableCase(UUID id, AppUser person) {
 		UUID tenantId = person.getTenant().getId();
@@ -100,9 +99,6 @@ class ReplyDraftController {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 		if (aCase.getDeletedAt() != null) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "a case in the trash gets no draft");
-		}
-		if (aCase.getSentAt() != null) {
-			throw new ResponseStatusException(HttpStatus.CONFLICT, "a sent reply is not changed");
 		}
 		return aCase;
 	}

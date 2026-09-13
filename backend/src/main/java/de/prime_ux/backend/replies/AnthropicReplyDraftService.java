@@ -2,6 +2,7 @@ package de.prime_ux.backend.replies;
 
 import de.prime_ux.backend.aisettings.TenantChatClients;
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseMessage;
 import de.prime_ux.backend.triage.CaseCategory;
 import de.prime_ux.backend.triage.TenantTriageSettings;
 
@@ -12,6 +13,9 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -31,12 +35,19 @@ class AnthropicReplyDraftService implements ReplyDraftService {
 
 	private static final int MAX_BODY_CHARS = 12_000;
 
+	/** Older messages of the conversation are context, not the question; they are cut shorter. */
+	private static final int MAX_EARLIER_CHARS = 1_000;
+
+	private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.systemDefault());
+
 	/** A reply is longer than a classification; the platform ceiling of 1024 would cut it off. */
 	private static final int MAX_TOKENS = 2048;
 
 	private static final String SYSTEM_PROMPT = """
 			Du schreibst im Sekretariat des Betriebs „%s" die Antworten auf eingegangene E-Mails.
-			Du bekommst eine Mail und schreibst den Text der Antwort darauf.
+			Du bekommst den bisherigen Schriftverkehr eines Vorgangs — die Mails des Kunden und
+			die Antworten des Betriebs, älteste zuerst — und schreibst den Text der Antwort auf die
+			letzte Mail des Kunden.
 
 			Regeln:
 			- Antworte in der Sprache, in der die Mail geschrieben ist.
@@ -57,14 +68,15 @@ class AnthropicReplyDraftService implements ReplyDraftService {
 	}
 
 	@Override
-	public String draft(Case mailCase, TenantTriageSettings settings, String instruction, String signature) {
+	public String draft(Case mailCase, List<CaseMessage> conversation, TenantTriageSettings settings,
+			String instruction, String signature) {
 		try {
 			// Whose Anthropic account this is billed to is the tenant's own decision.
 			ChatClient chatClient = this.tenantChatClients.forTenant(mailCase.getTenant());
 			ChatResponse response = chatClient.prompt()
 					.options(AnthropicChatOptions.builder().maxTokens(MAX_TOKENS))
 					.system(systemPrompt(mailCase, settings, instruction, signature))
-					.user(userPrompt(mailCase))
+					.user(userPrompt(mailCase, conversation))
 					.call()
 					.chatResponse();
 			String answer = textOf(response);
@@ -153,14 +165,31 @@ class AnthropicReplyDraftService implements ReplyDraftService {
 		return text.endsWith(trailer) ? text.substring(0, text.length() - trailer.length()).strip() : text;
 	}
 
-	static String userPrompt(Case mailCase) {
+	/**
+	 * The conversation as the model reads it: the envelope of the case, then every message under
+	 * a heading that says who wrote it and when. The newest mail of the customer is the question
+	 * and comes whole; what went before is context and is cut shorter.
+	 */
+	static String userPrompt(Case mailCase, List<CaseMessage> conversation) {
 		StringBuilder prompt = new StringBuilder("Absender: ").append(mailCase.getSender()).append('\n');
 		if (hasText(mailCase.getRecipient())) {
 			prompt.append("Empfänger: ").append(mailCase.getRecipient()).append('\n');
 		}
-		return prompt.append("Betreff: ").append(mailCase.getSubject()).append("\n\n")
-				.append(truncate(mailCase.getBodyText()))
-				.toString();
+		prompt.append("Betreff: ").append(mailCase.getSubject()).append('\n');
+		int newestIncoming = -1;
+		for (int i = 0; i < conversation.size(); i++) {
+			if (conversation.get(i).isIncoming()) {
+				newestIncoming = i;
+			}
+		}
+		for (int i = 0; i < conversation.size(); i++) {
+			CaseMessage message = conversation.get(i);
+			prompt.append('\n').append(message.isIncoming() ? "Kunde" : "Unsere Antwort").append(" (")
+					.append(DATE.format(message.getOccurredAt())).append("):\n")
+					.append(truncate(message.getBodyText(), i == newestIncoming ? MAX_BODY_CHARS : MAX_EARLIER_CHARS))
+					.append('\n');
+		}
+		return prompt.toString();
 	}
 
 	/** The answer as the model wrote it, and the signature under it — or the answer alone. */
@@ -172,11 +201,11 @@ class AnthropicReplyDraftService implements ReplyDraftService {
 		return text + "\n\n" + signature.strip();
 	}
 
-	private static String truncate(String bodyText) {
-		if (bodyText.length() <= MAX_BODY_CHARS) {
+	private static String truncate(String bodyText, int maxChars) {
+		if (bodyText.length() <= maxChars) {
 			return bodyText;
 		}
-		return bodyText.substring(0, MAX_BODY_CHARS) + "\n[gekürzt]";
+		return bodyText.substring(0, maxChars) + "\n[gekürzt]";
 	}
 
 	private static boolean hasText(String value) {

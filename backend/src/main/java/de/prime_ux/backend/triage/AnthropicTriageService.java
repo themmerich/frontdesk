@@ -4,6 +4,8 @@ import de.prime_ux.backend.aisettings.TenantChatClients;
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseAttachmentRepository;
 import de.prime_ux.backend.cases.CaseAttachmentRepository.AttachmentSummary;
+import de.prime_ux.backend.cases.CaseMessage;
+import de.prime_ux.backend.cases.CaseMessageRepository;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -40,10 +42,13 @@ class AnthropicTriageService implements TriageService {
 			""";
 
 	private final TenantChatClients tenantChatClients;
+	private final CaseMessageRepository caseMessageRepository;
 	private final CaseAttachmentRepository caseAttachmentRepository;
 
-	AnthropicTriageService(TenantChatClients tenantChatClients, CaseAttachmentRepository caseAttachmentRepository) {
+	AnthropicTriageService(TenantChatClients tenantChatClients, CaseMessageRepository caseMessageRepository,
+			CaseAttachmentRepository caseAttachmentRepository) {
 		this.tenantChatClients = tenantChatClients;
+		this.caseMessageRepository = caseMessageRepository;
 		this.caseAttachmentRepository = caseAttachmentRepository;
 	}
 
@@ -55,7 +60,8 @@ class AnthropicTriageService implements TriageService {
 			ChatClient chatClient = this.tenantChatClients.forTenant(mailCase.getTenant());
 			TriageAnswer answer = chatClient.prompt()
 					.system(systemPrompt(categories, settings))
-					.user(userPrompt(mailCase, caseAttachmentRepository.findAllByMailCaseIdOrderByPosition(mailCase.getId())))
+					.user(userPrompt(mailCase, openingBodyOf(mailCase),
+							caseAttachmentRepository.findAllByMailCaseIdOrderByPosition(mailCase.getId())))
 					.call()
 					.entity(TriageAnswer.class);
 			if (answer == null) {
@@ -91,11 +97,19 @@ class AnthropicTriageService implements TriageService {
 		return prompt.toString();
 	}
 
+	/** The text of the mail that opened the case: what is judged. A case without one is judged on nothing. */
+	private String openingBodyOf(Case mailCase) {
+		return caseMessageRepository.findAllByMailCaseIdOrderByPositionAsc(mailCase.getId()).stream().findFirst()
+				.map(CaseMessage::getBodyText).orElse("");
+	}
+
 	/**
 	 * Static and package-private so a test can read the prompt the model is actually handed;
 	 * nothing here depends on the service's state.
+	 *
+	 * @param bodyText the text of the opening mail, which lives beside the case
 	 */
-	static String userPrompt(Case mailCase, List<AttachmentSummary> attachments) {
+	static String userPrompt(Case mailCase, String bodyText, List<AttachmentSummary> attachments) {
 		StringBuilder prompt = new StringBuilder("Absender: ").append(mailCase.getSender()).append('\n');
 		// Which of the tenant's addresses the mail arrived on — with an alias that is
 		// what the sender wrote to, and "an rechnung@" often says more than half the
@@ -106,7 +120,7 @@ class AnthropicTriageService implements TriageService {
 		}
 		return prompt.append("Betreff: ").append(mailCase.getSubject()).append('\n')
 				.append("Anhänge: ").append(attachmentLine(attachments)).append("\n\n")
-				.append(truncate(mailCase.getBodyText()))
+				.append(truncate(bodyText))
 				.toString();
 	}
 

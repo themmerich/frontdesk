@@ -18,14 +18,21 @@ class AnthropicTriageServiceTest {
 
 	private static final Tenant TENANT = new Tenant("Musterfirma GmbH");
 
+	private static final String BODY = "Bitte um eine Kopie.";
+
 	private Case caseAddressedTo(String recipient) {
 		return new Case(TENANT, "<m@test>", "kunde@example.com", recipient, "Rechnung 2026-081",
-				"Bitte um eine Kopie.", Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+				Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+	}
+
+	/** The prompt for a case, with the text of its opening mail and what came attached. */
+	private String promptFor(Case mailCase, List<AttachmentSummary> attachments) {
+		return AnthropicTriageService.userPrompt(mailCase, BODY, attachments);
 	}
 
 	@Test
 	void namesTheAddressTheMailCameInOn() {
-		String prompt = AnthropicTriageService.userPrompt(caseAddressedTo("rechnung@musterfirma.de"), List.of());
+		String prompt = promptFor(caseAddressedTo("rechnung@musterfirma.de"), List.of());
 
 		assertThat(prompt).contains("Empfänger: rechnung@musterfirma.de");
 		// Between the sender and the subject, where it reads as part of the envelope.
@@ -36,13 +43,13 @@ class AnthropicTriageServiceTest {
 	void leavesTheLineOutWhenNoAddressWasRecorded() {
 		// Mails ingested before the address was kept have none; a placeholder would
 		// read like a fact about the mail.
-		assertThat(AnthropicTriageService.userPrompt(caseAddressedTo(null), List.of())).doesNotContain("Empfänger");
-		assertThat(AnthropicTriageService.userPrompt(caseAddressedTo("  "), List.of())).doesNotContain("Empfänger");
+		assertThat(promptFor(caseAddressedTo(null), List.of())).doesNotContain("Empfänger");
+		assertThat(promptFor(caseAddressedTo("  "), List.of())).doesNotContain("Empfänger");
 	}
 
 	@Test
 	void carriesTheRestOfTheEnvelopeAndTheBody() {
-		String prompt = AnthropicTriageService.userPrompt(caseAddressedTo("info@musterfirma.de"), List.of());
+		String prompt = promptFor(caseAddressedTo("info@musterfirma.de"), List.of());
 
 		assertThat(prompt).contains("Absender: kunde@example.com")
 				.contains("Betreff: Rechnung 2026-081")
@@ -52,7 +59,7 @@ class AnthropicTriageServiceTest {
 
 	@Test
 	void namesTheAttachmentsWithTheirSizesAndLeavesInlinePicturesOut() {
-		String prompt = AnthropicTriageService.userPrompt(caseAddressedTo("info@musterfirma.de"), List.of(
+		String prompt = promptFor(caseAddressedTo("info@musterfirma.de"), List.of(
 				attachment("Rechnung_4711.pdf", 122_880, false),
 				// A signature's logo says nothing about the mail.
 				attachment("logo.png", 3_000, true),
@@ -92,6 +99,11 @@ class AnthropicTriageServiceTest {
 			@Override
 			public boolean isInline() {
 				return inline;
+			}
+
+			@Override
+			public UUID getMessageId() {
+				return UUID.randomUUID();
 			}
 		};
 	}

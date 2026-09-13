@@ -135,8 +135,7 @@ class TriageProcessorTest {
 	}
 
 	private Case ingest(String subject) {
-		return caseRepository.save(new Case(tenant, "<" + subject + "@example.com>", "kunde@example.com",
-				"info@example.com", subject, "Guten Tag, wann kommt die Lieferung?", Instant.now(), false, 2048));
+		return caseRepository.save(new Case(tenant, "<" + subject + "@example.com>", "kunde@example.com", "info@example.com", subject, Instant.now(), false, 2048));
 	}
 
 	@Test
