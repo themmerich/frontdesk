@@ -38,7 +38,10 @@ SMTP) in Docker Compose as the dev/demo mail infrastructure; the core entity is 
       summaries and lets a person tick each mail off.
 - [x] **10. Dashboard** — totals per pile, arrivals today / 7 days / 30 days against the stretch
       before, cases per category, per tier, and over time. _(Moved up from the expansion list;
-      the automation rate and hours-saved estimate still wait for step 5.)_
+      the automation rate and hours-saved estimate still wait, now that step 5 gives them data.)_
+  - **Usage and cost per tenant** — every call to the model is recorded with its tokens and
+    priced from a table in the configuration; an admin page shows the sums for today, 7 and 30
+    days against the stretch before, cost per day by what the calls were for, and the price table.
 - [x] **4. Answer drafts** — AI-generated reply drafts for automatic and draft-tier cases,
       written by a pass of their own after the triage, or on demand for any case from the detail
       page; edited there and saved together with the verdict. What the model wrote is kept beside

@@ -1,7 +1,11 @@
 package de.prime_ux.backend.replies;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import de.prime_ux.backend.aisettings.StubChatClients;
+import de.prime_ux.backend.aiusage.AiCallKind;
+import de.prime_ux.backend.aiusage.RecordingAiCalls;
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseMessage;
 import de.prime_ux.backend.tenants.Tenant;
@@ -209,5 +213,38 @@ class AnthropicReplyDraftServiceTest {
 	void leavesTheAnswerAloneWithoutASignature() {
 		assertThat(AnthropicReplyDraftService.withSignature("Guten Tag.", "")).isEqualTo("Guten Tag.");
 		assertThat(AnthropicReplyDraftService.withSignature("Guten Tag.", "   ")).isEqualTo("Guten Tag.");
+	}
+
+	@Test
+	void recordsTheCallWithItsCaseAndKind() {
+		RecordingAiCalls aiCalls = new RecordingAiCalls();
+		Case mailCase = aCase("Wann kommt die Lieferung?");
+		AnthropicReplyDraftService service = new AnthropicReplyDraftService(
+				StubChatClients.answering("Guten Tag, die Lieferung ist unterwegs.", 900, 60), aiCalls);
+
+		String draft = service.draft(mailCase, conversation(mailCase, "Wann kommt die Lieferung?"),
+				TenantTriageSettings.defaults(TENANT), null, "");
+
+		assertThat(draft).isEqualTo("Guten Tag, die Lieferung ist unterwegs.");
+		assertThat(aiCalls.recorded).hasSize(1);
+		RecordingAiCalls.Recorded recorded = aiCalls.recorded.getFirst();
+		assertThat(recorded.mailCase()).isSameAs(mailCase);
+		assertThat(recorded.kind()).isEqualTo(AiCallKind.DRAFT);
+		assertThat(recorded.response().getMetadata().getUsage().getCompletionTokens()).isEqualTo(60);
+	}
+
+	@Test
+	void recordsTheCallEvenWhenTheModelWroteNothing() {
+		RecordingAiCalls aiCalls = new RecordingAiCalls();
+		Case mailCase = aCase("Wann kommt die Lieferung?");
+		AnthropicReplyDraftService service = new AnthropicReplyDraftService(StubChatClients.answering("   ", 900, 0),
+				aiCalls);
+
+		assertThatThrownBy(() -> service.draft(mailCase, conversation(mailCase, "Wann kommt die Lieferung?"),
+				TenantTriageSettings.defaults(TENANT), null, ""))
+				.isInstanceOf(ReplyDraftException.class);
+
+		// Paid for all the same.
+		assertThat(aiCalls.recorded).hasSize(1);
 	}
 }

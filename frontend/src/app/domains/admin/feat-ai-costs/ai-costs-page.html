@@ -1,0 +1,104 @@
+<ng-container *transloco="let t">
+  <main class="flex flex-col gap-4">
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-xl font-semibold">{{ t('aiCosts.title') }}</h1>
+      <!-- The page reads its numbers when it opens and then stands still; this is the way to
+           newer ones without leaving it. -->
+      <p-button
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        [label]="t('aiCosts.refresh')"
+        [loading]="aiUsageService.usage.isLoading()"
+        (onClick)="onRefresh()"
+      />
+    </div>
+
+    @if (aiUsageService.usage.error()) {
+      <p-message severity="error">{{ t('aiCosts.loadError') }}</p-message>
+    } @else if (!hasLoaded()) {
+      <div class="flex flex-auto items-center justify-center py-16" role="status" [attr.aria-label]="t('aiCosts.loading')">
+        <i class="pi pi-spinner pi-spin text-3xl text-surface-400 dark:text-surface-500" aria-hidden="true"></i>
+      </div>
+    } @else {
+      <!-- What the numbers are and are not: an estimate from the tokens and the price table,
+           not the bill. -->
+      <p class="text-surface-500 dark:text-surface-400">{{ t('aiCosts.intro') }}</p>
+      @if (unpricedCalls() > 0) {
+        <p-message severity="warn">{{ t('aiCosts.unpriced', { count: unpricedCalls() }) }}</p-message>
+      }
+
+      <!-- Each stretch against the equally long one before it, as on the dashboard. -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        @for (window of windows(); track window.name) {
+          <p-card>
+            <p class="text-sm text-surface-500 dark:text-surface-400">{{ t('aiCosts.' + window.name) }}</p>
+            <p class="text-3xl font-semibold">{{ window.costUsd | currency: 'USD' : 'symbol' : '1.2-4' }}</p>
+            <p class="flex items-center gap-1 text-sm text-surface-500 dark:text-surface-400">
+              <span class="flex items-center gap-1" [attr.data-trend]="window.trend">
+                <i
+                  class="pi text-xs!"
+                  [class.pi-caret-up]="window.trend === 'up'"
+                  [class.pi-caret-down]="window.trend === 'down'"
+                  [class.pi-minus]="window.trend === null"
+                  aria-hidden="true"
+                ></i>
+                @if (window.percentage === null) {
+                  <span>{{ window.previousCostUsd | currency: 'USD' : 'symbol' : '1.2-4' }}</span>
+                } @else {
+                  <span>{{ window.percentage > 0 ? '+' : '' }}{{ window.percentage }}&nbsp;%</span>
+                }
+              </span>
+              <span>{{ t('aiCosts.comparedTo.' + window.name) }}</span>
+            </p>
+            <!-- Behind the amount: how many calls, and how many tokens went in and came out. -->
+            <p class="mt-2 text-sm text-surface-500 dark:text-surface-400">
+              {{ t('aiCosts.calls', { count: window.calls }) }} ·
+              {{ t('aiCosts.tokens', { input: (window.inputTokens | number), output: (window.outputTokens | number) }) }}
+            </p>
+          </p-card>
+        }
+      </div>
+
+      <p-card>
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 id="ai-costs-history" class="text-lg font-medium">{{ t('aiCosts.history') }}</h2>
+          <!-- How fine the calendar is cut: the last 30 days by day, the last 12 months by month,
+               or every year since the first call. -->
+          <p-selectbutton
+            [options]="unitOptions()"
+            [(ngModel)]="unit"
+            optionLabel="label"
+            optionValue="value"
+            [allowEmpty]="false"
+            size="small"
+            ariaLabelledBy="ai-costs-history"
+          />
+        </div>
+        <!-- A fixed height rather than an aspect ratio: a canvas without a height of its own grows
+             with every redraw. -->
+        <p-chart type="bar" [data]="historyData()" [options]="barOptions()" height="18rem" [ariaLabel]="t('aiCosts.history')" />
+      </p-card>
+
+      <!-- The basis of every amount above, so nobody has to look into the configuration. -->
+      <p-card [header]="t('aiCosts.prices.title')">
+        <p-table [value]="prices()" dataKey="model" size="small">
+          <ng-template #header>
+            <tr>
+              <th scope="col">{{ t('aiCosts.prices.model') }}</th>
+              <th scope="col" class="text-right">{{ t('aiCosts.prices.input') }}</th>
+              <th scope="col" class="text-right">{{ t('aiCosts.prices.output') }}</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-price>
+            <tr>
+              <td>{{ price.model }}</td>
+              <td class="text-right">{{ price.inputPerMillion | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+              <td class="text-right">{{ price.outputPerMillion | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    }
+  </main>
+</ng-container>

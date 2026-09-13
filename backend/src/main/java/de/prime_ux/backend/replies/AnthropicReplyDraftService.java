@@ -1,6 +1,8 @@
 package de.prime_ux.backend.replies;
 
-import de.prime_ux.backend.aisettings.TenantChatClients;
+import de.prime_ux.backend.aisettings.ChatClients;
+import de.prime_ux.backend.aiusage.AiCallKind;
+import de.prime_ux.backend.aiusage.AiCallRecorder;
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseMessage;
 import de.prime_ux.backend.triage.CaseCategory;
@@ -61,10 +63,12 @@ class AnthropicReplyDraftService implements ReplyDraftService {
 			- Bleib kurz und sachlich. Beantworte, was gefragt wurde, und nicht mehr.
 			""";
 
-	private final TenantChatClients tenantChatClients;
+	private final ChatClients chatClients;
+	private final AiCallRecorder aiCalls;
 
-	AnthropicReplyDraftService(TenantChatClients tenantChatClients) {
-		this.tenantChatClients = tenantChatClients;
+	AnthropicReplyDraftService(ChatClients chatClients, AiCallRecorder aiCalls) {
+		this.chatClients = chatClients;
+		this.aiCalls = aiCalls;
 	}
 
 	@Override
@@ -72,13 +76,15 @@ class AnthropicReplyDraftService implements ReplyDraftService {
 			String instruction, String signature) {
 		try {
 			// Whose Anthropic account this is billed to is the tenant's own decision.
-			ChatClient chatClient = this.tenantChatClients.forTenant(mailCase.getTenant());
+			ChatClient chatClient = this.chatClients.forTenant(mailCase.getTenant());
 			ChatResponse response = chatClient.prompt()
 					.options(AnthropicChatOptions.builder().maxTokens(MAX_TOKENS))
 					.system(systemPrompt(mailCase, settings, instruction, signature))
 					.user(userPrompt(mailCase, conversation))
 					.call()
 					.chatResponse();
+			// Written down before the answer is read: a reply with no text in it cost the same.
+			this.aiCalls.record(mailCase.getTenant(), mailCase, AiCallKind.DRAFT, response);
 			String answer = textOf(response);
 			if (answer == null) {
 				// Why the model said nothing is in the metadata, and worth a line: a refusal

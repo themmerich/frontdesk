@@ -21,7 +21,8 @@
     "surfaceColor": "Surface",
     "preset": "Preset",
     "categories": "Categories",
-    "aiSettings": "AI access"
+    "aiSettings": "AI access",
+    "aiCosts": "AI costs"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -422,6 +423,41 @@
     "testFailed": "The key was rejected.",
     "error": "That did not work.",
     "loadError": "Could not load the AI access. Is the backend running?",
+    "loading": "Loading"
+  },
+  "aiCosts": {
+    "title": "AI costs",
+    "refresh": "Refresh",
+    "intro": "Estimated from the tokens of every call and the model's price. What Anthropic actually bills is in the Anthropic console.",
+    "unpriced": "{{count}} calls in the last 30 days have no priced model and are missing from the sums.",
+    "today": "Today",
+    "week": "Last 7 days",
+    "month": "Last 30 days",
+    "comparedTo": {
+      "today": "vs. yesterday",
+      "week": "vs. previous week",
+      "month": "vs. previous month"
+    },
+    "calls": "{{count}} calls",
+    "tokens": "{{input}} tokens in / {{output}} out",
+    "kinds": {
+      "triage": "Triage",
+      "draft": "Draft",
+      "keyTest": "Key test"
+    },
+    "history": "Cost over time",
+    "unit": {
+      "day": "Day",
+      "month": "Month",
+      "year": "Year"
+    },
+    "prices": {
+      "title": "Prices",
+      "model": "Model",
+      "input": "USD per million input tokens",
+      "output": "USD per million output tokens"
+    },
+    "loadError": "The AI costs could not be loaded. Is the backend running?",
     "loading": "Loading"
   },
   "profile": {

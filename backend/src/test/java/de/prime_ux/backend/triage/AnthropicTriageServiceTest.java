@@ -1,7 +1,11 @@
 package de.prime_ux.backend.triage;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import de.prime_ux.backend.aisettings.StubChatClients;
+import de.prime_ux.backend.aiusage.AiCallKind;
+import de.prime_ux.backend.aiusage.RecordingAiCalls;
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseAttachmentRepository.AttachmentSummary;
 import de.prime_ux.backend.tenants.Tenant;
@@ -106,5 +110,58 @@ class AnthropicTriageServiceTest {
 				return UUID.randomUUID();
 			}
 		};
+	}
+
+	private static final String AN_ANSWER = """
+			{"categoryCode": "invoice", "confidence": 0.9, "summary": "Kunde bittet um eine Rechnungskopie."}""";
+
+	/** The service over stubbed clients; the repositories are not touched when the body is handed in. */
+	private static AnthropicTriageService serviceOver(StubChatClients chatClients, RecordingAiCalls aiCalls) {
+		return new AnthropicTriageService(chatClients, aiCalls, null, null);
+	}
+
+	@Test
+	void recordsTheCallWithItsCaseAndKind() {
+		RecordingAiCalls aiCalls = new RecordingAiCalls();
+		Case mailCase = caseAddressedTo("info@musterfirma.de");
+
+		TriageVerdict verdict = serviceOver(StubChatClients.answering(AN_ANSWER, 640, 48), aiCalls)
+				.classify(mailCase, List.of(), TenantTriageSettings.defaults(TENANT), BODY, List.of());
+
+		assertThat(verdict.categoryCode()).isEqualTo("invoice");
+		assertThat(aiCalls.recorded).hasSize(1);
+		RecordingAiCalls.Recorded recorded = aiCalls.recorded.getFirst();
+		assertThat(recorded.mailCase()).isSameAs(mailCase);
+		assertThat(recorded.kind()).isEqualTo(AiCallKind.TRIAGE);
+		assertThat(recorded.response().getMetadata().getUsage().getPromptTokens()).isEqualTo(640);
+	}
+
+	@Test
+	void recordsTheCallEvenWhenTheAnswerIsNotTheShapeAskedFor() {
+		RecordingAiCalls aiCalls = new RecordingAiCalls();
+		AnthropicTriageService service = serviceOver(StubChatClients.answering("Das kann ich nicht sagen.", 640, 12),
+				aiCalls);
+
+		assertThatThrownBy(() -> service.classify(caseAddressedTo("info@musterfirma.de"), List.of(),
+				TenantTriageSettings.defaults(TENANT), BODY, List.of()))
+				.isInstanceOf(TriageException.class);
+
+		// Paid for all the same.
+		assertThat(aiCalls.recorded).hasSize(1);
+	}
+
+	@Test
+	void stillAsksForTheAnswerShape() {
+		StubChatClients chatClients = StubChatClients.answering(AN_ANSWER, 640, 48);
+
+		serviceOver(chatClients, new RecordingAiCalls())
+				.classify(caseAddressedTo("info@musterfirma.de"), List.of(), TenantTriageSettings.defaults(TENANT), BODY,
+						List.of());
+
+		// The format instruction entity() would have added still reaches the model, appended to
+		// the user message.
+		assertThat(chatClients.lastPrompt().getUserMessage().getText())
+				.startsWith("Absender: kunde@example.com")
+				.contains("categoryCode");
 	}
 }

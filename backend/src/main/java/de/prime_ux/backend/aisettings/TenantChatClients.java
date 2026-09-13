@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  * using the old one.
  */
 @Component
-public class TenantChatClients {
+public class TenantChatClients implements ChatClients {
 
 	private record CachedClient(String apiKey, ChatClient chatClient) {
 	}
@@ -38,6 +38,7 @@ public class TenantChatClients {
 		this.tenantAiSettingsRepository = tenantAiSettingsRepository;
 	}
 
+	@Override
 	public ChatClient forTenant(Tenant tenant) {
 		String apiKey = this.tenantAiSettingsRepository.findByTenantId(tenant.getId())
 				.map(TenantAiSettings::getApiKey)
@@ -59,6 +60,7 @@ public class TenantChatClients {
 	 * A client that is the platform's in every respect but the credential it authenticates with.
 	 * Public so a key can be tried out before it is saved.
 	 */
+	@Override
 	public ChatClient withApiKey(String apiKey) {
 		return ChatClient.create(AnthropicChatModel.builder()
 				.options(this.platformChatModel.getOptions().mutate().apiKey(apiKey).build())
