@@ -24,6 +24,8 @@ function aCase(overrides: Partial<Case> = {}): Case {
     recipient: 'info@example.com',
     subject: 'Delivery status',
     receivedAt: new Date(lastReceivedAt),
+    lastMessageAt: new Date(lastReceivedAt),
+    messageCount: 1,
     hasAttachments: false,
     sizeBytes: 2048,
     summary: null,

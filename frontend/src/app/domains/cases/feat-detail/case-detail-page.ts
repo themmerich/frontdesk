@@ -3,7 +3,6 @@ import { DatePipe, DOCUMENT, PercentPipe } from '@angular/common';
 import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -21,10 +20,8 @@ import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseDetailService } from '../data/case-detail-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
-import { attachmentIcon, opensInTheBrowser } from '../model/attachments';
-import { CaseAttachment, CaseDetail, CaseTier } from '../model/case';
-import { mailDocument, pointsAtRemoteContent } from '../model/mail-html';
-import { mailTextParts } from '../model/mail-text';
+import { CaseDetail, CaseTier } from '../model/case';
+import { CaseConversation } from '../ui/case-conversation';
 import { CaseTimeline } from '../ui/case-timeline';
 import { FileSizePipe } from '../ui/file-size-pipe';
 import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from '../ui/tier-tag';
@@ -38,6 +35,7 @@ import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from '../ui/tier-tag';
   imports: [
     DatePipe,
     PercentPipe,
+    CaseConversation,
     CaseTimeline,
     FileSizePipe,
     FormsModule,
@@ -65,7 +63,6 @@ export class CaseDetailPage {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly router = inject(Router);
   private readonly breakpoints = inject(BreakpointObserver);
   private readonly storage = inject(DOCUMENT).defaultView?.localStorage ?? null;
@@ -146,14 +143,8 @@ export class CaseDetailPage {
   protected readonly isHandled = computed(() => (this.detailService.detail.value()?.handledAt ?? null) !== null);
   protected readonly isTrashed = computed(() => (this.detailService.detail.value()?.deletedAt ?? null) !== null);
 
-  /**
-   * Whether the reply went out. From then on the box is read-only and nothing is written or
-   * sent any more: what the customer got is what stays on the case.
-   */
-  protected readonly isSent = computed(() => (this.detailService.detail.value()?.sentAt ?? null) !== null);
-
-  /** Something in the box, a case that is neither thrown away nor answered: that can go out. */
-  protected readonly canSend = computed(() => !this.isTrashed() && !this.isSent() && !this.isDraftBlank());
+  /** Something in the box and a case that is not thrown away: that can go out, however often. */
+  protected readonly canSend = computed(() => !this.isTrashed() && !this.isDraftBlank());
 
   /**
    * Whether the mail and its reply stand beside each other or one under the other. Tailwind's
@@ -207,52 +198,11 @@ export class CaseDetailPage {
     ];
   });
 
-  /**
-   * The mail as it is shown: its text cut into the pieces that are addresses and the pieces that
-   * are not. Bound as text either way — a mail body comes from a stranger and is never markup.
-   */
-  protected readonly bodyParts = computed(() => mailTextParts(this.detailService.detail.value()?.bodyText ?? ''));
+  /** The conversation, oldest first; empty while the case has not arrived. */
+  protected readonly messages = computed(() => this.detailService.detail.value()?.messages ?? []);
 
-  /** The mail as it was written, where that was HTML; null where the mail is plain text. */
-  protected readonly bodyHtml = computed(() => this.detailService.detail.value()?.bodyHtml ?? null);
-
-  /**
-   * Whether the pictures the mail points at may be fetched. Off for every mail: fetching one
-   * tells the sender that this mail was opened, at this minute, from here — which is what a
-   * tracking pixel is for. Re-anchored on the case, so a yes never carries over to the next mail.
-   */
-  protected readonly showRemoteContent = linkedSignal<string | undefined, boolean>({
-    source: () => this.detailService.detail.value()?.id,
-    computation: () => false,
-  });
-
-  protected readonly hasRemoteContent = computed(() => {
-    const html = this.bodyHtml();
-    return html !== null && pointsAtRemoteContent(html);
-  });
-
-  /**
-   * The mail as a document for the frame below. Angular is told to keep its hands off it, which
-   * needs saying twice: what it would do here is sanitize the mail into something else, and what
-   * keeps the page safe is the frame around it instead — sandboxed without scripts and without
-   * an origin of its own, with a policy in the document's own head on top. The mail can neither
-   * run anything nor read anything of this page.
-   */
-  protected readonly mailDocument = computed<SafeHtml | null>(() => {
-    const html = this.bodyHtml();
-    if (html === null) {
-      return null;
-    }
-    // The pictures the mail brought along go in as data URLs; until they are here, the
-    // references stand as the mail wrote them.
-    const document = mailDocument(html, this.showRemoteContent(), this.detailService.inlineImages.value() ?? {});
-    return this.sanitizer.bypassSecurityTrustHtml(document);
-  });
-
-  /** What a person would open: the attachments that are not part of the body. */
-  protected readonly listedAttachments = computed(() =>
-    (this.detailService.detail.value()?.attachments ?? []).filter((attachment) => !attachment.inline),
-  );
+  /** Where an attachment's bytes are, for the conversation to link to. */
+  protected readonly attachmentUrl = (attachmentId: string): string => this.detailService.attachmentUrl(attachmentId);
 
   /**
    * A mail that came with attachments before they were kept: the flag was set when it came in,
@@ -260,16 +210,8 @@ export class CaseDetailPage {
    */
   protected readonly attachmentsLost = computed(() => {
     const aCase = this.detailService.detail.value();
-    return aCase !== undefined && aCase.hasAttachments && aCase.attachments.length === 0;
+    return aCase !== undefined && aCase.hasAttachments && aCase.messages.every((message) => message.attachments.length === 0);
   });
-
-  protected attachmentIcon(attachment: CaseAttachment): string {
-    return attachmentIcon(attachment.contentType);
-  }
-
-  protected opensInTheBrowser(attachment: CaseAttachment): boolean {
-    return opensInTheBrowser(attachment.contentType);
-  }
 
   protected tierLabelKey(tier: CaseTier): string {
     return TIER_LABEL_KEY[tier];

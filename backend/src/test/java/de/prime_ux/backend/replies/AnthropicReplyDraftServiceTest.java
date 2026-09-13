@@ -3,6 +3,7 @@ package de.prime_ux.backend.replies;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseMessage;
 import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.triage.CaseCategory;
 import de.prime_ux.backend.triage.CaseTier;
@@ -24,8 +25,14 @@ class AnthropicReplyDraftServiceTest {
 	private static final Tenant TENANT = new Tenant("Musterfirma GmbH");
 
 	private static Case aCase(String body) {
-		return new Case(TENANT, "<m@test>", "kunde@example.com", "info@musterfirma.de", "Lieferung 4711", body,
+		return new Case(TENANT, "<m@test>", "kunde@example.com", "info@musterfirma.de", "Lieferung 4711",
 				Instant.parse("2026-08-01T10:00:00Z"), false, 2048);
+	}
+
+	/** A conversation of one: the mail that opened the case. */
+	private static List<CaseMessage> conversation(Case mailCase, String body) {
+		return List.of(CaseMessage.incoming(mailCase, 0, "<m@test>", "kunde@example.com", "info@musterfirma.de",
+				"Lieferung 4711", body, null, Instant.parse("2026-08-01T10:00:00Z"), 2048));
 	}
 
 	private static TenantTriageSettings settings(String instructions) {
@@ -124,21 +131,49 @@ class AnthropicReplyDraftServiceTest {
 
 	@Test
 	void carriesTheEnvelopeAndTheWholeBody() {
-		String prompt = AnthropicReplyDraftService.userPrompt(aCase("Guten Tag,\n\nwann kommt Bestellung 4711?"));
+		Case mailCase = aCase("");
+		String prompt = AnthropicReplyDraftService.userPrompt(mailCase,
+				conversation(mailCase, "Guten Tag,\n\nwann kommt Bestellung 4711?"));
 
 		assertThat(prompt).contains("Absender: kunde@example.com")
 				.contains("Empfänger: info@musterfirma.de")
 				.contains("Betreff: Lieferung 4711")
-				.endsWith("Guten Tag,\n\nwann kommt Bestellung 4711?");
+				.contains("\nKunde (01.08.2026):\nGuten Tag,\n\nwann kommt Bestellung 4711?\n");
+	}
+
+	@Test
+	void tellsTheWholeConversationAndKeepsTheNewestQuestionWhole() {
+		Case mailCase = aCase("");
+		Instant start = Instant.parse("2026-08-01T10:00:00Z");
+		List<CaseMessage> thread = List.of(
+				CaseMessage.incoming(mailCase, 0, "<m1@test>", "kunde@example.com", "info@musterfirma.de",
+						"Lieferung 4711", "Wann kommt Bestellung 4711? " + "y".repeat(2_000), null, start, 2048),
+				CaseMessage.outgoing(mailCase, 1, "<r1@test>", "inbox@frontdesk.local", "kunde@example.com",
+						"Re: Lieferung 4711", "Guten Tag, die Lieferung geht morgen raus.", start.plusSeconds(3600),
+						"Anna Muster"),
+				CaseMessage.incoming(mailCase, 2, "<m2@test>", "kunde@example.com", "info@musterfirma.de",
+						"AW: Lieferung 4711", "Danke! Bekomme ich eine Sendungsnummer?", null, start.plusSeconds(7200),
+						1024));
+
+		String prompt = AnthropicReplyDraftService.userPrompt(mailCase, thread);
+
+		// Oldest first, each under who wrote it; the customer's newest mail is the question.
+		assertThat(prompt.indexOf("Kunde (01.08.2026):\nWann kommt")).isLessThan(prompt.indexOf("Unsere Antwort (01.08.2026):"));
+		assertThat(prompt.indexOf("Unsere Antwort (01.08.2026):")).isLessThan(prompt.indexOf("Kunde (01.08.2026):\nDanke!"));
+		assertThat(prompt).contains("Unsere Antwort (01.08.2026):\nGuten Tag, die Lieferung geht morgen raus.")
+				.endsWith("Danke! Bekomme ich eine Sendungsnummer?\n");
+		// What went before is context and is cut shorter than the question.
+		assertThat(prompt).contains("y".repeat(900)).doesNotContain("y".repeat(1_100));
 	}
 
 	@Test
 	void cutsAVeryLongBodyAndSaysSo() {
-		String prompt = AnthropicReplyDraftService.userPrompt(aCase("x".repeat(20_000)));
+		Case mailCase = aCase("");
+		String prompt = AnthropicReplyDraftService.userPrompt(mailCase, conversation(mailCase, "x".repeat(20_000)));
 
 		// Further than the classification reads, because a reply has to know what was asked in
 		// the third paragraph — but not a whole quoted thread.
-		assertThat(prompt).endsWith("\n[gekürzt]");
+		assertThat(prompt).endsWith("\n[gekürzt]\n");
 		assertThat(prompt.length()).isLessThan(13_000);
 	}
 

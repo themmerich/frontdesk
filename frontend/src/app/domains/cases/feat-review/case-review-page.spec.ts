@@ -36,6 +36,8 @@ function aCase(overrides: Partial<Case> = {}): Case {
     recipient: 'info@example.com',
     subject: 'Weekly digest',
     receivedAt: new Date('2026-08-19T08:30:00Z'),
+    lastMessageAt: new Date('2026-08-19T08:30:00Z'),
+    messageCount: 1,
     hasAttachments: false,
     sizeBytes: 2048,
     summary: 'Branch news of the week, nothing urgent.',

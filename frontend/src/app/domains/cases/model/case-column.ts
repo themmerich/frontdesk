@@ -15,7 +15,7 @@ export type CaseColumnField =
   | 'hasAttachments'
   | 'hasDraft'
   | 'sizeBytes'
-  | 'receivedAt';
+  | 'lastMessageAt';
 
 export type CaseColumnDefinition = {
   field: CaseColumnField;
@@ -43,9 +43,10 @@ export const CASE_COLUMNS: readonly CaseColumnDefinition[] = [
   // Whether a reply is waiting to be read. The tier says a draft is expected; this says it is
   // there. Filtered like the attachment column, through a tri-state checkbox.
   { field: 'hasDraft', labelKey: 'cases.draft', sortable: false, filterable: true },
-  // Filtered through PrimeNG's date filter; the list component picks the
-  // control per field, this flag only says that a filter exists.
-  { field: 'receivedAt', labelKey: 'cases.receivedAt', sortable: true, filterable: true },
+  // When the conversation last moved — the mail that opened the case, or the customer writing
+  // again. Filtered through PrimeNG's date filter; the list component picks the control per
+  // field, this flag only says that a filter exists.
+  { field: 'lastMessageAt', labelKey: 'cases.receivedAt', sortable: true, filterable: true },
   { field: 'sizeBytes', labelKey: 'cases.size', sortable: true, filterable: false },
 ];
 

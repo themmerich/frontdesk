@@ -27,6 +27,8 @@ function aCase(overrides: Partial<Case> = {}): Case {
     recipient: 'info@example.com',
     subject: 'Delivery status',
     receivedAt: new Date(),
+    lastMessageAt: new Date(),
+    messageCount: 1,
     hasAttachments: false,
     sizeBytes: 2048,
     summary: null,
@@ -74,9 +76,9 @@ describe('CaseList date groups', () => {
   it('files the cases under the stretch of time they came in, newest first', () => {
     // Sixty days back is the month before last at the earliest, so the last heading is a month.
     const fixture = createFixture([
-      aCase({ receivedAt: daysAgo(0) }),
-      aCase({ id: '2', receivedAt: daysAgo(1) }),
-      aCase({ id: '3', receivedAt: daysAgo(60) }),
+      aCase({ receivedAt: daysAgo(0), lastMessageAt: daysAgo(0) }),
+      aCase({ id: '2', receivedAt: daysAgo(1), lastMessageAt: daysAgo(1) }),
+      aCase({ id: '3', receivedAt: daysAgo(60), lastMessageAt: daysAgo(60) }),
     ]);
 
     const written = headings(fixture);
@@ -89,9 +91,9 @@ describe('CaseList date groups', () => {
 
   it('writes one heading per stretch, however many cases fall into it', () => {
     const fixture = createFixture([
-      aCase({ receivedAt: daysAgo(0, 8) }),
-      aCase({ id: '2', receivedAt: daysAgo(0, 10) }),
-      aCase({ id: '3', receivedAt: daysAgo(0, 12) }),
+      aCase({ receivedAt: daysAgo(0, 8), lastMessageAt: daysAgo(0, 8) }),
+      aCase({ id: '2', receivedAt: daysAgo(0, 10), lastMessageAt: daysAgo(0, 10) }),
+      aCase({ id: '3', receivedAt: daysAgo(0, 12), lastMessageAt: daysAgo(0, 12) }),
     ]);
 
     expect(headings(fixture)).toEqual(['Today']);
@@ -99,7 +101,10 @@ describe('CaseList date groups', () => {
   });
 
   it('steps aside when the list is put in another order', async () => {
-    const fixture = createFixture([aCase({ receivedAt: daysAgo(0) }), aCase({ id: '2', receivedAt: daysAgo(1) })]);
+    const fixture = createFixture([
+      aCase({ receivedAt: daysAgo(0), lastMessageAt: daysAgo(0) }),
+      aCase({ id: '2', receivedAt: daysAgo(1), lastMessageAt: daysAgo(1) }),
+    ]);
     const table = fixture.debugElement.query(By.directive(Table)).componentInstance as Table;
     expect(headings(fixture)).toEqual(['Today', 'Yesterday']);
 
@@ -108,5 +113,13 @@ describe('CaseList date groups', () => {
     await fixture.whenStable();
 
     expect(headings(fixture)).toEqual([]);
+  });
+  it('counts the messages of a conversation beside its subject, and says nothing for a single mail', () => {
+    const fixture = createFixture([aCase({ subject: 'Lieferung 4711', messageCount: 3 }), aCase({ id: '2', subject: 'Angebot' })]);
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr[data-p-selectable-row]'));
+
+    const badges = rows.map((row) => row.querySelector('[role="img"][aria-label*="essage"]')?.textContent?.trim() ?? null);
+    // Three messages: the customer wrote again, or the house did. One message: nothing to count.
+    expect(badges).toEqual(['3', null]);
   });
 });

@@ -10,13 +10,13 @@ import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseDetailService } from '../data/case-detail-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
-import { CaseAttachment, CaseDetail } from '../model/case';
+import { CaseAttachment, CaseDetail, CaseMessage } from '../model/case';
 import { CaseDetailPage } from './case-detail-page';
 
 /** Only what the attachments read; everything else renders as its key. */
 const translations = {
   caseDetail: {
-    original: 'Original message',
+    messages: 'Messages',
     attachments: 'Attachments',
     attachmentsNotStored: 'The attachments were not kept when the mail came in.',
   },
@@ -27,9 +27,8 @@ const aCase: CaseDetail = {
   sender: 'kunde@example.com',
   recipient: 'info@musterfirma.de',
   subject: 'Angebot',
-  bodyText: 'Anbei unser Angebot.',
-  bodyHtml: null,
   receivedAt: new Date('2026-08-19T08:30:00Z'),
+  lastMessageAt: new Date('2026-08-19T08:30:00Z'),
   hasAttachments: true,
   sizeBytes: 204_800,
   summary: null,
@@ -43,11 +42,27 @@ const aCase: CaseDetail = {
   draftText: null,
   draftGeneratedAt: null,
   draftUpdatedAt: null,
-  attachments: [],
-  sentAt: null,
-  sentByName: null,
+  messages: [],
   events: [],
 };
+
+/** The mail that opened the case, as its first message; overrides say what came with it. */
+function mail(overrides: Partial<CaseMessage> = {}): CaseMessage {
+  return {
+    id: 'm1',
+    direction: 'incoming',
+    sender: 'kunde@example.com',
+    recipient: 'info@musterfirma.de',
+    subject: 'Angebot',
+    bodyText: 'Anbei unser Angebot.',
+    bodyHtml: null,
+    occurredAt: new Date('2026-08-19T08:30:00Z'),
+    sizeBytes: 204_800,
+    sentByName: null,
+    attachments: [],
+    ...overrides,
+  };
+}
 
 const offer: CaseAttachment = {
   id: 'a1',
@@ -135,7 +150,7 @@ describe('CaseDetailPage attachments', () => {
   }
 
   it('lists what a person would open, each with its name, its size and the way it opens', () => {
-    detail.set({ ...aCase, attachments: [logo, offer, prices] });
+    detail.set({ ...aCase, messages: [mail({ attachments: [logo, offer, prices] })] });
     const fixture = createFixture();
 
     const links = attachmentLinks(fixture);
@@ -155,7 +170,7 @@ describe('CaseDetailPage attachments', () => {
 
   it('says so for a mail whose attachments were dropped before they were kept', () => {
     // The flag was set when the mail came in; nothing was stored back then.
-    detail.set({ ...aCase, hasAttachments: true, attachments: [] });
+    detail.set({ ...aCase, hasAttachments: true, messages: [mail()] });
     const fixture = createFixture();
 
     expect(attachmentLinks(fixture)).toHaveLength(0);
@@ -163,7 +178,7 @@ describe('CaseDetailPage attachments', () => {
   });
 
   it('shows nothing about attachments for a mail that has none', () => {
-    detail.set({ ...aCase, hasAttachments: false, attachments: [] });
+    detail.set({ ...aCase, hasAttachments: false, messages: [mail()] });
     const fixture = createFixture();
 
     expect(attachmentLinks(fixture)).toHaveLength(0);
@@ -171,7 +186,7 @@ describe('CaseDetailPage attachments', () => {
   });
 
   it('puts the pictures the mail brought along into the frame, as data URLs', async () => {
-    detail.set({ ...aCase, bodyHtml: '<p>Anbei.</p><img src="cid:logo@kunde">', attachments: [logo] });
+    detail.set({ ...aCase, messages: [mail({ bodyHtml: '<p>Anbei.</p><img src="cid:logo@kunde">', attachments: [logo] })] });
     const fixture = createFixture();
     const frame = () => (fixture.nativeElement as HTMLElement).querySelector('iframe')?.getAttribute('srcdoc') ?? '';
 

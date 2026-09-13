@@ -6,8 +6,10 @@ import { firstValueFrom } from 'rxjs';
 import { Case, CaseTier } from '../model/case';
 
 /** The wire shape: the moments are ISO strings until they are parsed into Dates. */
-type CaseResponse = Omit<Case, 'receivedAt' | 'handledAt' | 'deletedAt'> & {
+type CaseResponse = Omit<Case, 'receivedAt' | 'lastMessageAt' | 'messageCount' | 'handledAt' | 'deletedAt'> & {
   receivedAt: string;
+  lastMessageAt?: string | null;
+  messageCount?: number | null;
   handledAt?: string | null;
   deletedAt?: string | null;
 };
@@ -49,6 +51,9 @@ export class CasesService {
       (cases as CaseResponse[]).map((item) => ({
         ...item,
         receivedAt: new Date(item.receivedAt),
+        // A conversation of one moved when its mail came in.
+        lastMessageAt: new Date(item.lastMessageAt ?? item.receivedAt),
+        messageCount: item.messageCount ?? 1,
         // Anything but a moment means nobody has taken note of the case. Said this way round
         // because new Date(undefined) is an Invalid Date rather than an error, and a case
         // carrying one would silently drop out of the review.

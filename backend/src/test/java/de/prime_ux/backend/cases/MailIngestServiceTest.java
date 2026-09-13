@@ -23,6 +23,7 @@ import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.internet.MimeUtility;
 import jakarta.mail.util.ByteArrayDataSource;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,9 @@ class MailIngestServiceTest {
 
 	@Autowired
 	private CaseRepository caseRepository;
+
+	@Autowired
+	private CaseMessageRepository caseMessageRepository;
 
 	@Autowired
 	private CaseAttachmentRepository caseAttachmentRepository;
@@ -83,6 +87,16 @@ class MailIngestServiceTest {
 		greenMail.purgeEmailFromAllMailboxes();
 	}
 
+	/** The conversation of a case, as it went. */
+	private List<CaseMessage> conversationOf(Case aCase) {
+		return caseMessageRepository.findAllByMailCaseIdOrderByPositionAsc(aCase.getId());
+	}
+
+	/** The mail that opened a case. */
+	private CaseMessage opening(Case aCase) {
+		return conversationOf(aCase).getFirst();
+	}
+
 	/** Settings pointing at the embedded GreenMail's dynamic port for the given inbox. */
 	private TenantMailSettings settingsFor(Tenant owner, String inboxUser) {
 		return new TenantMailSettings(owner, MailSettingsMode.CUSTOM, "localhost", greenMail.getImap().getPort(),
@@ -104,7 +118,9 @@ class MailIngestServiceTest {
 			assertThat(ingested.getSender()).isEqualTo("kunde@example.com");
 			assertThat(ingested.getRecipient()).isEqualTo("inbox@frontdesk.local");
 			assertThat(ingested.getSubject()).isEqualTo("Wo bleibt meine Bestellung?");
-			assertThat(ingested.getBodyText()).contains("Bestellung 4711");
+			assertThat(opening(ingested).getBodyText()).contains("Bestellung 4711");
+			assertThat(opening(ingested).isIncoming()).isTrue();
+			assertThat(opening(ingested).getMessageId()).isEqualTo(ingested.getMessageId());
 			assertThat(ingested.getMessageId()).isNotNull();
 			assertThat(ingested.getReceivedAt()).isNotNull();
 			assertThat(ingested.isHasAttachments()).isFalse();
@@ -176,8 +192,8 @@ class MailIngestServiceTest {
 		mailIngestService.pollOnce(settingsFor(otherTenant, "b@frontdesk.local"));
 
 		assertThat(caseRepository.count()).isEqualTo(2);
-		assertThat(caseRepository.findAllByTenantIdOrderByReceivedAtDesc(tenant.getId())).hasSize(1);
-		assertThat(caseRepository.findAllByTenantIdOrderByReceivedAtDesc(otherTenant.getId())).hasSize(1);
+		assertThat(caseRepository.findAllByTenantIdOrderByLastMessageAtDesc(tenant.getId())).hasSize(1);
+		assertThat(caseRepository.findAllByTenantIdOrderByLastMessageAtDesc(otherTenant.getId())).hasSize(1);
 	}
 
 	@Test
@@ -205,7 +221,7 @@ class MailIngestServiceTest {
 
 		Case ingested = caseRepository.findAll().getFirst();
 		assertThat(ingested.isHasAttachments()).isTrue();
-		assertThat(ingested.getBodyText()).contains("Details siehe Anhang.");
+		assertThat(opening(ingested).getBodyText()).contains("Details siehe Anhang.");
 		assertThat(ingested.getSizeBytes()).isPositive();
 		// The attachment itself is kept, bytes and all, and can be told apart from the body.
 		assertThat(caseAttachmentRepository.findAllByMailCaseIdOrderByPosition(ingested.getId())).singleElement()
@@ -256,7 +272,7 @@ class MailIngestServiceTest {
 
 		Case ingested = caseRepository.findAll().getFirst();
 		assertThat(ingested.isHasAttachments()).isTrue();
-		assertThat(ingested.getBodyHtml()).contains("cid:logo@musterkunde");
+		assertThat(opening(ingested).getBodyHtml()).contains("cid:logo@musterkunde");
 		List<CaseAttachmentRepository.AttachmentSummary> attachments = caseAttachmentRepository
 				.findAllByMailCaseIdOrderByPosition(ingested.getId());
 		// In the order of the mail: the logo stands in the body, before the offer.
@@ -323,8 +339,8 @@ class MailIngestServiceTest {
 
 		assertThat(caseRepository.findAll()).singleElement().satisfies(ingested -> {
 			// The text is what the triage reads, the HTML what the reader is shown.
-			assertThat(ingested.getBodyText()).isEqualTo("Branchennews der Woche.");
-			assertThat(ingested.getBodyHtml()).isEqualTo("<p>Branchennews der <b>Woche</b>.</p>");
+			assertThat(opening(ingested).getBodyText()).isEqualTo("Branchennews der Woche.");
+			assertThat(opening(ingested).getBodyHtml()).isEqualTo("<p>Branchennews der <b>Woche</b>.</p>");
 		});
 	}
 
@@ -343,7 +359,7 @@ class MailIngestServiceTest {
 		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
 
 		assertThat(caseRepository.findAll()).singleElement()
-				.satisfies(ingested -> assertThat(ingested.getBodyHtml()).isEqualTo("<h1>Angebot</h1>"));
+				.satisfies(ingested -> assertThat(opening(ingested).getBodyHtml()).isEqualTo("<h1>Angebot</h1>"));
 	}
 
 	@Test
@@ -371,7 +387,148 @@ class MailIngestServiceTest {
 
 		// An attached web page is not the mail, so the case has no HTML body at all.
 		assertThat(caseRepository.findAll()).singleElement()
-				.satisfies(ingested -> assertThat(ingested.getBodyHtml()).isNull());
+				.satisfies(ingested -> assertThat(opening(ingested).getBodyHtml()).isNull());
+	}
+
+	/** A case answered once: the customer's mail and our reply, as the migration and the sender leave them. */
+	private Case answeredCase(String subject) {
+		Case aCase = caseRepository.save(new Case(tenant, "<opening@example.com>", "kunde@example.com",
+				"inbox@frontdesk.local", subject, Instant.now().minusSeconds(3600), false, 2048));
+		caseMessageRepository.save(CaseMessage.incoming(aCase, 0, "<opening@example.com>", "kunde@example.com",
+				"inbox@frontdesk.local", subject, "Wann kommt die Lieferung?", null, aCase.getReceivedAt(), 2048));
+		caseMessageRepository.save(CaseMessage.outgoing(aCase, 1, "<reply@frontdesk.local>", "inbox@frontdesk.local",
+				"kunde@example.com", "Re: " + subject, "Morgen.", Instant.now().minusSeconds(1800), "Anna Muster"));
+		aCase.markSent(Instant.now().minusSeconds(1800));
+		return caseRepository.save(aCase);
+	}
+
+	private MimeMessage mailFrom(String sender, String subject, String text) throws Exception {
+		Session session = GreenMailUtil.getSession(greenMail.getImap().getServerSetup());
+		MimeMessage mail = new MimeMessage(session);
+		mail.setFrom(sender);
+		mail.setRecipients(Message.RecipientType.TO, "inbox@frontdesk.local");
+		mail.setSubject(subject);
+		mail.setText(text);
+		return mail;
+	}
+
+	@Test
+	void filesAReplyToOurReplyUnderTheCaseByItsHeadersAndReopensIt() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Case answered = answeredCase("Lieferung 4711");
+		assertThat(answered.getHandledAt()).isNotNull();
+		// The customer's client answers our reply: In-Reply-To names our Message-ID, the subject
+		// is theirs, and a file comes along.
+		MimeMessage reply = mailFrom("kunde@example.com", "Re: Lieferung 4711", "Danke, welche Sendungsnummer?");
+		reply.setHeader("In-Reply-To", "<reply@frontdesk.local>");
+		reply.setHeader("References", "<opening@example.com> <reply@frontdesk.local>");
+		MimeBodyPart text = new MimeBodyPart();
+		text.setText("Danke, welche Sendungsnummer?");
+		MimeBodyPart attachment = new MimeBodyPart();
+		attachment.setDataHandler(new DataHandler(new ByteArrayDataSource("pdf".getBytes(), "application/pdf")));
+		attachment.setFileName("bestellung.pdf");
+		attachment.setDisposition(Part.ATTACHMENT);
+		MimeMultipart multipart = new MimeMultipart();
+		multipart.addBodyPart(text);
+		multipart.addBodyPart(attachment);
+		reply.setContent(multipart);
+		reply.saveChanges();
+		inbox.deliver(reply);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		// No new case: the mail is the third message of the conversation, with its file.
+		assertThat(caseRepository.count()).isEqualTo(1);
+		Case reopened = caseRepository.findById(answered.getId()).orElseThrow();
+		List<CaseMessage> conversation = conversationOf(reopened);
+		assertThat(conversation).hasSize(3);
+		CaseMessage followUp = conversation.get(2);
+		assertThat(followUp.isIncoming()).isTrue();
+		assertThat(followUp.getBodyText()).contains("Sendungsnummer");
+		assertThat(caseAttachmentRepository.findAllByMailCaseIdOrderByPosition(reopened.getId())).singleElement()
+				.satisfies(stored -> {
+					assertThat(stored.getFileName()).isEqualTo("bestellung.pdf");
+					assertThat(stored.getMessageId()).isEqualTo(followUp.getId());
+				});
+		// Back in the inbox, with the paperclip on, the verdict untouched, and a step on the trail.
+		assertThat(reopened.getHandledAt()).isNull();
+		assertThat(reopened.isHasAttachments()).isTrue();
+		assertThat(reopened.getLastMessageAt()).isEqualTo(followUp.getOccurredAt());
+		assertThat(caseEventRepository.findAllByMailCaseIdOrderByOccurredAtAsc(reopened.getId()))
+				.extracting(CaseEvent::getType).containsExactly(CaseEventType.FOLLOW_UP_RECEIVED);
+	}
+
+	@Test
+	void filesAReplyWithoutHeadersBySenderAndSubject() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Case answered = answeredCase("Lieferung 4711");
+		// A client that sets no threading headers, but the customer and the subject say enough.
+		inbox.deliver(mailFrom("Kunde@Example.com", "AW: Lieferung 4711", "Noch eine Frage."));
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		assertThat(caseRepository.count()).isEqualTo(1);
+		assertThat(conversationOf(answered)).hasSize(3);
+	}
+
+	@Test
+	void opensANewCaseForAnotherSenderAnotherSubjectAnOldConversationOrOneInTheTrash() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Case answered = answeredCase("Lieferung 4711");
+		Case trashed = caseRepository.save(new Case(tenant, "<trashed@example.com>", "kunde@example.com",
+				"inbox@frontdesk.local", "Reklamation", Instant.now().minusSeconds(60), false, 1024));
+		caseMessageRepository.save(CaseMessage.incoming(trashed, 0, "<trashed@example.com>", "kunde@example.com",
+				"inbox@frontdesk.local", "Reklamation", "Kaputt.", null, trashed.getReceivedAt(), 1024));
+		trashed.moveToTrash();
+		caseRepository.save(trashed);
+		Case old = caseRepository.save(new Case(tenant, "<old@example.com>", "kunde@example.com",
+				"inbox@frontdesk.local", "Angebot", Instant.now().minus(MailIngestService.FOLLOW_UP_WINDOW).minusSeconds(60),
+				false, 1024));
+		caseMessageRepository.save(CaseMessage.incoming(old, 0, "<old@example.com>", "kunde@example.com",
+				"inbox@frontdesk.local", "Angebot", "Bitte ein Angebot.", null, old.getReceivedAt(), 1024));
+
+		// Somebody else on the same subject; the same customer on another subject; a reply to the
+		// case in the trash, headers and all; and the same subject long after the last word.
+		inbox.deliver(mailFrom("fritz@example.com", "Re: Lieferung 4711", "Ich auch?"));
+		inbox.deliver(mailFrom("kunde@example.com", "Neue Bestellung", "Ich hätte gern noch eins."));
+		MimeMessage toTrashed = mailFrom("kunde@example.com", "Re: Reklamation", "Und?");
+		toTrashed.setHeader("In-Reply-To", "<trashed@example.com>");
+		toTrashed.saveChanges();
+		inbox.deliver(toTrashed);
+		inbox.deliver(mailFrom("kunde@example.com", "Re: Angebot", "Gilt das noch?"));
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		// Four new cases; the three that were there kept their conversations as they were.
+		assertThat(caseRepository.count()).isEqualTo(7);
+		assertThat(conversationOf(answered)).hasSize(2);
+		assertThat(conversationOf(trashed)).hasSize(1);
+		assertThat(conversationOf(old)).hasSize(1);
+	}
+
+	@Test
+	void skipsAMailWhoseMessageIdIsAlreadyPartOfAConversation() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Case answered = answeredCase("Lieferung 4711");
+		// Our own reply, bounced back into the inbox by a copy rule: seen, not a follow-up.
+		MimeMessage copy = mailFrom("inbox@frontdesk.local", "Re: Lieferung 4711", "Morgen.");
+		// After saveChanges, which would otherwise mint a Message-ID of its own.
+		copy.saveChanges();
+		copy.setHeader("Message-ID", "<reply@frontdesk.local>");
+		inbox.deliver(copy);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		assertThat(caseRepository.count()).isEqualTo(1);
+		assertThat(conversationOf(answered)).hasSize(2);
+	}
+
+	@Test
+	void readsASubjectWithoutWhatTheClientsPutInFront() {
+		assertThat(MailIngestService.normalizedSubject("Re: AW: Lieferung 4711")).isEqualTo("lieferung 4711");
+		assertThat(MailIngestService.normalizedSubject("  WG:Fwd: Angebot ")).isEqualTo("angebot");
+		assertThat(MailIngestService.normalizedSubject("Rechnung")).isEqualTo("rechnung");
+		assertThat(MailIngestService.normalizedSubject(null)).isEmpty();
 	}
 
 	@Test

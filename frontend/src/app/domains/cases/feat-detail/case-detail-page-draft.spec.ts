@@ -41,9 +41,8 @@ const aCase: CaseDetail = {
   sender: 'kunde@example.com',
   recipient: 'info@musterfirma.de',
   subject: 'Lieferung 4711',
-  bodyText: 'Wann kommt die Lieferung?',
-  bodyHtml: null,
   receivedAt: new Date('2026-08-19T08:30:00Z'),
+  lastMessageAt: new Date('2026-08-19T08:30:00Z'),
   hasAttachments: false,
   sizeBytes: 2048,
   summary: 'Kunde fragt nach dem Liefertermin.',
@@ -57,9 +56,7 @@ const aCase: CaseDetail = {
   draftText: null,
   draftGeneratedAt: null,
   draftUpdatedAt: null,
-  attachments: [],
-  sentAt: null,
-  sentByName: null,
+  messages: [],
   events: [],
 };
 

@@ -7,6 +7,8 @@ package de.prime_ux.backend.cases;
 public enum CaseEventType {
 	/** The mail became a case. */
 	INGESTED,
+	/** The customer wrote again; the mail joined the case's conversation. */
+	FOLLOW_UP_RECEIVED,
 	/** The triage run judged the case; the model is the actor, so there is none. */
 	TRIAGED,
 	/** A person changed the category or the tier. */

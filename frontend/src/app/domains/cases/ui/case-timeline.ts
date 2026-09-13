@@ -18,6 +18,7 @@ type TimelineEntry = {
 /** The marker per step; a small closed set, so every one is spelled out. */
 const ICONS: Record<CaseEventType, string> = {
   ingested: 'pi pi-inbox',
+  follow_up_received: 'pi pi-inbox',
   triaged: 'pi pi-sparkles',
   classification_corrected: 'pi pi-pencil',
   draft_generated: 'pi pi-sparkles',

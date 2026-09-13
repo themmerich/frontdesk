@@ -3,6 +3,8 @@ package de.prime_ux.backend.replies;
 import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseEventType;
 import de.prime_ux.backend.cases.CaseEvents;
+import de.prime_ux.backend.cases.CaseMessage;
+import de.prime_ux.backend.cases.CaseMessageRepository;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.mailsettings.TenantMailSettings;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
@@ -17,23 +19,28 @@ import jakarta.mail.Transport;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import java.io.UnsupportedEncodingException;
+import java.time.Instant;
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Sends the reply that stands on a case to the customer who wrote in, through the tenant's own
- * mailbox, and writes down that it went out. Approving and sending are one step: whoever calls
- * this has read the reply.
+ * Sends the reply that stands on a case to the customer, through the tenant's own mailbox, and
+ * puts it into the conversation as the message it now is. Approving and sending are one step:
+ * whoever calls this has read the reply.
  *
  * <p>The mail goes out from the mailbox address, because providers like GMX refuse any other
  * sender. Where the customer wrote to an alias, that alias goes into Reply-To, so their next mail
- * lands where the first one did. Threading through In-Reply-To and References puts the reply
- * under the customer's mail in their client.
+ * lands where the first one did. The reply answers the latest mail the customer sent: To and
+ * In-Reply-To point at it, and References carries the whole conversation, so their client shows
+ * the reply under it.
  */
 @Service
 @Slf4j
@@ -45,14 +52,17 @@ public class ReplySender {
 	private static final String TIMEOUT_MILLIS = "10000";
 
 	private final CaseRepository caseRepository;
+	private final CaseMessageRepository caseMessageRepository;
 	private final CaseEvents caseEvents;
 	private final TenantRepository tenantRepository;
 	private final TenantMailSettingsRepository tenantMailSettingsRepository;
 	private final TransactionTemplate transaction;
 
-	ReplySender(CaseRepository caseRepository, CaseEvents caseEvents, TenantRepository tenantRepository,
-			TenantMailSettingsRepository tenantMailSettingsRepository, PlatformTransactionManager transactionManager) {
+	ReplySender(CaseRepository caseRepository, CaseMessageRepository caseMessageRepository, CaseEvents caseEvents,
+			TenantRepository tenantRepository, TenantMailSettingsRepository tenantMailSettingsRepository,
+			PlatformTransactionManager transactionManager) {
 		this.caseRepository = caseRepository;
+		this.caseMessageRepository = caseMessageRepository;
 		this.caseEvents = caseEvents;
 		this.tenantRepository = tenantRepository;
 		this.tenantMailSettingsRepository = tenantMailSettingsRepository;
@@ -60,9 +70,9 @@ public class ReplySender {
 	}
 
 	/**
-	 * Sends the case's draft and marks the case as sent and handled, in that order: the mail
-	 * first, outside any transaction, then the record of it. A mail server that says no leaves
-	 * the case as it was.
+	 * Sends the case's draft, adds it to the conversation and marks the case handled, in that
+	 * order: the mail first, outside any transaction, then the record of it. A mail server that
+	 * says no leaves the case as it was.
 	 *
 	 * @throws ReplyRefusedException when there is nothing to send, or nothing to send it through
 	 * @throws ReplySendException when the mail server could not be reached or refused the mail
@@ -75,17 +85,26 @@ public class ReplySender {
 		TenantMailSettings settings = tenantMailSettingsRepository.findByTenantId(tenant.getId())
 				.filter(candidate -> candidate.getSmtpHost() != null && !candidate.getSmtpHost().isBlank())
 				.orElseThrow(() -> new ReplyRefusedException("the tenant has no mail server to send through"));
+		List<CaseMessage> conversation = caseMessageRepository.findAllByMailCaseIdOrderByPositionAsc(mailCase.getId());
+		// The latest mail the customer sent is what is being answered; a case that somehow has
+		// none is answered to its opening address.
+		CaseMessage answered = conversation.stream().filter(CaseMessage::isIncoming)
+				.reduce((first, second) -> second).orElse(null);
+		String to = answered == null ? mailCase.getSender() : answered.getSender();
+		String subject = replySubject(mailCase.getSubject());
 
-		String messageId = deliver(mailCase, tenant, settings);
+		String messageId = deliver(mailCase, tenant, settings, conversation, answered, to, subject);
 
+		Instant now = Instant.now();
 		Case sent = transaction.execute(status -> {
-			mailCase.markSent(person, messageId);
+			caseMessageRepository.save(CaseMessage.outgoing(mailCase, conversation.size(), messageId, settings.getUsername(),
+					to, subject, mailCase.getDraftText(), now, CaseEvents.nameOf(person)));
+			mailCase.markSent(now);
 			Case saved = caseRepository.save(mailCase);
-			caseEvents.record(saved, CaseEventType.SENT, person,
-					CaseEvents.details("to", mailCase.getSender(), "subject", replySubject(mailCase.getSubject())));
+			caseEvents.record(saved, CaseEventType.SENT, person, CaseEvents.details("to", to, "subject", subject));
 			return saved;
 		});
-		log.info("Sent the reply to case {} to {} as {}", mailCase.getId(), mailCase.getSender(), messageId);
+		log.info("Sent the reply to case {} to {} as {}", mailCase.getId(), to, messageId);
 		return sent;
 	}
 
@@ -96,13 +115,11 @@ public class ReplySender {
 		if (mailCase.getDraftText() == null || mailCase.getDraftText().isBlank()) {
 			throw new ReplyRefusedException("there is no reply to send");
 		}
-		if (mailCase.getSentAt() != null) {
-			throw new ReplyRefusedException("the reply was sent already");
-		}
 	}
 
 	/** Builds and hands over the mail; the Message-ID it went out under comes back. */
-	private String deliver(Case mailCase, Tenant tenant, TenantMailSettings settings) {
+	private String deliver(Case mailCase, Tenant tenant, TenantMailSettings settings, List<CaseMessage> conversation,
+			CaseMessage answered, String to, String subject) {
 		try {
 			MimeMessage message = new MimeMessage(Session.getInstance(smtpProperties(settings)));
 			message.setFrom(new InternetAddress(settings.getUsername(), tenant.getName(), "UTF-8"));
@@ -110,11 +127,16 @@ public class ReplySender {
 			if (recipient != null && !recipient.isBlank() && !recipient.equalsIgnoreCase(settings.getUsername())) {
 				message.setReplyTo(new Address[] { new InternetAddress(recipient) });
 			}
-			message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(mailCase.getSender()));
-			message.setSubject(replySubject(mailCase.getSubject()), "UTF-8");
-			if (mailCase.getMessageId() != null && !mailCase.getMessageId().isBlank()) {
-				message.setHeader("In-Reply-To", mailCase.getMessageId());
-				message.setHeader("References", mailCase.getMessageId());
+			message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
+			message.setSubject(subject, "UTF-8");
+			if (answered != null && answered.getMessageId() != null && !answered.getMessageId().isBlank()) {
+				message.setHeader("In-Reply-To", answered.getMessageId());
+			}
+			// The whole conversation, oldest first: what threads the reply under all of it.
+			String references = conversation.stream().map(CaseMessage::getMessageId).filter(Objects::nonNull)
+					.filter(id -> !id.isBlank()).collect(Collectors.joining(" "));
+			if (!references.isBlank()) {
+				message.setHeader("References", references);
 			}
 			message.setSentDate(new Date());
 			message.setText(mailCase.getDraftText(), "UTF-8");

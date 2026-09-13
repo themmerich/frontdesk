@@ -1,6 +1,8 @@
 package de.prime_ux.backend.replies;
 
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseMessage;
+import java.util.List;
 import de.prime_ux.backend.triage.TenantTriageSettings;
 
 /**
@@ -13,6 +15,7 @@ import de.prime_ux.backend.triage.TenantTriageSettings;
 public interface ReplyDraftService {
 
 	/**
+	 * @param conversation the case's messages, oldest first: what the reply answers
 	 * @param instruction what a person wants this reply to do — or, where the case has a draft
 	 * already, what to change about it. Null or blank means: write the reply as the mail asks for
 	 * it, from scratch.
@@ -20,5 +23,6 @@ public interface ReplyDraftService {
 	 * signs it; empty for none
 	 * @throws ReplyDraftException when no draft could be obtained
 	 */
-	String draft(Case mailCase, TenantTriageSettings settings, String instruction, String signature);
+	String draft(Case mailCase, List<CaseMessage> conversation, TenantTriageSettings settings, String instruction,
+			String signature);
 }

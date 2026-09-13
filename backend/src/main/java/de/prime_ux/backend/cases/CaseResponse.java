@@ -9,14 +9,15 @@ import java.util.UUID;
 
 /**
  * A case as the inbox shows it. Everything the triage produced is null until it looked at the
- * case; the tier travels lowercase, like every other enum on the wire.
+ * case; the tier travels lowercase, like every other enum on the wire. The conversation comes
+ * along as its length and its last move; the messages themselves are the detail's.
  */
 public record CaseResponse(UUID id, String sender, String recipient, String subject, Instant receivedAt,
 		boolean hasAttachments, long sizeBytes, String summary, UUID categoryId, String categoryName,
 		String categoryColor, String tier, BigDecimal confidence, Instant handledAt, Instant deletedAt,
-		boolean hasDraft) {
+		boolean hasDraft, Instant lastMessageAt, long messageCount) {
 
-	static CaseResponse from(Case aCase) {
+	static CaseResponse from(Case aCase, long messageCount) {
 		CaseCategory category = aCase.getCategory();
 		return new CaseResponse(aCase.getId(), aCase.getSender(), aCase.getRecipient(), aCase.getSubject(),
 				aCase.getReceivedAt(), aCase.isHasAttachments(), aCase.getSizeBytes(), aCase.getSummary(),
@@ -35,6 +36,6 @@ public record CaseResponse(UUID id, String sender, String recipient, String subj
 				// split the list into.
 				aCase.getDeletedAt(),
 				// Whether a reply is waiting to be read; the text itself is the detail's.
-				aCase.hasDraft());
+				aCase.hasDraft(), aCase.getLastMessageAt(), messageCount);
 	}
 }

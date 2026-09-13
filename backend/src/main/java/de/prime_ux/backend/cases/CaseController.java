@@ -1,5 +1,6 @@
 package de.prime_ux.backend.cases;
 
+import de.prime_ux.backend.cases.CaseMessageRepository.MessageCountPerCase;
 import de.prime_ux.backend.triage.CaseCategory;
 import de.prime_ux.backend.triage.CaseCategoryRepository;
 import de.prime_ux.backend.users.AppUser;
@@ -11,6 +12,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -34,16 +36,18 @@ import org.springframework.web.server.ResponseStatusException;
 class CaseController {
 
 	private final CaseRepository caseRepository;
+	private final CaseMessageRepository caseMessageRepository;
 	private final CaseAttachmentRepository caseAttachmentRepository;
 	private final CaseDetails caseDetails;
 	private final CaseEvents caseEvents;
 	private final CaseCategoryRepository caseCategoryRepository;
 	private final AppUserRepository appUserRepository;
 
-	CaseController(CaseRepository caseRepository, CaseAttachmentRepository caseAttachmentRepository,
-			CaseDetails caseDetails, CaseEvents caseEvents, CaseCategoryRepository caseCategoryRepository,
-			AppUserRepository appUserRepository) {
+	CaseController(CaseRepository caseRepository, CaseMessageRepository caseMessageRepository,
+			CaseAttachmentRepository caseAttachmentRepository, CaseDetails caseDetails, CaseEvents caseEvents,
+			CaseCategoryRepository caseCategoryRepository, AppUserRepository appUserRepository) {
 		this.caseRepository = caseRepository;
+		this.caseMessageRepository = caseMessageRepository;
 		this.caseAttachmentRepository = caseAttachmentRepository;
 		this.caseDetails = caseDetails;
 		this.caseEvents = caseEvents;
@@ -51,11 +55,17 @@ class CaseController {
 		this.appUserRepository = appUserRepository;
 	}
 
-	/** Only the cases of the signed-in user's tenant — tenants never see each other's mail. */
+	/**
+	 * Only the cases of the signed-in user's tenant — tenants never see each other's mail. How
+	 * long each conversation is comes from one grouped query rather than one per row.
+	 */
 	@GetMapping
 	List<CaseResponse> listCases(Authentication authentication) {
-		return caseRepository.findAllByTenantIdOrderByReceivedAtDesc(currentTenantId(authentication)).stream()
-				.map(CaseResponse::from).toList();
+		UUID tenantId = currentTenantId(authentication);
+		Map<UUID, Long> messageCounts = caseMessageRepository.countPerCase(tenantId).stream()
+				.collect(Collectors.toMap(MessageCountPerCase::getCaseId, MessageCountPerCase::getMessageCount));
+		return caseRepository.findAllByTenantIdOrderByLastMessageAtDesc(tenantId).stream()
+				.map(aCase -> CaseResponse.from(aCase, messageCounts.getOrDefault(aCase.getId(), 0L))).toList();
 	}
 
 	/**

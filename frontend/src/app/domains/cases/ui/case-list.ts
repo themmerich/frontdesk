@@ -70,7 +70,7 @@ const GROUP_LABELS: Record<Exclude<CaseDateGroupKind, 'earlier'>, string> = {
 const DEFAULT_STATE_KEY = 'frontdesk-case-table';
 
 /** Newest first, which is what the inbox opens with and what a reset puts back. */
-const DEFAULT_SORT_FIELD = 'receivedAt';
+const DEFAULT_SORT_FIELD = 'lastMessageAt';
 const DEFAULT_SORT_ORDER = -1;
 
 /** How many rows a page holds until someone chooses otherwise. */
@@ -287,7 +287,8 @@ export class CaseList {
     const month = new Intl.DateTimeFormat(this.transloco.getActiveLang(), { month: 'long' });
     const monthAndYear = new Intl.DateTimeFormat(this.transloco.getActiveLang(), { month: 'long', year: 'numeric' });
     return this.cases().map((aCase) => {
-      const group = caseDateGroup(aCase.receivedAt, now);
+      // By the last move of the conversation: a customer writing again is news of today.
+      const group = caseDateGroup(aCase.lastMessageAt, now);
       const sameYear = group.start.getFullYear() === now.getFullYear();
       return {
         ...aCase,

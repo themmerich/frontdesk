@@ -24,6 +24,8 @@ function aCase(overrides: Partial<Case> = {}): Case {
     recipient: 'info@example.com',
     subject: 'Delivery status',
     receivedAt: new Date('2026-08-19T08:30:00Z'),
+    lastMessageAt: new Date('2026-08-19T08:30:00Z'),
+    messageCount: 1,
     hasAttachments: false,
     sizeBytes: 2048,
     summary: null,
@@ -86,7 +88,7 @@ describe('CaseList remembered state', () => {
       categoryName: 150,
       tier: 130,
       hasDraft: 60,
-      receivedAt: 190,
+      lastMessageAt: 190,
       sizeBytes: 90,
       __actions: 100,
     });
@@ -102,7 +104,7 @@ describe('CaseList remembered state', () => {
       subject: 300,
       categoryName: 150,
       tier: 130,
-      receivedAt: 190,
+      lastMessageAt: 190,
       sizeBytes: 90,
       __actions: 100,
     });
@@ -137,7 +139,7 @@ describe('CaseList remembered state', () => {
     await fixture.whenStable();
 
     // The table as it comes: newest first, nothing filtered, every column back and unsized.
-    expect(table.sortField).toBe('receivedAt');
+    expect(table.sortField).toBe('lastMessageAt');
     expect(table.sortOrder).toBe(-1);
     expect(table.filteredValue).toBeNull();
     expect(fixture.componentInstance.visibleFields()).toEqual([...DEFAULT_COLUMN_ORDER]);
@@ -149,7 +151,7 @@ describe('CaseList remembered state', () => {
   it('fills a page where the stored state knows nothing of a paginator', async () => {
     // What the storage holds for everyone who used the inbox before it had one. PrimeNG hands
     // the missing entries on as undefined, and the table then shows nothing at all.
-    localStorage.setItem('frontdesk-case-table', JSON.stringify({ sortField: 'receivedAt', sortOrder: -1 }));
+    localStorage.setItem('frontdesk-case-table', JSON.stringify({ sortField: 'lastMessageAt', sortOrder: -1 }));
 
     const fixture = createFixture([aCase(), aCase({ id: '2', subject: 'Invoice copy' })]);
     await fixture.whenStable();

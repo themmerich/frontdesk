@@ -35,14 +35,34 @@ const listed = [
   },
 ];
 
+/** The mail that opened the case, as the first message of its conversation. */
+const openingMail = {
+  id: 'm1',
+  direction: 'incoming',
+  sender: 'kunde@example.com',
+  recipient: 'rechnung@musterfirma.de',
+  subject: 'Rechnung 2026-081',
+  bodyText: 'Sehr geehrte Damen und Herren,\n\nbitte senden Sie mir eine Kopie zu.',
+  bodyHtml: null,
+  occurredAt: '2026-08-19T09:15:00Z',
+  sizeBytes: 2048,
+  sentByName: null,
+  attachments: [] as unknown[],
+};
+
 const detail = {
   ...listed[0],
   categoryId: 'c1',
-  bodyText: 'Sehr geehrte Damen und Herren,\n\nbitte senden Sie mir eine Kopie zu.',
   draftText: null,
   draftGeneratedAt: null,
   draftUpdatedAt: null,
+  messages: [openingMail],
 };
+
+/** The case with its opening mail changed: written in HTML, say, or with something attached. */
+function withMail(overrides: Partial<typeof openingMail>) {
+  return { ...detail, messages: [{ ...openingMail, ...overrides }] };
+}
 
 test.describe('Case detail', () => {
   test.beforeEach(async ({ page }) => {
@@ -55,7 +75,16 @@ test.describe('Case detail', () => {
       route.fulfill({ json: [{ id: 'c1', name: 'Rechnung', color: 'amber' }] }),
     );
     await page.route('**/api/cases/1', (route) => route.fulfill({ json: detail }));
-    await page.route('**/api/cases/2', (route) => route.fulfill({ json: { ...listed[1], bodyText: 'Wo bleibt die Lieferung?' } }));
+    await page.route('**/api/cases/2', (route) =>
+      route.fulfill({
+        json: {
+          ...listed[1],
+          messages: [
+            { ...openingMail, id: 'm2', sender: 'ben@example.com', subject: 'Lieferung 4711', bodyText: 'Wo bleibt die Lieferung?' },
+          ],
+        },
+      }),
+    );
   });
 
   test('opens a case from the inbox and shows what the list cannot', async ({ page }) => {
@@ -86,7 +115,7 @@ test.describe('Case detail', () => {
       },
     ];
     const html = '<p>Anbei unser <b>Angebot</b>.</p><img src="cid:logo@kunde" alt="Logo">';
-    await page.route('**/api/cases/1', (route) => route.fulfill({ json: { ...detail, bodyHtml: html, attachments } }));
+    await page.route('**/api/cases/1', (route) => route.fulfill({ json: withMail({ bodyHtml: html, attachments }) }));
     // The logo, fetched by the page for the frame; the two files are not fetched until clicked.
     const served: string[] = [];
     await page.route('**/api/cases/1/attachments/*', (route) => {
@@ -114,7 +143,7 @@ test.describe('Case detail', () => {
 
   test('uses the whole width and makes the addresses in the mail clickable', async ({ page }) => {
     await page.route('**/api/cases/1', (route) =>
-      route.fulfill({ json: { ...detail, bodyText: 'Status unter https://example.com/status/4711 (dort auch die Nummer).' } }),
+      route.fulfill({ json: withMail({ bodyText: 'Status unter https://example.com/status/4711 (dort auch die Nummer).' }) }),
     );
     await page.setViewportSize({ width: 1500, height: 800 });
 
@@ -146,7 +175,7 @@ test.describe('Case detail', () => {
       '<p>bitte senden Sie mir eine <b>Kopie</b> zu.</p>' +
       '<p><img src="https://tracker.example.com/pixel.gif" alt="Zähler"></p>' +
       '<p><a href="https://example.com/status">Status ansehen</a></p>';
-    await page.route('**/api/cases/1', (route) => route.fulfill({ json: { ...detail, bodyHtml: html } }));
+    await page.route('**/api/cases/1', (route) => route.fulfill({ json: withMail({ bodyHtml: html }) }));
     // Counted where the picture would actually be fetched: what the policy blocks never gets
     // this far, so this is the difference between "not shown" and "not loaded".
     let fetched = 0;
@@ -321,9 +350,25 @@ test.describe('Case detail', () => {
       return route.fulfill({
         json: {
           ...drafted,
-          sentAt: '2026-08-19T11:00:00Z',
-          sentByName: 'Anna Admin',
+          draftText: null,
+          draftGeneratedAt: null,
+          draftUpdatedAt: null,
           handledAt: '2026-08-19T11:00:00Z',
+          lastMessageAt: '2026-08-19T11:00:00Z',
+          messages: [
+            ...drafted.messages,
+            {
+              ...openingMail,
+              id: 'm2',
+              direction: 'outgoing',
+              sender: 'inbox@frontdesk.local',
+              recipient: 'kunde@example.com',
+              subject: 'Re: Rechnung 2026-081',
+              bodyText: 'Guten Tag,\n\ndie Kopie senden wir Ihnen zu.',
+              occurredAt: '2026-08-19T11:00:00Z',
+              sentByName: 'Anna Admin',
+            },
+          ],
           events: [
             ...drafted.events,
             {
@@ -355,12 +400,18 @@ test.describe('Case detail', () => {
 
     await expect(page.getByText('Antwort gesendet.')).toBeVisible();
     expect(sends).toBe(1);
-    // Frozen, dated and signed; nothing more to write or to send.
+    // The reply is a message of the conversation now, open as the newest; the box is empty for
+    // the next one, and nothing goes out until something is in it again.
+    const sentMessage = page.locator('details[data-direction="outgoing"]');
+    await expect(sentMessage).toHaveAttribute('open', '');
+    await expect(sentMessage).toContainText('Antwort von Anna Admin');
+    await expect(sentMessage).toContainText('die Kopie senden wir Ihnen zu.');
+    await expect(page.locator('details[data-direction="incoming"]')).not.toHaveAttribute('open', '');
     const box = page.getByRole('textbox', { name: 'Antwortentwurf' });
-    await expect(box).toHaveAttribute('readonly', '');
-    await expect(page.getByText(/Gesendet am .* von Anna Admin/)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Senden' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Neu erzeugen' })).toHaveCount(0);
+    await expect(box).toHaveValue('');
+    // The page's own button: the dialog's accept button carries the same word while it fades out.
+    await expect(page.getByRole('main').getByRole('button', { name: /Senden$/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Erzeugen$/ })).toBeVisible();
     await expect(history.locator('[data-event]')).toHaveCount(3);
     await expect(history.locator('[data-event="sent"]')).toContainText('Antwort gesendet an kunde@example.com');
     await expect(history.locator('[data-event="sent"]')).toContainText('Anna Admin');
@@ -448,7 +499,7 @@ test.describe('Case detail', () => {
   test('lets the line between mail and reply be dragged, and remembers where it was left', async ({ page }) => {
     // A mail written in HTML sits in a frame, and a frame keeps the pointer events that land on
     // it: the drag has to survive the pointer crossing into the mail, at speed.
-    await page.route('**/api/cases/1', (route) => route.fulfill({ json: { ...detail, bodyHtml: '<p>Bitte um eine Kopie.</p>' } }));
+    await page.route('**/api/cases/1', (route) => route.fulfill({ json: withMail({ bodyHtml: '<p>Bitte um eine Kopie.</p>' }) }));
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto('/cases/1');
     await expect(page.locator('iframe[sandbox]')).toBeVisible();

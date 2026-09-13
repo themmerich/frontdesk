@@ -15,9 +15,9 @@ import org.hibernate.annotations.UuidGenerator;
 
 /**
  * One part of a mail that was attached to it, bytes included. An aggregate of its own, keyed by
- * the case: the case never lists its attachments, because the case row is loaded for every list
- * and every detail and a scanned invoice must not travel along. Only the download endpoint reads
- * the bytes; everything else reads the metadata through a projection.
+ * the case and the message it came with: the case never lists its attachments, because the case
+ * row is loaded for every list and every detail and a scanned invoice must not travel along. Only
+ * the download endpoint reads the bytes; everything else reads the metadata through a projection.
  */
 @Entity
 @Table(name = "case_attachments")
@@ -32,6 +32,11 @@ public class CaseAttachment {
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "case_id")
 	private Case mailCase;
+
+	/** The mail of the conversation this part came with. */
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "message_id")
+	private CaseMessage message;
 
 	/** Where the part stood in the mail, so the list keeps the order the sender chose. */
 	@Column(nullable = false)
@@ -61,9 +66,10 @@ public class CaseAttachment {
 	@Column(nullable = false)
 	private byte[] content;
 
-	public CaseAttachment(Case mailCase, int position, String fileName, String contentType, String contentId,
+	public CaseAttachment(CaseMessage message, int position, String fileName, String contentType, String contentId,
 			boolean inline, byte[] content) {
-		this.mailCase = mailCase;
+		this.mailCase = message.getMailCase();
+		this.message = message;
 		this.position = position;
 		this.fileName = fileName;
 		this.contentType = contentType;

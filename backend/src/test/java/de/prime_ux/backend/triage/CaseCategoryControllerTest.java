@@ -253,8 +253,7 @@ class CaseCategoryControllerTest {
 	@Test
 	@WithMockUser(username = "anna", roles = "ADMIN")
 	void countsTheCasesThatPointAtEachCategory() throws Exception {
-		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Lieferung 4711",
-				"body", Instant.now(), false, 2048);
+		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Lieferung 4711", Instant.now(), false, 2048);
 		classified.applyTriage(orderStatus, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
 		caseRepository.save(classified);
 
@@ -269,8 +268,7 @@ class CaseCategoryControllerTest {
 	@Test
 	@WithMockUser(username = "anna", roles = "ADMIN")
 	void refusesToDeleteACategoryThatCasesStillPointAt() throws Exception {
-		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Lieferung 4711",
-				"body", Instant.now(), false, 2048);
+		Case classified = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Lieferung 4711", Instant.now(), false, 2048);
 		classified.applyTriage(orderStatus, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Frage zur Lieferung.");
 		caseRepository.save(classified);
 
@@ -285,8 +283,7 @@ class CaseCategoryControllerTest {
 	@WithMockUser(username = "anna", roles = "ADMIN")
 	void deletesACategoryNothingPointsAt() throws Exception {
 		// Cases of another category are none of its business.
-		Case elsewhere = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Rechnung", "body",
-				Instant.now(), false, 2048);
+		Case elsewhere = new Case(tenant, "<m@test>", "kunde@example.com", "info@example.com", "Rechnung", Instant.now(), false, 2048);
 		elsewhere.applyTriage(invoice, CaseTier.MANUAL, new BigDecimal("0.60"), "Frage zur Rechnung.");
 		caseRepository.save(elsewhere);
 

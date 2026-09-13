@@ -2,31 +2,21 @@ import { HttpClient, httpResource } from '@angular/common/http';
 import { inject, resource, Service, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { CaseAttachment, CaseDetail, CaseEvent, CaseTier } from '../model/case';
+import { CaseAttachment, CaseDetail, CaseEvent, CaseMessage, CaseTier } from '../model/case';
 
 /** The wire shape: the moments are ISO strings until they are parsed into Dates. */
 type CaseDetailResponse = Omit<
   CaseDetail,
-  | 'receivedAt'
-  | 'handledAt'
-  | 'deletedAt'
-  | 'draftText'
-  | 'draftGeneratedAt'
-  | 'draftUpdatedAt'
-  | 'attachments'
-  | 'sentAt'
-  | 'sentByName'
-  | 'events'
+  'receivedAt' | 'lastMessageAt' | 'handledAt' | 'deletedAt' | 'draftText' | 'draftGeneratedAt' | 'draftUpdatedAt' | 'messages' | 'events'
 > & {
   receivedAt: string;
+  lastMessageAt?: string | null;
   handledAt?: string | null;
   deletedAt?: string | null;
   draftText?: string | null;
   draftGeneratedAt?: string | null;
   draftUpdatedAt?: string | null;
-  attachments?: CaseAttachment[];
-  sentAt?: string | null;
-  sentByName?: string | null;
+  messages?: (Omit<CaseMessage, 'occurredAt' | 'attachments'> & { occurredAt: string; attachments?: CaseAttachment[] })[];
   events?: (Omit<CaseEvent, 'occurredAt'> & { occurredAt: string })[];
 };
 
@@ -38,6 +28,7 @@ function parseMoments(response: CaseDetailResponse): CaseDetail {
   return {
     ...response,
     receivedAt: new Date(response.receivedAt),
+    lastMessageAt: new Date(response.lastMessageAt ?? response.receivedAt),
     handledAt: response.handledAt ? new Date(response.handledAt) : null,
     deletedAt: response.deletedAt ? new Date(response.deletedAt) : null,
     // An answer without the draft fields at all is a case without a draft, not one with an
@@ -45,9 +36,11 @@ function parseMoments(response: CaseDetailResponse): CaseDetail {
     draftText: response.draftText ?? null,
     draftGeneratedAt: response.draftGeneratedAt ? new Date(response.draftGeneratedAt) : null,
     draftUpdatedAt: response.draftUpdatedAt ? new Date(response.draftUpdatedAt) : null,
-    attachments: response.attachments ?? [],
-    sentAt: response.sentAt ? new Date(response.sentAt) : null,
-    sentByName: response.sentByName ?? null,
+    messages: (response.messages ?? []).map((message) => ({
+      ...message,
+      occurredAt: new Date(message.occurredAt),
+      attachments: message.attachments ?? [],
+    })),
     events: (response.events ?? []).map((event) => ({ ...event, occurredAt: new Date(event.occurredAt) })),
   };
 }
@@ -64,20 +57,20 @@ export class CaseDetailService {
   });
 
   /**
-   * The pictures the mail brought along, as data URLs keyed by the Content-ID the HTML body refers
-   * to. Fetched here and handed over as text, because the frame the mail is shown in has no
-   * origin of its own: it would send no session cookie and may not read a blob URL of this page.
-   * Nothing is fetched for a mail without an HTML body or without inline parts.
+   * The pictures the mails of the conversation brought along, as data URLs keyed by the
+   * Content-ID the HTML bodies refer to. Fetched here and handed over as text, because the frame
+   * a mail is shown in has no origin of its own: it would send no session cookie and may not read
+   * a blob URL of this page. Nothing is fetched for a conversation without HTML or inline parts.
    */
   readonly inlineImages = resource({
     params: () => {
       const aCase = this.detail.hasValue() ? this.detail.value() : undefined;
-      if (aCase === undefined || aCase.bodyHtml === null) {
+      if (aCase === undefined || !aCase.messages.some((message) => message.bodyHtml !== null)) {
         return undefined;
       }
-      const inline = aCase.attachments.filter(
-        (attachment): attachment is ReferencedAttachment => attachment.inline && attachment.contentId !== null,
-      );
+      const inline = aCase.messages
+        .flatMap((message) => message.attachments)
+        .filter((attachment): attachment is ReferencedAttachment => attachment.inline && attachment.contentId !== null);
       return inline.length === 0 ? undefined : { caseId: aCase.id, inline };
     },
     loader: async ({ params }) => {
@@ -121,8 +114,8 @@ export class CaseDetailService {
 
   /**
    * The reply leaves the house, as it stands on the server. Whoever calls this has read it —
-   * that is the approval. The answer is the case as sent: frozen draft, in the archive, with the
-   * step on its trail.
+   * that is the approval. The answer is the case as it now stands: the reply a message of the
+   * conversation, the box empty for the next one, the case in the archive.
    */
   async send(): Promise<void> {
     const sent = await firstValueFrom(this.http.post<CaseDetailResponse>(`/api/cases/${this.id()}/send`, null));
