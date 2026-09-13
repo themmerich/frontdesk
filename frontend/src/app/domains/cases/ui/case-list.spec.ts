@@ -50,6 +50,8 @@ function aCase(overrides: Partial<Case> = {}): Case {
     recipient: 'info@example.com',
     subject: 'Delivery status',
     receivedAt: new Date('2026-08-19T08:30:00Z'),
+    lastMessageAt: new Date('2026-08-19T08:30:00Z'),
+    messageCount: 1,
     hasAttachments: false,
     sizeBytes: 2048,
     summary: null,
@@ -168,7 +170,13 @@ describe('CaseList', () => {
         deletedAt: null,
         hasDraft: false,
       }),
-      aCase({ id: '2', sender: 'ben@example.com', subject: 'Noch unbewertet', receivedAt: new Date('2026-08-19T09:15:00Z') }),
+      aCase({
+        id: '2',
+        sender: 'ben@example.com',
+        subject: 'Noch unbewertet',
+        receivedAt: new Date('2026-08-19T09:15:00Z'),
+        lastMessageAt: new Date('2026-08-19T09:15:00Z'),
+      }),
     ]).nativeElement as HTMLElement;
 
     // The table sorts newest first, so the rows are found by their subject.
@@ -389,7 +397,7 @@ describe('CaseList', () => {
       'categoryName',
       'tier',
       'hasDraft',
-      'receivedAt',
+      'lastMessageAt',
       'sizeBytes',
     ]);
   });

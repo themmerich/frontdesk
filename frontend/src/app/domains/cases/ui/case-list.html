@@ -22,7 +22,7 @@
     [currentPageReportTemplate]="t('cases.pageReport')"
     [(selection)]="selection"
     [exportFilename]="exportFilename()"
-    sortField="receivedAt"
+    sortField="lastMessageAt"
     [sortOrder]="-1"
     stateStorage="local"
     [stateKey]="stateKey()"
@@ -205,8 +205,8 @@
                   @case ('hasDraft') {
                     <p-columnfilter type="boolean" display="menu" field="hasDraft" [showOperator]="false" [showAddButton]="false" />
                   }
-                  @case ('receivedAt') {
-                    <p-columnfilter type="date" display="menu" field="receivedAt" [showOperator]="false" [showAddButton]="false" />
+                  @case ('lastMessageAt') {
+                    <p-columnfilter type="date" display="menu" field="lastMessageAt" [showOperator]="false" [showAddButton]="false" />
                   }
                   @default {
                     <p-columnfilter type="text" display="menu" [field]="col.field" [placeholder]="t('cases.filter')" />
@@ -321,8 +321,20 @@
                 @case ('sizeBytes') {
                   {{ row.sizeBytes | fileSize }}
                 }
-                @case ('receivedAt') {
-                  {{ row.receivedAt | date: 'short' }}
+                @case ('lastMessageAt') {
+                  {{ row.lastMessageAt | date: 'short' }}
+                }
+                @case ('subject') {
+                  {{ row.subject }}
+                  @if (row.messageCount > 1) {
+                    <!-- A conversation, not a single mail: how many messages it holds. -->
+                    <span
+                      class="ml-2 inline-block rounded-full bg-surface-200 px-1.5 text-xs text-surface-700 dark:bg-surface-700 dark:text-surface-200"
+                      role="img"
+                      [attr.aria-label]="t('cases.messageCount', { count: row.messageCount })"
+                      >{{ row.messageCount }}</span
+                    >
+                  }
                 }
                 @default {
                   {{ row[col.field] }}

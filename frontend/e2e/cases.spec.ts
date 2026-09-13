@@ -795,7 +795,28 @@ test.describe('Cases page', () => {
       handled.push({ id, handled: (route.request().postDataJSON() as { handled: boolean }).handled });
       return route.fulfill({ json: {} });
     });
-    await page.route('**/api/cases/6', (route) => route.fulfill({ json: { ...jobOffer, bodyText: 'Wir suchen jemanden.' } }));
+    await page.route('**/api/cases/6', (route) =>
+      route.fulfill({
+        json: {
+          ...jobOffer,
+          messages: [
+            {
+              id: 'm6',
+              direction: 'incoming',
+              sender: jobOffer.sender,
+              recipient: jobOffer.recipient,
+              subject: jobOffer.subject,
+              bodyText: 'Wir suchen jemanden.',
+              bodyHtml: null,
+              occurredAt: jobOffer.receivedAt,
+              sizeBytes: 2048,
+              sentByName: null,
+              attachments: [],
+            },
+          ],
+        },
+      }),
+    );
     await page.route('**/api/cases', (route) =>
       route.fulfill({
         json: [

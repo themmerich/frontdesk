@@ -28,7 +28,7 @@ const translations = {
     sendMessage: 'The reply goes to {{to}}. Subject: {{subject}}',
     sent: 'Reply sent.',
     sendError: 'The reply could not be sent.',
-    sentAt: 'Sent on {{date}} by {{name}}',
+    replyBy: 'Reply by {{name}}',
     history: 'History',
   },
 };
@@ -38,9 +38,8 @@ const aCase: CaseDetail = {
   sender: 'kunde@example.com',
   recipient: 'info@musterfirma.de',
   subject: 'Lieferung 4711',
-  bodyText: 'Wann kommt die Lieferung?',
-  bodyHtml: null,
   receivedAt: new Date('2026-08-19T08:30:00Z'),
+  lastMessageAt: new Date('2026-08-19T08:30:00Z'),
   hasAttachments: false,
   sizeBytes: 2048,
   summary: null,
@@ -54,18 +53,48 @@ const aCase: CaseDetail = {
   draftText: 'Guten Tag,\n\ndie Lieferung ist unterwegs.',
   draftGeneratedAt: new Date('2026-08-19T10:00:00Z'),
   draftUpdatedAt: new Date('2026-08-19T10:00:00Z'),
-  attachments: [],
-  sentAt: null,
-  sentByName: null,
+  messages: [
+    {
+      id: 'm1',
+      direction: 'incoming',
+      sender: 'kunde@example.com',
+      recipient: 'info@musterfirma.de',
+      subject: 'Lieferung 4711',
+      bodyText: 'Wann kommt die Lieferung?',
+      bodyHtml: null,
+      occurredAt: new Date('2026-08-19T08:30:00Z'),
+      sizeBytes: 2048,
+      sentByName: null,
+      attachments: [],
+    },
+  ],
   events: [],
 };
 
-/** The case once the reply went out: frozen, in the archive, with the step on its trail. */
+/** The case once the reply went out: a message of the conversation, the box empty, in the archive. */
 const sentCase: CaseDetail = {
   ...aCase,
-  sentAt: new Date('2026-08-19T11:00:00Z'),
-  sentByName: 'Anna Muster',
+  draftText: null,
+  draftGeneratedAt: null,
+  draftUpdatedAt: null,
   handledAt: new Date('2026-08-19T11:00:00Z'),
+  lastMessageAt: new Date('2026-08-19T11:00:00Z'),
+  messages: [
+    ...aCase.messages,
+    {
+      id: 'm2',
+      direction: 'outgoing',
+      sender: 'inbox@frontdesk.local',
+      recipient: 'kunde@example.com',
+      subject: 'Re: Lieferung 4711',
+      bodyText: 'Guten Tag,\n\ndie Lieferung ist unterwegs.',
+      bodyHtml: null,
+      occurredAt: new Date('2026-08-19T11:00:00Z'),
+      sizeBytes: 0,
+      sentByName: 'Anna Muster',
+      attachments: [],
+    },
+  ],
   events: [{ type: 'sent', occurredAt: new Date('2026-08-19T11:00:00Z'), actorName: 'Anna Muster', details: { to: 'kunde@example.com' } }],
 };
 
@@ -96,7 +125,7 @@ describe('CaseDetailPage sending', () => {
       if (sendFails) {
         return Promise.reject(new Error('nope'));
       }
-      detail.set({ ...sentCase, draftText: detail()!.draftText });
+      detail.set(sentCase);
       return Promise.resolve();
     },
   } as unknown as CaseDetailService;
@@ -185,13 +214,13 @@ describe('CaseDetailPage sending', () => {
     // The inbox has one case less; the page stays on the case as it now stands.
     expect(reloads).toBe(1);
     const element = fixture.nativeElement as HTMLElement;
-    expect(textarea(fixture).readOnly).toBe(true);
-    expect(element.textContent).toContain('Sent on');
-    expect(element.textContent).toContain('by Anna Muster');
-    // Nothing more to write or to send: the line for the model and the button are gone.
-    expect(element.querySelector('#draft-instruction')).toBeNull();
-    expect(button(fixture, 'Write again')).toBeUndefined();
-    expect(button(fixture, 'Send')).toBeUndefined();
+    // The reply is a message of the conversation now, and the box is empty for the next one.
+    expect(element.querySelector('details[data-direction="outgoing"]')?.textContent).toContain('Reply by Anna Muster');
+    expect(textarea(fixture).value).toBe('');
+    expect(textarea(fixture).readOnly).toBe(false);
+    expect(element.querySelector('#draft-instruction')).not.toBeNull();
+    expect(button(fixture, 'Write a draft')).toBeDefined();
+    expect(button(fixture, 'Send')!.disabled).toBe(true);
   });
 
   it('saves what a person typed into the box before it goes out', async () => {
@@ -208,14 +237,11 @@ describe('CaseDetailPage sending', () => {
     expect(sends).toBe(1);
   });
 
-  it('offers no send button without a reply, in the trash, or once the reply went out', () => {
+  it('offers nothing to send without a reply in the box, and no button in the trash', () => {
     detail.set({ ...aCase, draftText: null });
     expect(button(createFixture(), 'Send')!.disabled).toBe(true);
 
     detail.set({ ...aCase, deletedAt: new Date('2026-08-20T08:00:00Z') });
-    expect(button(createFixture(), 'Send')).toBeUndefined();
-
-    detail.set(sentCase);
     expect(button(createFixture(), 'Send')).toBeUndefined();
   });
 

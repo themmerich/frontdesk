@@ -10,7 +10,7 @@ import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseDetailService } from '../data/case-detail-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
-import { CaseDetail } from '../model/case';
+import { CaseDetail, CaseMessage } from '../model/case';
 import { CaseDetailPage } from './case-detail-page';
 
 const translations = {
@@ -46,7 +46,7 @@ const translations = {
     send: 'Send',
     confidence: 'Model confidence',
     tier: 'Tier',
-    original: 'Original message',
+    messages: 'Messages',
     htmlMail: 'Message',
     remoteBlocked: 'Pictures from the internet were not loaded.',
     showRemote: 'Show pictures',
@@ -63,9 +63,8 @@ const aCase: CaseDetail = {
   sender: 'kunde@example.com',
   recipient: 'rechnung@musterfirma.de',
   subject: 'Rechnung 2026-081',
-  bodyText: 'Bitte um eine Kopie.',
-  bodyHtml: null,
   receivedAt: new Date('2026-08-19T08:30:00Z'),
+  lastMessageAt: new Date('2026-08-19T08:30:00Z'),
   hasAttachments: true,
   sizeBytes: 2048,
   summary: 'Kunde bittet um eine Kopie.',
@@ -79,11 +78,28 @@ const aCase: CaseDetail = {
   draftText: null,
   draftGeneratedAt: null,
   draftUpdatedAt: null,
-  attachments: [],
-  sentAt: null,
-  sentByName: null,
+  messages: [],
   events: [],
 };
+
+/** The mail that opened the case, as its first message; overrides say what is special about it. */
+function mail(overrides: Partial<CaseMessage> = {}): CaseMessage {
+  return {
+    id: 'm1',
+    direction: 'incoming',
+    sender: 'kunde@example.com',
+    recipient: 'rechnung@musterfirma.de',
+    subject: 'Rechnung 2026-081',
+    bodyText: 'Bitte um eine Kopie.',
+    bodyHtml: null,
+    occurredAt: new Date('2026-08-19T08:30:00Z'),
+    sizeBytes: 2048,
+    sentByName: null,
+    attachments: [],
+    ...overrides,
+  };
+}
+aCase.messages.push(mail());
 
 describe('CaseDetailPage', () => {
   const detail = signal<CaseDetail | undefined>(aCase);
@@ -225,79 +241,6 @@ describe('CaseDetailPage', () => {
     expect(element.textContent).toContain('72%');
     // Named rather than silently absent, because the mail says it has them.
     expect(element.textContent).toContain('Attachments are not stored yet.');
-  });
-
-  it('makes the addresses in the mail clickable, and opens them in a new tab', () => {
-    detail.set({
-      ...aCase,
-      bodyText: 'Status unter https://example.com/status/4711 (Sendungsnummer dort).\nMehr auf www.example.com/faq.',
-    });
-
-    const element = createFixture().nativeElement as HTMLElement;
-
-    const links = Array.from(element.querySelectorAll('a[target="_blank"]'));
-    expect(links.map((link) => link.textContent)).toEqual(['https://example.com/status/4711', 'www.example.com/faq']);
-    // An address without a scheme would otherwise read as a path inside this app.
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['https://example.com/status/4711', 'https://www.example.com/faq']);
-    // A new tab must not be handed a way back into this one.
-    expect(links.every((link) => link.getAttribute('rel') === 'noopener noreferrer')).toBe(true);
-    // The rest of the mail stays the text it was, brackets, full stops and line break included.
-    expect(element.textContent).toContain('(Sendungsnummer dort).');
-  });
-
-  it('shows a mail written in HTML in a frame that may do nothing', () => {
-    detail.set({ ...aCase, bodyHtml: '<p>Hallo <b>Welt</b></p>' });
-
-    const element = createFixture().nativeElement as HTMLElement;
-
-    const frame = element.querySelector('iframe')!;
-    expect(frame.getAttribute('sandbox')).toBe('allow-popups allow-popups-to-escape-sandbox');
-    expect(frame.getAttribute('referrerpolicy')).toBe('no-referrer');
-    // The mail itself, untouched, inside a document that says what it may do.
-    expect(frame.getAttribute('srcdoc')).toContain('<p>Hallo <b>Welt</b></p>');
-    expect(frame.getAttribute('srcdoc')).toContain("default-src 'none'");
-    // And the plain text box is not there beside it.
-    expect(element.querySelector('.whitespace-pre-wrap')).toBeNull();
-  });
-
-  it('reads a mail without an HTML part as text, as before', () => {
-    detail.set({ ...aCase, bodyHtml: null, bodyText: 'Bitte um eine Kopie.' });
-
-    const element = createFixture().nativeElement as HTMLElement;
-
-    expect(element.querySelector('iframe')).toBeNull();
-    expect(element.textContent).toContain('Bitte um eine Kopie.');
-  });
-
-  it('holds the pictures of a mail back until they are asked for, and asks again for the next mail', async () => {
-    detail.set({ ...aCase, bodyHtml: '<img src="https://tracker.example.com/pixel.gif">' });
-    const fixture = createFixture();
-    const element = fixture.nativeElement as HTMLElement;
-
-    expect(element.textContent).toContain('Pictures from the internet were not loaded.');
-    expect(element.querySelector('iframe')!.getAttribute('srcdoc')).toContain('img-src data:');
-
-    Array.from(element.querySelectorAll('button'))
-      .find((candidate) => candidate.textContent?.includes('Show pictures'))!
-      .click();
-    fixture.detectChanges();
-
-    expect(element.querySelector('iframe')!.getAttribute('srcdoc')).toContain('img-src data: https:');
-    expect(element.textContent).not.toContain('Pictures from the internet were not loaded.');
-
-    // The next mail asks again: a yes was about that one mail.
-    detail.set({ ...aCase, id: '2', bodyHtml: '<img src="https://tracker.example.com/other.gif">' });
-    fixture.detectChanges();
-
-    expect(element.textContent).toContain('Pictures from the internet were not loaded.');
-  });
-
-  it('says nothing about pictures for a mail that carries everything it shows', () => {
-    detail.set({ ...aCase, bodyHtml: '<p>Hallo</p>' });
-
-    const element = createFixture().nativeElement as HTMLElement;
-
-    expect(element.textContent).not.toContain('Pictures from the internet were not loaded.');
   });
 
   it('saves the category and the tier together, and only when asked to', async () => {

@@ -38,6 +38,8 @@ describe('CasesService', () => {
         recipient: 'info@example.com',
         subject: 'Delivery status',
         receivedAt: '2026-08-19T08:30:00Z',
+        lastMessageAt: '2026-08-19T08:30:00Z',
+        messageCount: 1,
         hasAttachments: false,
         sizeBytes: 2048,
         summary: null,
@@ -58,7 +60,9 @@ describe('CasesService', () => {
     httpTesting.expectOne('/api/cases').flush(response);
     await TestBed.inject(ApplicationRef).whenStable();
 
-    const expected: Case[] = [{ ...response[0], receivedAt: new Date('2026-08-19T08:30:00Z') }];
+    const expected: Case[] = [
+      { ...response[0], receivedAt: new Date('2026-08-19T08:30:00Z'), lastMessageAt: new Date('2026-08-19T08:30:00Z') },
+    ];
     expect(service.cases.value()).toEqual(expected);
     // The table's date filter compares real Date objects.
     expect(service.cases.value()[0].receivedAt).toBeInstanceOf(Date);

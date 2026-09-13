@@ -35,6 +35,10 @@ export type Case = {
   deletedAt: Date | null;
   /** Whether a reply is waiting to be read. The text itself is the detail's. */
   hasDraft: boolean;
+  /** When the conversation last moved, in either direction; the list sorts and groups by it. */
+  lastMessageAt: Date;
+  /** How long the conversation is; more than one says the customer or the house wrote again. */
+  messageCount: number;
 };
 
 /**
@@ -43,40 +47,46 @@ export type Case = {
  * The draft flag goes the other way: the detail carries the draft itself, so the flag would say
  * nothing the text does not.
  */
-export type CaseDetail = Omit<Case, 'hasDraft'> & {
-  bodyText: string;
+export type CaseDetail = Omit<Case, 'hasDraft' | 'messageCount'> & {
   /**
-   * The mail as it was written, where it was written in HTML. Null for the ones that carry no
-   * HTML part, and for everything ingested before it was kept — those are read as text.
-   */
-  bodyHtml: string | null;
-  /**
-   * The reply as it stands: what the model wrote, or what a person made of it. Null while the
-   * case has none. The two moments say when the model wrote it and when it last changed; a draft
-   * a person wrote from scratch has no first moment.
+   * The next reply as it stands: what the model wrote, or what a person made of it. Null while
+   * the case has none, and again once a reply went out. The two moments say when the model wrote
+   * it and when it last changed; a draft a person wrote from scratch has no first moment.
    */
   draftText: string | null;
   draftGeneratedAt: Date | null;
   draftUpdatedAt: Date | null;
-  /**
-   * What came with the mail, in the order the mail has it — the metadata only, the bytes have an
-   * endpoint of their own. Empty for a mail without attachments, and for one ingested before
-   * they were kept; `hasAttachments` still says whether there were any back then.
-   */
-  attachments: CaseAttachment[];
-  /**
-   * When the reply went out, and in whose name. Null while it has not. Once it has, the draft is
-   * what was sent and does not change any more.
-   */
-  sentAt: Date | null;
-  sentByName: string | null;
+  /** The conversation, oldest first: the mail that opened the case, what followed, what went out. */
+  messages: CaseMessage[];
   /** What the case has been through, oldest step first. */
   events: CaseEvent[];
+};
+
+/**
+ * One message of a case's conversation. An incoming one is a mail the customer sent, with its
+ * text and, where it was written so, its HTML; an outgoing one is a reply that went out, text
+ * only, in the name of whoever pressed the button. What came attached hangs off the message it
+ * came with — metadata only, the bytes have an endpoint of their own.
+ */
+export type CaseMessage = {
+  id: string;
+  direction: 'incoming' | 'outgoing';
+  sender: string;
+  recipient: string | null;
+  subject: string;
+  bodyText: string;
+  bodyHtml: string | null;
+  /** Received, or sent. */
+  occurredAt: Date;
+  sizeBytes: number;
+  sentByName: string | null;
+  attachments: CaseAttachment[];
 };
 
 /** What can happen to a case, as the trail writes it down. */
 export type CaseEventType =
   | 'ingested'
+  | 'follow_up_received'
   | 'triaged'
   | 'classification_corrected'
   | 'draft_generated'

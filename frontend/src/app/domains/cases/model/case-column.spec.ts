@@ -13,13 +13,13 @@ describe('parseColumnPreferences', () => {
 
   it('restores a stored order, visibility and widths', () => {
     const stored = {
-      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'categoryName', 'tier', 'hasDraft', 'sizeBytes', 'receivedAt'],
+      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'categoryName', 'tier', 'hasDraft', 'sizeBytes', 'lastMessageAt'],
       visibleFields: ['subject', 'sender'],
       widths: { subject: 320, sender: 180, __actions: 100 },
     };
 
     expect(parseColumnPreferences(stored)).toEqual({
-      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'categoryName', 'tier', 'hasDraft', 'sizeBytes', 'receivedAt'],
+      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'categoryName', 'tier', 'hasDraft', 'sizeBytes', 'lastMessageAt'],
       visibleFields: ['subject', 'sender'],
       widths: { subject: 320, sender: 180, __actions: 100 },
     });
@@ -28,7 +28,7 @@ describe('parseColumnPreferences', () => {
   it('keeps the category where it was, now that the column goes by its field', () => {
     // What the storage holds for everyone who chose their columns before the rename.
     const stored = {
-      order: ['category', 'subject', 'sender', 'recipient', 'hasAttachments', 'tier', 'hasDraft', 'sizeBytes', 'receivedAt'],
+      order: ['category', 'subject', 'sender', 'recipient', 'hasAttachments', 'tier', 'hasDraft', 'sizeBytes', 'lastMessageAt'],
       visibleFields: ['category', 'subject'],
       widths: { category: 200 },
     };
@@ -73,7 +73,7 @@ describe('parseColumnPreferences', () => {
       'categoryName',
       'tier',
       'hasDraft',
-      'receivedAt',
+      'lastMessageAt',
       'sizeBytes',
     ]);
     expect(preferences.visibleFields).toEqual([
@@ -83,7 +83,7 @@ describe('parseColumnPreferences', () => {
       'categoryName',
       'tier',
       'hasDraft',
-      'receivedAt',
+      'lastMessageAt',
       'sizeBytes',
     ]);
   });

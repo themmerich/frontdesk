@@ -63,8 +63,10 @@ Gaps in what exists, each small enough for one PR.
 
 - [x] **Attachments** — stored with the case and listed on the detail page, pictures and PDFs
       opening in a tab, the rest downloading; inline pictures are put back into the HTML mail.
-- [ ] **Conversations** — file a reply from the same sender on the same subject under the
-      existing case, using In-Reply-To and References of the incoming mail.
+- [x] **Conversations** — a case is a conversation: the opening mail, every follow-up and every
+      sent reply as messages. A customer's reply is filed under its case by In-Reply-To and
+      References, or by the same sender on the same subject within 30 days; the case comes back
+      into the inbox and can be answered again.
 - [ ] **Assignment** — assign a case to a person, with a "my cases" filter.
 - [ ] **Notes** — internal notes on a case, never sent to the customer.
 - [ ] **Notifications** — put the bell in the navbar to use: new manual cases, failed triage,

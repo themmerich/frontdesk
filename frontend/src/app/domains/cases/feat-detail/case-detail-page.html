@@ -133,64 +133,15 @@
             <section class="flex min-h-0 flex-auto flex-col gap-2">
               <!-- The same height as the draft heading beside it, which shares its row with a button. -->
               <div class="flex h-6 items-center">
-                <h2 class="text-sm font-medium">{{ t('caseDetail.original') }}</h2>
+                <h2 class="text-sm font-medium">{{ t('caseDetail.messages') }}</h2>
               </div>
-              @if (mailDocument(); as document) {
-                @if (hasRemoteContent() && !showRemoteContent()) {
-                  <!-- Fetching a picture tells the sender that this mail was opened just now, which
-                     is what half of them are there for. So it is asked first. -->
-                  <div
-                    class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-100 px-3 py-2 text-sm dark:bg-surface-800"
-                  >
-                    <span class="text-surface-600 dark:text-surface-300">{{ t('caseDetail.remoteBlocked') }}</span>
-                    <p-button size="small" [text]="true" [label]="t('caseDetail.showRemote')" (onClick)="showRemoteContent.set(true)" />
-                  </div>
-                }
-                <!-- The mail is a document of its own, in a frame that may do nothing: no scripts, no
-                   origin of its own, no forms to submit, nothing fetched but what the policy in its
-                   head allows. Links leave through a new tab, as they do in the text below. -->
-                <iframe
-                  [srcdoc]="document"
-                  sandbox="allow-popups allow-popups-to-escape-sandbox"
-                  referrerpolicy="no-referrer"
-                  [title]="t('caseDetail.htmlMail')"
-                  class="min-h-0 w-full flex-auto rounded-lg border border-surface-200 bg-white dark:border-surface-700"
-                ></iframe>
-              } @else {
-                <!-- Every piece bound as text; only the ones that are addresses get an anchor around
-                   them. Nothing of the mail is ever rendered as markup.
-
-                   Written without a break between the pieces, and kept that way: the box preserves
-                   whitespace, so a newline in the template would land in the mail as a space. -->
-                <!-- prettier-ignore -->
-                <div class="min-h-0 flex-auto overflow-y-auto rounded-lg bg-surface-50 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:bg-surface-800"
-              >@for (part of bodyParts(); track $index) {@if (part.href) {<a [href]="part.href" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2 hover:no-underline">{{ part.text }}</a>} @else {{{ part.text }}}}</div>
-              }
-              @if (listedAttachments().length > 0) {
-                <!-- What came with the mail, each under its own name. A picture or a PDF opens in
-                     a tab of its own, since a browser can show it; anything else is saved. The
-                     link is a plain one and the browser follows it with the session in hand —
-                     nothing is fetched until somebody clicks. -->
-                <ul class="flex flex-wrap gap-2 text-sm" [attr.aria-label]="t('caseDetail.attachments')">
-                  @for (attachment of listedAttachments(); track attachment.id) {
-                    <li data-attachment>
-                      <a
-                        class="inline-flex items-center gap-2 rounded-lg border border-surface-200 px-3 py-1.5 hover:bg-surface-50 dark:border-surface-700 dark:hover:bg-surface-800"
-                        [href]="detailService.attachmentUrl(attachment.id)"
-                        [attr.target]="opensInTheBrowser(attachment) ? '_blank' : null"
-                        [attr.rel]="opensInTheBrowser(attachment) ? 'noopener' : null"
-                        [attr.download]="opensInTheBrowser(attachment) ? null : attachment.fileName"
-                      >
-                        <i [class]="attachmentIcon(attachment)" aria-hidden="true"></i>
-                        <span>{{ attachment.fileName }}</span>
-                        <!-- A blank a screen reader and a test can hear; the gap alone is only seen. -->
-                        &ngsp;
-                        <span class="text-surface-500 dark:text-surface-400">{{ attachment.sizeBytes | fileSize }}</span>
-                      </a>
-                    </li>
-                  }
-                </ul>
-              } @else if (attachmentsLost()) {
+              <!-- The conversation: the mail that opened the case, what followed, what went out. -->
+              <app-case-conversation
+                [messages]="aCase.messages"
+                [inlineImages]="detailService.inlineImages.value()"
+                [attachmentUrl]="attachmentUrl"
+              />
+              @if (attachmentsLost()) {
                 <!-- Ingested before attachments were kept: the flag says there were some. -->
                 <p class="text-sm text-surface-500 dark:text-surface-400">
                   <i class="pi pi-paperclip" aria-hidden="true"></i>
@@ -201,8 +152,9 @@
           </ng-template>
 
           <ng-template #panel>
-            <!-- The reply as it stands: what the model wrote, or what a person made of it. Edited
-                 here and saved from the button below, together with the verdict. -->
+            <!-- The next reply as it stands: what the model wrote, or what a person made of it.
+                 Edited here and saved from the button below, together with the verdict; empty
+                 again once a reply went out. -->
             <section class="flex min-h-0 flex-auto flex-col gap-2">
               <div class="flex h-6 items-center">
                 <h2 id="draft-heading" class="text-sm font-medium">{{ t('caseDetail.draft') }}</h2>
@@ -218,15 +170,14 @@
               } @else {
                 <!-- The box is open from the start, empty when nobody has written into it yet:
                      typing is one way to a reply and needs no button first. Read-only in the trash,
-                     where a draft is looked at but not worked on, and once the reply went out,
-                     because what the customer got is what stays. -->
+                     where a draft is looked at but not worked on. -->
                 <textarea
                   pTextarea
                   id="draft"
                   class="min-h-0 w-full flex-auto resize-none text-sm leading-relaxed"
                   aria-labelledby="draft-heading"
                   [(ngModel)]="draftText"
-                  [readonly]="isTrashed() || isSent()"
+                  [readonly]="isTrashed()"
                   [disabled]="isGenerating()"
                 ></textarea>
                 <p class="flex flex-wrap gap-x-2 text-sm text-surface-500 dark:text-surface-400">
@@ -236,11 +187,8 @@
                   @if (isDraftEdited()) {
                     <span>{{ t('caseDetail.draftEditedAt', { date: (aCase.draftUpdatedAt | date: 'short') ?? '' }) }}</span>
                   }
-                  @if (aCase.sentAt) {
-                    <span>{{ t('caseDetail.sentAt', { date: (aCase.sentAt | date: 'short') ?? '', name: aCase.sentByName ?? '' }) }}</span>
-                  }
                 </p>
-                @if (!isTrashed() && !isSent()) {
+                @if (!isTrashed()) {
                   <!-- The other two ways: the model writes the reply, plain or along a line the
                        person gives — "decline, and name our availability". With a draft saved the
                        line is about that draft — "shorter", "without the price" — and the button
@@ -308,9 +256,9 @@
           [loading]="isSaving()"
           (onClick)="onSave()"
         />
-        @if (!isTrashed() && !isSent()) {
-          <!-- The reply leaves from here, once. Saving steps back to a second colour beside it:
-               the reply going out is what the page is for. -->
+        @if (!isTrashed()) {
+          <!-- The reply leaves from here. Saving steps back to a second colour beside it: the
+               reply going out is what the page is for. -->
           <p-button
             icon="pi pi-send"
             [label]="t('caseDetail.send')"

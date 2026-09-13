@@ -21,6 +21,8 @@ function manyCases(count: number): Case[] {
     recipient: 'info@example.com',
     subject: `Vorgang ${index}`,
     receivedAt: new Date(Date.UTC(2026, 7, 19, 8, index)),
+    lastMessageAt: new Date(Date.UTC(2026, 7, 19, 8, index)),
+    messageCount: 1,
     hasAttachments: false,
     sizeBytes: 2048,
     summary: null,

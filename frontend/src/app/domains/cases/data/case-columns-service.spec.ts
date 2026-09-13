@@ -48,7 +48,7 @@ describe('CaseColumnsService', () => {
   it('restores a stored order and visibility', () => {
     storage.setItem(
       'frontdesk-case-columns',
-      JSON.stringify({ order: ['subject', 'sender', 'hasAttachments', 'sizeBytes', 'receivedAt'], visibleFields: ['subject'] }),
+      JSON.stringify({ order: ['subject', 'sender', 'hasAttachments', 'sizeBytes', 'lastMessageAt'], visibleFields: ['subject'] }),
     );
 
     const store = TestBed.inject(CaseColumnsService);
@@ -92,10 +92,10 @@ describe('CaseColumnsService', () => {
   it('persists a changed order', () => {
     const store = TestBed.inject(CaseColumnsService);
 
-    store.order.set(['subject', 'sender', 'hasAttachments', 'sizeBytes', 'receivedAt']);
+    store.order.set(['subject', 'sender', 'hasAttachments', 'sizeBytes', 'lastMessageAt']);
     TestBed.tick();
 
-    expect(storedPreferences(storage)['order']).toEqual(['subject', 'sender', 'hasAttachments', 'sizeBytes', 'receivedAt']);
+    expect(storedPreferences(storage)['order']).toEqual(['subject', 'sender', 'hasAttachments', 'sizeBytes', 'lastMessageAt']);
   });
 
   it('forgets the entry once everything stands as it comes', () => {
