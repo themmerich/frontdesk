@@ -1,7 +1,9 @@
 import { HttpClient } from '@angular/common/http';
-import { computed, inject } from '@angular/core';
+import { computed, inject, Injector } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
+
+import { CompanyService } from './company-service';
 
 /** The tenant a session is about, as the sidebar and the guards need it. */
 export type CurrentTenant = {
@@ -56,6 +58,10 @@ export const AuthStore = signalStore(
   })),
   withMethods((store) => {
     const http = inject(HttpClient);
+    // Resolved when needed rather than up front: the company service reads /api/company the
+    // moment it exists, which on the login page would only earn a 401.
+    const injector = inject(Injector);
+    const brand = () => injector.get(CompanyService);
 
     /** Forgets the session locally, e.g. when a 401 reveals it expired on the server. */
     function clearSession(): void {
@@ -85,9 +91,14 @@ export const AuthStore = signalStore(
        */
       async login(tenant: string, username: string, password: string): Promise<boolean> {
         try {
+          // A logout clears the CSRF cookie and the login page makes no request of its own, so
+          // the first POST would go out without a token. This empty call brings one.
+          await firstValueFrom(http.get<void>('/api/auth/csrf'));
           const body = { tenant: tenant.trim() || null, username, password };
           const currentUser = await firstValueFrom(http.post<CurrentUser>('/api/auth/login', body));
           patchState(store, { currentUser, _isSessionResolved: true });
+          // The brand follows the session: whoever signed in, their company — or frontdesk's own.
+          brand().reload();
           return true;
         } catch {
           return false;
@@ -97,11 +108,13 @@ export const AuthStore = signalStore(
       /** A super-user opens a tenant: the session is about it from here on. */
       async openTenant(slug: string): Promise<void> {
         patchState(store, { currentUser: await firstValueFrom(http.put<CurrentUser>('/api/auth/tenant', { slug })) });
+        brand().reload();
       },
 
       /** Back to the plain super-user view. */
       async closeTenant(): Promise<void> {
         patchState(store, { currentUser: await firstValueFrom(http.delete<CurrentUser>('/api/auth/tenant')) });
+        brand().reload();
       },
 
       async logout(): Promise<void> {
@@ -111,6 +124,8 @@ export const AuthStore = signalStore(
           // The server session may already be gone; signing out locally is all that is left to do.
         }
         clearSession();
+        // The next person at this browser may belong to another company.
+        brand().clear();
       },
 
       /** Re-reads the session user, e.g. after the profile page changed name or picture. */

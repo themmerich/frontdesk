@@ -343,8 +343,10 @@ class AuthIntegrationTest {
 			"Musterfirma GmbH");
 
 	/** Any request yields the XSRF-TOKEN cookie — even an unauthenticated 401, as the SPA relies on. */
+	/** The way the login page gets its token: an empty answer that carries the cookie. */
 	private String fetchCsrfToken() {
-		ResponseEntity<Void> response = client.get().uri("/api/auth/me").retrieve().toBodilessEntity();
+		ResponseEntity<Void> response = client.get().uri("/api/auth/csrf").retrieve().toBodilessEntity();
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 		return cookieValue(response, "XSRF-TOKEN");
 	}
 

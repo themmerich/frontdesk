@@ -79,9 +79,30 @@ export class CompanyService {
   }
 
   /**
-   * Forgets the remembered brand. Said on signing out: the next person at this browser may
-   * belong to another company, and would otherwise be greeted by this one's name and colour
-   * for as long as their own takes to arrive.
+   * The session is about another company now, or about none: what was shown is dropped together
+   * with what was remembered, and the company is read again for whoever the session is about.
+   * Said on signing in and on a super-user opening or closing a tenant. A resource that is still
+   * on its first read is left alone — the answer on its way is already the right one.
+   */
+  reload(): void {
+    this.forget();
+    if (this.company.status() === 'loading') {
+      return;
+    }
+    this.company.set(null);
+    this.company.reload();
+  }
+
+  /** Nobody is signed in any more: nothing to show, and nothing to remember for the next person. */
+  clear(): void {
+    this.forget();
+    this.company.set(null);
+  }
+
+  /**
+   * Forgets the remembered brand: the next person at this browser may belong to another
+   * company, and would otherwise be greeted by this one's name and colour for as long as their
+   * own takes to arrive.
    */
   forget(): void {
     this.storage?.removeItem(STORAGE_KEY);

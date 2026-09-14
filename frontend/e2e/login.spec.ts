@@ -14,6 +14,8 @@ test.describe('Login', () => {
     // The inbox offers the categories for picking in its rows; unanswered, the request comes
     // back 401 from the real backend and the interceptor sends the browser to the login.
     await page.route('**/api/case-categories/selectable', (route) => route.fulfill({ json: [] }));
+    // The login fetches a CSRF token before it posts; without a backend the mock answers.
+    await page.route('**/api/auth/csrf', (route) => route.fulfill({ status: 204 }));
   });
 
   test('redirects anonymous visitors to the login page', async ({ page }) => {

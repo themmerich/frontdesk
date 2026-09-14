@@ -1,6 +1,6 @@
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { palette, updatePrimaryPalette } from '@primeuix/themes';
+import { palette, updatePrimaryPalette, usePreset } from '@primeuix/themes';
 
 import { CompanyService } from '../../shared/data/company-service';
 import { THEME_STORAGE, ThemeService } from './theme-service';
@@ -141,6 +141,21 @@ describe('ThemeService', () => {
 
     expect(palette).toHaveBeenCalledWith('#10b981');
     expect(updatePrimaryPalette).toHaveBeenCalledWith({ paletteOf: '#10b981' });
+  });
+
+  it("takes the company color back when it goes, so no tenant's color outlives the session", async () => {
+    TestBed.inject(ThemeService);
+    companyColor.set('#10b981');
+    TestBed.tick();
+    expect(updatePrimaryPalette).toHaveBeenCalledWith({ paletteOf: '#10b981' });
+    vi.mocked(usePreset).mockClear();
+
+    companyColor.set(null);
+    TestBed.tick();
+
+    // Re-applying the preset restores its default primary palette.
+    await vi.waitFor(() => expect(usePreset).toHaveBeenCalled());
+    expect(updatePrimaryPalette).toHaveBeenCalledTimes(1);
   });
 
   it('resetting the own primary falls back to the company color and persists', () => {

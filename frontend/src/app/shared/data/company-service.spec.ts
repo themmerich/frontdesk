@@ -154,6 +154,39 @@ describe('CompanyService', () => {
     expect(storage.getItem('frontdesk-company')).toBeNull();
   });
 
+  it('reads the company again for another session, dropping what was shown and remembered', async () => {
+    await flushInitialLoad(company);
+    expect(service.name()).toBe('Musterfirma GmbH');
+
+    service.reload();
+
+    expect(storage.getItem('frontdesk-company')).toBeNull();
+    expect(service.company.value()).toBeNull();
+    TestBed.tick();
+    httpTesting.expectOne('/api/company').flush({ ...company, name: 'Beispiel AG' });
+    await TestBed.inject(ApplicationRef).whenStable();
+    expect(service.name()).toBe('Beispiel AG');
+  });
+
+  it('leaves a first read alone when asked to reload while it is still on its way', () => {
+    TestBed.tick();
+    service.reload();
+
+    // One request, not two: the answer on its way is already the right one.
+    httpTesting.expectOne('/api/company');
+  });
+
+  it('shows and remembers nothing once cleared', async () => {
+    await flushInitialLoad(company);
+
+    service.clear();
+
+    expect(service.company.value()).toBeNull();
+    expect(service.name()).toBeUndefined();
+    expect(storage.getItem('frontdesk-company')).toBeNull();
+    httpTesting.expectNone('/api/company');
+  });
+
   it('works where the browser keeps nothing at all', () => {
     configure(null);
 

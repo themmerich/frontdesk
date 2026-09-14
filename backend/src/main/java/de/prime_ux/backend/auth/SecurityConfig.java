@@ -30,7 +30,7 @@ class SecurityConfig {
 	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
 			.authorizeHttpRequests(requests -> requests
-				.requestMatchers("/api/auth/login").permitAll()
+				.requestMatchers("/api/auth/login", "/api/auth/csrf").permitAll()
 				// Tenant administration (mailbox settings, user management) is the
 				// admins' realm — and a super-user's, once they have opened a tenant;
 				// without one, CurrentSession answers every tenant-bound call with 403.

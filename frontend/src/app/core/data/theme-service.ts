@@ -119,10 +119,19 @@ export class ThemeService {
     });
     // The tenant's brand color is the default primary; it loads asynchronously
     // and only applies while the user made no own choice (which always wins).
+    // When the color goes — the session is about another company now, or none —
+    // the preset's own palette comes back, so no tenant's color outlives it.
+    let appliedCompanyColor: string | null = null;
     effect(() => {
       const companyColor = this.companyService.primaryColor();
-      if (companyColor !== null && this.primary() === null) {
+      if (this.primary() !== null || companyColor === appliedCompanyColor) {
+        return;
+      }
+      appliedCompanyColor = companyColor;
+      if (companyColor !== null) {
         updatePrimaryPalette(palette(companyColor));
+      } else {
+        void this.applyPreset(this.preset());
       }
     });
     if (this.settings.preset !== 'aura') {
