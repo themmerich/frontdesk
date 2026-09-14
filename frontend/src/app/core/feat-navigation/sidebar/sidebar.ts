@@ -25,17 +25,13 @@ export class Sidebar {
   protected readonly companyService = inject(CompanyService);
   private readonly router = inject(Router);
 
-  /** A super-user leaves the tenant they had open; the brand goes back to frontdesk's own. */
+  /** A super-user leaves the tenant they had open; the store lets the brand follow. */
   protected async onCloseTenant(): Promise<void> {
     await this.authStore.closeTenant();
-    this.companyService.forget();
     await this.router.navigate(['/tenants']);
   }
 
   protected async onSignOut(): Promise<void> {
-    // The brand is remembered for the next visit of this browser — but the next person at it may
-    // belong to another company, so signing out takes it with them.
-    this.companyService.forget();
     await this.authStore.logout();
     await this.router.navigate(['/login']);
   }

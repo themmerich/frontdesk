@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -61,6 +62,17 @@ class AuthController {
 		this.userAvatarRepository = userAvatarRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.currentSession = currentSession;
+	}
+
+	/**
+	 * Hands the browser a CSRF token. The token travels as a cookie that every response writes
+	 * — but only responses: after a logout, which clears it, the login page makes no request of
+	 * its own, and its first POST would arrive without a token and be refused. The page calls
+	 * this first; the answer is empty, the cookie is the point.
+	 */
+	@GetMapping("/csrf")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void csrf() {
 	}
 
 	/** Wrong password, unknown name, unknown Kennung and a deactivated account answer identically. */

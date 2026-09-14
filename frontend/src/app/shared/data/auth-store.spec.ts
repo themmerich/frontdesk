@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
 import { AuthStore, CurrentUser } from './auth-store';
+import { CompanyService } from './company-service';
 
 const musterfirma = { slug: 'musterfirma', name: 'Musterfirma GmbH' };
 
@@ -26,16 +27,31 @@ const superuser: CurrentUser = {
 describe('AuthStore', () => {
   let store: AuthStore;
   let http: HttpTestingController;
+  let brandReloads: number;
+  let brandClears: number;
 
   beforeEach(() => {
+    brandReloads = 0;
+    brandClears = 0;
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: CompanyService, useValue: { reload: () => brandReloads++, clear: () => brandClears++ } },
+      ],
     });
     store = TestBed.inject(AuthStore);
     http = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => http.verify());
+
+  /** Answers the token call the login makes first, and lets the store get on to the credentials. */
+  async function grantCsrf(): Promise<void> {
+    http.expectOne('/api/auth/csrf').flush(null, { status: 204, statusText: 'No Content' });
+    await new Promise((resolve) => setTimeout(resolve));
+  }
 
   it('starts unauthenticated', () => {
     expect(store.isAuthenticated()).toBe(false);
@@ -67,6 +83,8 @@ describe('AuthStore', () => {
 
   it('signs in to a tenant with its Kennung', async () => {
     const login = store.login(' Musterfirma ', 'admin', 'secret');
+    // A token first, then the credentials.
+    await grantCsrf();
     const request = http.expectOne('/api/auth/login');
     // Trimmed; the backend lower-cases it.
     expect(request.request.body).toEqual({ tenant: 'Musterfirma', username: 'admin', password: 'secret' });
@@ -77,10 +95,13 @@ describe('AuthStore', () => {
     expect(store.hasTenant()).toBe(true);
     expect(store.canAdminister()).toBe(true);
     expect(store.isSuperuser()).toBe(false);
+    // The brand follows whoever signed in.
+    expect(brandReloads).toBe(1);
   });
 
   it('signs in as a super-user without a Kennung', async () => {
     const login = store.login('', 'super', 'secret');
+    await grantCsrf();
     const request = http.expectOne('/api/auth/login');
     expect(request.request.body).toEqual({ tenant: null, username: 'super', password: 'secret' });
     request.flush(superuser);
@@ -94,6 +115,7 @@ describe('AuthStore', () => {
 
   it('opens and closes a tenant for a super-user', async () => {
     const login = store.login('', 'super', 'secret');
+    await grantCsrf();
     http.expectOne('/api/auth/login').flush(superuser);
     await login;
 
@@ -105,6 +127,7 @@ describe('AuthStore', () => {
     await open;
     expect(store.hasTenant()).toBe(true);
     expect(store.canAdminister()).toBe(true);
+    expect(brandReloads).toBe(2);
 
     const close = store.closeTenant();
     const del = http.expectOne('/api/auth/tenant');
@@ -112,18 +135,22 @@ describe('AuthStore', () => {
     del.flush(superuser);
     await close;
     expect(store.hasTenant()).toBe(false);
+    expect(brandReloads).toBe(3);
   });
 
   it('reports rejected credentials without signing in', async () => {
     const login = store.login('musterfirma', 'admin', 'wrong');
+    await grantCsrf();
     http.expectOne('/api/auth/login').flush(null, { status: 401, statusText: 'Unauthorized' });
 
     expect(await login).toBe(false);
     expect(store.isAuthenticated()).toBe(false);
+    expect(brandReloads).toBe(0);
   });
 
   it('signs out locally even when the server session is already gone', async () => {
     const login = store.login('musterfirma', 'admin', 'secret');
+    await grantCsrf();
     http.expectOne('/api/auth/login').flush(user);
     await login;
 
@@ -133,5 +160,7 @@ describe('AuthStore', () => {
 
     expect(store.isAuthenticated()).toBe(false);
     expect(store.currentUser()).toBeNull();
+    // Nothing of that company for the next person at this browser.
+    expect(brandClears).toBe(1);
   });
 });

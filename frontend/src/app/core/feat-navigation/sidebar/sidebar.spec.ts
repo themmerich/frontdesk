@@ -39,7 +39,10 @@ describe('Sidebar', () => {
       const user = currentUser();
       return user?.role === 'admin' || (user?.role === 'superuser' && user.tenant !== null);
     }),
-    logout: () => Promise.resolve(),
+    logout: () => {
+      signedOut++;
+      return Promise.resolve();
+    },
     closeTenant: () => {
       tenantsClosed++;
       currentUser.update((user) => (user ? { ...user, tenant: null } : user));
@@ -51,6 +54,7 @@ describe('Sidebar', () => {
   const logoUrl = signal<string | null>(null);
   const largeLogoUrl = signal<string | null>(null);
   let forgotten: number;
+  let signedOut: number;
   const companyServiceStub = {
     name: companyName,
     logoUrl,
@@ -60,6 +64,7 @@ describe('Sidebar', () => {
 
   beforeEach(async () => {
     forgotten = 0;
+    signedOut = 0;
     tenantsClosed = 0;
     currentUser.set({
       username: 'admin',
@@ -99,16 +104,16 @@ describe('Sidebar', () => {
     expect(text).toContain('Inbox');
   });
 
-  it('takes the remembered brand along when signing out', async () => {
+  it('signs out through the store and leaves for the login page', async () => {
     const fixture = TestBed.createComponent(Sidebar);
     fixture.detectChanges();
+    const navigateSpy = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
-    // The login page is not part of this fixture; only the way there matters here.
-    TestBed.inject(Router).navigate = () => Promise.resolve(true);
     await fixture.componentInstance['onSignOut']();
 
-    // Whoever sits down at this browser next may belong to another company.
-    expect(forgotten).toBe(1);
+    // Forgetting the brand for the next person is the store's job on the way out.
+    expect(signedOut).toBe(1);
+    expect(navigateSpy).toHaveBeenCalledWith(['/login']);
   });
 
   it('links the archive next to the inbox', () => {
@@ -269,8 +274,6 @@ describe('Sidebar', () => {
     await fixture.whenStable();
 
     expect(tenantsClosed).toBe(1);
-    // The brand was the tenant's; the next page must not keep showing it.
-    expect(forgotten).toBe(1);
     expect(navigateSpy).toHaveBeenCalledWith(['/tenants']);
   });
 

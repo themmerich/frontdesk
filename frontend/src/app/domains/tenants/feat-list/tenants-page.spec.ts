@@ -73,7 +73,7 @@ describe('TenantsPage', () => {
   let updated: { id: string; input: TenantInput }[];
   let removed: string[];
   let opened: string[];
-  let forgotten: number;
+  let brandReloads: number;
   let refreshed: number;
   let saveError: unknown;
 
@@ -107,7 +107,7 @@ describe('TenantsPage', () => {
     },
   } as unknown as AuthStore;
 
-  const companyServiceStub = { forget: () => forgotten++ } as unknown as CompanyService;
+  const companyServiceStub = { reload: () => brandReloads++ } as unknown as CompanyService;
 
   beforeEach(async () => {
     tenants.set([beispiel, musterfirma]);
@@ -118,7 +118,7 @@ describe('TenantsPage', () => {
     updated = [];
     removed = [];
     opened = [];
-    forgotten = 0;
+    brandReloads = 0;
     refreshed = 0;
     saveError = undefined;
     await TestBed.configureTestingModule({
@@ -283,9 +283,9 @@ describe('TenantsPage', () => {
 
     expect(removed).toEqual(['t2']);
     expect(toasts.map((toast) => toast.summary)).toEqual(['Tenant deleted.']);
-    // Not the open one: the session and the remembered brand stay.
+    // Not the open one: the session and the brand stay.
     expect(refreshed).toBe(0);
-    expect(forgotten).toBe(0);
+    expect(brandReloads).toBe(0);
   });
 
   it('forgets the session tenant and the brand when the open tenant is deleted', async () => {
@@ -298,7 +298,7 @@ describe('TenantsPage', () => {
 
     expect(removed).toEqual(['t2']);
     expect(refreshed).toBe(1);
-    expect(forgotten).toBe(1);
+    expect(brandReloads).toBe(1);
   });
 
   it('opens a tenant and leads into its dashboard', async () => {
@@ -310,7 +310,8 @@ describe('TenantsPage', () => {
     await click(fixture, button(rowOf(element, 'Musterfirma GmbH'), 'Open'));
 
     expect(opened).toEqual(['musterfirma']);
-    expect(forgotten).toBe(1);
+    // The brand follows the session inside the store, not here.
+    expect(brandReloads).toBe(0);
     expect(navigateSpy).toHaveBeenCalledWith('/dashboard');
   });
 });

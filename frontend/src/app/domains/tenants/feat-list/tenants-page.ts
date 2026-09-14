@@ -175,10 +175,11 @@ export class TenantsPage {
       await this.tenantsService.remove(tenant.id);
       this.deletingTenant.set(null);
       this.toast('success', 'tenants.deleted');
-      // The session forgot the tenant on the server if it was the open one; mirror that here.
+      // The session forgot the tenant on the server if it was the open one; mirror that here,
+      // brand included.
       if (this.openSlug() === tenant.slug) {
         await this.authStore.refresh();
-        this.companyService.forget();
+        this.companyService.reload();
       }
     } catch {
       this.toast('error', 'tenants.deleteError');
@@ -192,9 +193,6 @@ export class TenantsPage {
     this.openingSlug.set(tenant.slug);
     try {
       await this.authStore.openTenant(tenant.slug);
-      // The brand remembered in this browser is whatever was open before; the next page reads
-      // this tenant's.
-      this.companyService.forget();
       await this.router.navigateByUrl('/dashboard');
     } catch {
       this.toast('error', 'tenants.openError');
