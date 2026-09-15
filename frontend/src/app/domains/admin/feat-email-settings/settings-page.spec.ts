@@ -4,7 +4,7 @@ import { TranslocoTestingModule } from '@jsverse/transloco';
 import { MessageService, ToastMessageOptions } from 'primeng/api';
 
 import { MailSettingsService } from '../data/mail-settings-service';
-import { MailSettings, MailSettingsUpdate } from '../model/mail-settings';
+import { MailConnectionTestResult, MailSettings, MailSettingsUpdate } from '../model/mail-settings';
 import { SettingsPage } from './settings-page';
 
 const translations = {
@@ -29,7 +29,8 @@ const translations = {
     presetNoteAppPassword: 'This provider requires an app password.',
     testConnection: 'Test connection',
     testSuccess: 'Connection successful.',
-    testFailed: 'Connection failed',
+    testFailedImap: 'Incoming mail server unreachable',
+    testFailedSmtp: 'Outgoing mail server unreachable',
     testError: 'The connection test could not be run.',
     save: 'Save',
     saved: 'Settings saved.',
@@ -59,7 +60,7 @@ describe('SettingsPage', () => {
   const settingsLoading = signal(false);
   let savedUpdates: MailSettingsUpdate[];
   let testedUpdates: MailSettingsUpdate[];
-  let testResult: { success: boolean; message: string };
+  let testResult: MailConnectionTestResult;
   const mailSettingsServiceStub = {
     settings: { value: settingsValue, error: settingsError, isLoading: settingsLoading },
     save: (update: MailSettingsUpdate) => {
@@ -80,7 +81,7 @@ describe('SettingsPage', () => {
     settingsLoading.set(false);
     savedUpdates = [];
     testedUpdates = [];
-    testResult = { success: true, message: '' };
+    testResult = { imap: { success: true, message: '' }, smtp: { success: true, message: '' } };
     toasts = [];
     await TestBed.configureTestingModule({
       imports: [
@@ -242,6 +243,16 @@ describe('SettingsPage', () => {
     expect(element.textContent).toContain('This provider requires an app password.');
   });
 
+  /** The button carries a label, not an id; every probe test presses it the same way. */
+  async function pressTest(fixture: ReturnType<typeof createFixture>): Promise<void> {
+    const element = fixture.nativeElement as HTMLElement;
+    const testButton = Array.from(element.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Test connection'),
+    ) as HTMLButtonElement;
+    testButton.click();
+    await fixture.whenStable();
+  }
+
   it('probes the mailbox with the current form values without saving, raising a success toast', async () => {
     const fixture = createFixture();
     const element = fixture.nativeElement as HTMLElement;
@@ -261,22 +272,59 @@ describe('SettingsPage', () => {
     expect(toasts[0].summary).toBe('Connection successful.');
   });
 
-  it('raises a warning toast with the technical reason when the probe fails', async () => {
-    testResult = { success: false, message: 'AUTHENTICATIONFAILED' };
+  it('raises a warning toast with the technical reason when the inbox cannot be reached', async () => {
+    testResult = { imap: { success: false, message: 'AUTHENTICATIONFAILED' }, smtp: { success: true, message: '' } };
+    const fixture = createFixture();
+    await switchToCustomMode(fixture);
+
+    await pressTest(fixture);
+
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].severity).toBe('warn');
+    expect(toasts[0].summary).toBe('Incoming mail server unreachable');
+    expect(toasts[0].detail).toBe('AUTHENTICATIONFAILED');
+  });
+
+  it('says so when the mailbox reads but cannot answer, rather than calling it a success', async () => {
+    // The case that passed silently before the outgoing server was probed.
+    testResult = { imap: { success: true, message: '' }, smtp: { success: false, message: 'Connection refused' } };
+    const fixture = createFixture();
+    await switchToCustomMode(fixture);
+
+    await pressTest(fixture);
+
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].severity).toBe('warn');
+    expect(toasts[0].summary).toBe('Outgoing mail server unreachable');
+    expect(toasts[0].detail).toBe('Connection refused');
+  });
+
+  it('names both halves when both are broken, so neither is the one that bites later', async () => {
+    testResult = { imap: { success: false, message: 'AUTHENTICATIONFAILED' }, smtp: { success: false, message: 'Connection refused' } };
+    const fixture = createFixture();
+    await switchToCustomMode(fixture);
+
+    await pressTest(fixture);
+
+    expect(toasts.map((toast) => toast.summary)).toEqual(['Incoming mail server unreachable', 'Outgoing mail server unreachable']);
+    expect(toasts.map((toast) => toast.detail)).toEqual(['AUTHENTICATIONFAILED', 'Connection refused']);
+  });
+
+  it('does not probe while the outgoing server is missing, which it needs just as much', async () => {
     const fixture = createFixture();
     const element = fixture.nativeElement as HTMLElement;
     await switchToCustomMode(fixture);
 
-    const testButton = Array.from(element.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Test connection'),
-    ) as HTMLButtonElement;
-    testButton.click();
+    const smtpHost = element.querySelector('#smtpHost') as HTMLInputElement;
+    smtpHost.value = '';
+    smtpHost.dispatchEvent(new Event('input'));
     await fixture.whenStable();
 
-    expect(toasts).toHaveLength(1);
-    expect(toasts[0].severity).toBe('warn');
-    expect(toasts[0].summary).toBe('Connection failed');
-    expect(toasts[0].detail).toBe('AUTHENTICATIONFAILED');
+    await pressTest(fixture);
+    fixture.detectChanges();
+
+    expect(testedUpdates).toHaveLength(0);
+    expect(element.textContent).toContain('Required.');
   });
 
   it('does not probe while the fields the probe needs are invalid', async () => {

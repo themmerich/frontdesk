@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.icegreen.greenmail.util.GreenMail;
+import com.icegreen.greenmail.util.ServerSetup;
 import com.icegreen.greenmail.util.ServerSetupTest;
 import de.prime_ux.backend.TestcontainersConfiguration;
 import de.prime_ux.backend.branches.BranchRepository;
@@ -44,9 +45,11 @@ class MailSettingsControllerTest {
 			  "folder": "INBOX", "pollingEnabled": true
 			}""";
 
-	// Started in a static initializer so the port is known early. Dynamic port
-	// avoids clashing with a locally running GreenMail container.
-	private static final GreenMail greenMail = new GreenMail(ServerSetupTest.IMAP.dynamicPort());
+	// Both halves of the mailbox, because the connection test probes both. Started in a static
+	// initializer so the ports are known early; dynamic ones avoid clashing with a locally
+	// running GreenMail container.
+	private static final GreenMail greenMail = new GreenMail(
+			new ServerSetup[] { ServerSetupTest.IMAP.dynamicPort(), ServerSetupTest.SMTP.dynamicPort() });
 
 	static {
 		greenMail.start();
@@ -188,14 +191,19 @@ class MailSettingsControllerTest {
 	}
 
 	private String testRequestJson(String password) {
+		return testRequestJson(password, greenMail.getSmtp().getPort());
+	}
+
+	/** The same request with a chosen SMTP port, for the half that is meant to fail. */
+	private String testRequestJson(String password, int smtpPort) {
 		return """
 				{
 				  "mode": "CUSTOM",
 				  "imapHost": "localhost", "imapPort": %d, "imapTls": false,
-				  "smtpHost": "localhost", "smtpPort": 3025, "smtpTls": false,
+				  "smtpHost": "localhost", "smtpPort": %d, "smtpTls": false,
 				  "username": "postfach@example.com", "password": "%s",
 				  "folder": "INBOX", "pollingEnabled": true
-				}""".formatted(greenMail.getImap().getPort(), password);
+				}""".formatted(greenMail.getImap().getPort(), smtpPort, password);
 	}
 
 	@Test
@@ -207,7 +215,8 @@ class MailSettingsControllerTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(testRequestJson("geheim")))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.success").value(true));
+				.andExpect(jsonPath("$.imap.success").value(true))
+				.andExpect(jsonPath("$.smtp.success").value(true));
 	}
 
 	@Test
@@ -219,8 +228,8 @@ class MailSettingsControllerTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(testRequestJson("falsch")))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.success").value(false))
-				.andExpect(jsonPath("$.message").isNotEmpty());
+				.andExpect(jsonPath("$.imap.success").value(false))
+				.andExpect(jsonPath("$.imap.message").isNotEmpty());
 	}
 
 	@Test
@@ -237,7 +246,57 @@ class MailSettingsControllerTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(testRequestJson("")))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.success").value(true));
+				.andExpect(jsonPath("$.imap.success").value(true))
+				.andExpect(jsonPath("$.smtp.success").value(true));
+	}
+
+	@Test
+	@AsUser("admin")
+	void reportsAnUnreachableSmtpServerWhileTheInboxIsFine() throws Exception {
+		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
+
+		// The case that passed silently before SMTP was probed: a mailbox that reads but cannot
+		// answer. Port 1 is reserved and nothing listens on it.
+		mockMvc.perform(post("/api/settings/mail/test").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(testRequestJson("geheim", 1)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.imap.success").value(true))
+				.andExpect(jsonPath("$.smtp.success").value(false))
+				.andExpect(jsonPath("$.smtp.message").isNotEmpty());
+	}
+
+	@Test
+	@AsUser("admin")
+	void namesBothHalvesWhenBothAreBroken() throws Exception {
+		greenMail.setUser("postfach@example.com", "postfach@example.com", "geheim");
+
+		// One press says everything that is wrong, not the first thing it ran into.
+		mockMvc.perform(post("/api/settings/mail/test").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(testRequestJson("falsch", 1)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.imap.success").value(false))
+				.andExpect(jsonPath("$.imap.message").isNotEmpty())
+				.andExpect(jsonPath("$.smtp.success").value(false))
+				.andExpect(jsonPath("$.smtp.message").isNotEmpty());
+	}
+
+	@Test
+	@AsUser("admin")
+	void refusesToTestAConfigurationItCouldNotSave() throws Exception {
+		// The SMTP half was not validated here before, so the test accepted what the save rejects.
+		mockMvc.perform(post("/api/settings/mail/test").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+						{
+						  "mode": "CUSTOM",
+						  "imapHost": "localhost", "imapPort": 993, "imapTls": false,
+						  "smtpPort": 587, "smtpTls": false,
+						  "username": "postfach@example.com", "password": "geheim",
+						  "folder": "INBOX", "pollingEnabled": true
+						}"""))
+				.andExpect(status().isBadRequest());
 	}
 
 	@Test
