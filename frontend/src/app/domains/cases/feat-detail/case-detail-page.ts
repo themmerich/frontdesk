@@ -16,6 +16,7 @@ import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { TooltipModule } from 'primeng/tooltip';
 
+import { AssignableUsersService } from '../data/assignable-users-service';
 import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseDetailService } from '../data/case-detail-service';
 import { CaseOrderStore } from '../data/case-order-store';
@@ -58,6 +59,7 @@ export class CaseDetailPage {
 
   protected readonly detailService = inject(CaseDetailService);
   protected readonly categoriesService = inject(CaseCategoriesService);
+  protected readonly assignableUsersService = inject(AssignableUsersService);
   private readonly casesService = inject(CasesService);
   private readonly orderStore = inject(CaseOrderStore);
   private readonly confirmationService = inject(ConfirmationService);
@@ -176,6 +178,34 @@ export class CaseDetailPage {
       value: tier,
     }));
   });
+
+  /**
+   * Who the case can be handed to, with nobody in front. A person who has since been deactivated
+   * but still has the case keeps their place in the list, so opening it does not quietly hand the
+   * case to somebody else.
+   */
+  protected readonly assigneeOptions = computed(() => {
+    this.translation();
+    const current = this.detailService.detail.value();
+    const users = this.assignableUsersService.users.error() ? [] : this.assignableUsersService.users.value();
+    const known = users.some((user) => user.id === current?.assigneeId);
+    return [
+      { label: this.transloco.translate('cases.assigneeNobody'), value: null },
+      ...(known || !current?.assigneeId ? [] : [{ label: current.assigneeName ?? '', value: current.assigneeId }]),
+      ...users.map((user) => ({ label: user.name, value: user.id })),
+    ];
+  });
+
+  /** Picking saves at once, the way it does in the row of the inbox. */
+  protected async onPickAssignee(userId: string | null): Promise<void> {
+    try {
+      await this.detailService.assign(userId);
+      this.casesService.cases.reload();
+      this.toast('success', userId ? 'cases.assigned' : 'cases.unassigned');
+    } catch {
+      this.toast('error', 'cases.assignError');
+    }
+  }
 
   /**
    * What the category picker offers: the categories the tenant keeps, and the choice of none at

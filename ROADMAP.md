@@ -76,7 +76,10 @@ Gaps in what exists, each small enough for one PR.
       where a reply is possible at all: not for automated bulk mail, and only where a client put
       a "Re:" in front or we already answered. The case comes back into the inbox and can be
       answered again.
-- [ ] **Assignment** — assign a case to a person, with a "my cases" filter.
+- [x] **Assignment** — a case belongs to somebody: an assignee column that is picked in the row or
+      on the detail page, a filter over the tenant's people plus nobody, and a "Meine Vorgänge"
+      toggle. Anyone who works in the inbox may assign; the assignment survives both handling and a
+      customer writing again.
 - [ ] **Notes** — internal notes on a case, never sent to the customer.
 - [ ] **Notifications** — put the bell in the navbar to use: new manual cases, failed triage,
       drafts waiting for approval.

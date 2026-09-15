@@ -4,6 +4,8 @@ import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { Confirmation, ConfirmationService, MessageService, ToastMessageOptions } from 'primeng/api';
 
+import { AuthStore } from '../../../shared/data/auth-store';
+import { AssignableUsersService } from '../data/assignable-users-service';
 import { CaseCategoriesService } from '../data/case-categories-service';
 import { CasesService } from '../data/cases-service';
 import { Case } from '../model/case';
@@ -12,6 +14,9 @@ import { CasesPage } from './cases-page';
 const translations = {
   cases: {
     classificationSaved: 'Classification saved.',
+    assigned: 'Case assigned.',
+    unassigned: 'Assignment cleared.',
+    assignError: 'The assignment could not be saved.',
     classificationError: 'The classification could not be saved.',
     title: 'Cases',
     archiveTitle: 'Archive',
@@ -91,13 +96,23 @@ describe('CasesPage', () => {
       classified.push({ id, categoryId, tier });
       return failClassification ? Promise.reject(new Error('nope')) : Promise.resolve();
     },
+    assign: (id: string, userId: string | null) => {
+      assigned.push({ id, userId });
+      return failAssign ? Promise.reject(new Error('nope')) : Promise.resolve();
+    },
   } as unknown as CasesService;
   const categoriesServiceStub = {
     categories: { value: signal([]), error: signal(undefined) },
   } as unknown as CaseCategoriesService;
+  const assignableUsersServiceStub = {
+    users: { value: signal([{ id: 'u1', name: 'Ben Beispiel' }]), error: signal(undefined) },
+  } as unknown as AssignableUsersService;
+  const authStoreStub = { currentUser: signal({ displayName: 'Anna Muster' }) } as unknown as AuthStore;
 
   let toasts: ToastMessageOptions[];
   let confirmations: Confirmation[];
+  let assigned: { id: string; userId: string | null }[];
+  let failAssign: boolean;
 
   beforeEach(async () => {
     cases.set([]);
@@ -106,6 +121,8 @@ describe('CasesPage', () => {
     removeFails = false;
     classified = [];
     failClassification = false;
+    assigned = [];
+    failAssign = false;
     reopened = [];
     failReopen = false;
     restored = [];
@@ -128,6 +145,8 @@ describe('CasesPage', () => {
         provideRouter([]),
         { provide: CasesService, useValue: casesServiceStub },
         { provide: CaseCategoriesService, useValue: categoriesServiceStub },
+        { provide: AssignableUsersService, useValue: assignableUsersServiceStub },
+        { provide: AuthStore, useValue: authStoreStub },
         // Both outlets live in the shell, which is not part of this fixture; the
         // stubs record what the page would have asked and said.
         {
@@ -159,6 +178,8 @@ describe('CasesPage', () => {
       handledAt: null,
       deletedAt: null,
       hasDraft: false,
+      assigneeId: null,
+      assigneeName: null,
       ...overrides,
     };
   }
@@ -363,6 +384,29 @@ describe('CasesPage', () => {
 
     expect(classified).toEqual([{ id: '1', categoryId: 'c2', tier: 'manual' }]);
     expect(toasts.map((toast) => toast.summary)).toEqual(['Classification saved.']);
+  });
+
+  it('hands a case over and says so, and says something else when it is put down', async () => {
+    const fixture = TestBed.createComponent(CasesPage);
+
+    await fixture.componentInstance['onAssignmentChanged']({ id: '1', userId: 'u1' });
+    await fixture.componentInstance['onAssignmentChanged']({ id: '1', userId: null });
+
+    expect(assigned).toEqual([
+      { id: '1', userId: 'u1' },
+      { id: '1', userId: null },
+    ]);
+    // Taking a case and putting it down are two different things to be told.
+    expect(toasts.map((toast) => toast.summary)).toEqual(['Case assigned.', 'Assignment cleared.']);
+  });
+
+  it('says so when a case could not be handed over', async () => {
+    failAssign = true;
+    const fixture = TestBed.createComponent(CasesPage);
+
+    await fixture.componentInstance['onAssignmentChanged']({ id: '1', userId: 'u1' });
+
+    expect(toasts.map((toast) => toast.severity)).toEqual(['error']);
   });
 
   it('says so when what was picked cannot be saved', async () => {

@@ -3,6 +3,8 @@ import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
+import { AuthStore } from '../../../shared/data/auth-store';
+import { AssignableUsersService } from '../data/assignable-users-service';
 import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseColumnsService } from '../data/case-columns-service';
 import { CaseOrderStore } from '../data/case-order-store';
@@ -31,6 +33,8 @@ export class CasesPage {
   protected readonly casesService = inject(CasesService);
   protected readonly columnsService = inject(CaseColumnsService);
   protected readonly categoriesService = inject(CaseCategoriesService);
+  protected readonly assignableUsersService = inject(AssignableUsersService);
+  private readonly authStore = inject(AuthStore);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
   private readonly transloco = inject(TranslocoService);
@@ -104,6 +108,25 @@ export class CasesPage {
       this.messageService.add({ severity: 'success', summary: this.transloco.translate('cases.classificationSaved') });
     } catch {
       this.messageService.add({ severity: 'error', summary: this.transloco.translate('cases.classificationError') });
+    }
+  }
+
+  /**
+   * Who is signed in, for "my cases". The table is the ui layer and does not get to know; it is
+   * handed the name it filters by.
+   */
+  protected readonly currentUserName = computed(() => this.authStore.currentUser()?.displayName ?? null);
+
+  /** Somebody takes a case, hands it to a colleague, or puts it down. */
+  protected async onAssignmentChanged(change: { id: string; userId: string | null }): Promise<void> {
+    try {
+      await this.casesService.assign(change.id, change.userId);
+      this.messageService.add({
+        severity: 'success',
+        summary: this.transloco.translate(change.userId ? 'cases.assigned' : 'cases.unassigned'),
+      });
+    } catch {
+      this.messageService.add({ severity: 'error', summary: this.transloco.translate('cases.assignError') });
     }
   }
 

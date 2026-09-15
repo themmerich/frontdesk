@@ -134,6 +134,15 @@ export class CasesService {
     this.cases.reload();
   }
 
+  /**
+   * Somebody takes a case, hands it to a colleague, or puts it down with null. The list reloads
+   * afterwards, so the column shows what the backend holds rather than what was hoped for.
+   */
+  async assign(id: string, userId: string | null): Promise<void> {
+    await firstValueFrom(this.http.put<unknown>(`/api/cases/${id}/assignee`, { userId }));
+    this.cases.reload();
+  }
+
   private reloadWhenVisible(): void {
     if (this.document.visibilityState === 'visible') {
       this.cases.reload();

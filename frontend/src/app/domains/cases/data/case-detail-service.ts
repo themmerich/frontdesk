@@ -97,6 +97,16 @@ export class CaseDetailService {
   }
 
   /**
+   * Somebody takes the case, hands it to a colleague, or puts it down with null. Saved at once
+   * rather than with the verdict: picking up work is not a correction of what the model said, and
+   * "Speichern" should not sometimes mean "this is mine now".
+   */
+  async assign(userId: string | null): Promise<void> {
+    const changed = await firstValueFrom(this.http.put<CaseDetailResponse>(`/api/cases/${this.id()}/assignee`, { userId }));
+    this.detail.set(parseMoments(changed));
+  }
+
+  /**
    * The model writes the reply now, in place of whatever draft there was — along the line it is
    * given, if any: what the reply should do, or what to change about the draft. Takes as long as
    * the model takes; the page shows that it is waiting.

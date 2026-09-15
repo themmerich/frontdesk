@@ -19,8 +19,22 @@ describe('parseColumnPreferences', () => {
     };
 
     expect(parseColumnPreferences(stored)).toEqual({
-      order: ['subject', 'sender', 'recipient', 'hasAttachments', 'categoryName', 'tier', 'hasDraft', 'sizeBytes', 'lastMessageAt'],
-      visibleFields: ['subject', 'sender'],
+      // The assignee column came later than this stored order and is appended, which is what the
+      // last test of this file is about.
+      order: [
+        'subject',
+        'sender',
+        'recipient',
+        'hasAttachments',
+        'categoryName',
+        'tier',
+        'hasDraft',
+        'sizeBytes',
+        'lastMessageAt',
+        'assigneeLabel',
+      ],
+      // A column the stored value never mentioned starts visible, like every other new one.
+      visibleFields: ['subject', 'sender', 'assigneeLabel'],
       widths: { subject: 320, sender: 180, __actions: 100 },
     });
   });
@@ -36,7 +50,7 @@ describe('parseColumnPreferences', () => {
     const preferences = parseColumnPreferences(stored);
 
     expect(preferences.order[0]).toBe('categoryName');
-    expect(preferences.visibleFields).toEqual(['categoryName', 'subject']);
+    expect(preferences.visibleFields).toEqual(['categoryName', 'subject', 'assigneeLabel']);
     expect(preferences.widths).toEqual({ categoryName: 200 });
   });
 
@@ -72,6 +86,7 @@ describe('parseColumnPreferences', () => {
       'recipient',
       'categoryName',
       'tier',
+      'assigneeLabel',
       'hasDraft',
       'lastMessageAt',
       'sizeBytes',
@@ -82,6 +97,7 @@ describe('parseColumnPreferences', () => {
       'recipient',
       'categoryName',
       'tier',
+      'assigneeLabel',
       'hasDraft',
       'lastMessageAt',
       'sizeBytes',

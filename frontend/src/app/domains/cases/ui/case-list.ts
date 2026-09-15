@@ -29,7 +29,7 @@ import { Table, TableModule, TablePageEvent } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 
-import { Case, CaseTier, SelectableCategory } from '../model/case';
+import { AssignableUser, Case, CaseTier, SelectableCategory } from '../model/case';
 import { CaseDateGroupKind, caseDateGroup } from '../model/case-date-group';
 import {
   ACTIONS_COLUMN,
@@ -47,12 +47,15 @@ import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from './tier-tag';
 
 type CaseColumn = Omit<CaseColumnDefinition, 'labelKey'> & { header: string };
 
+/** The column "my cases" narrows; named once because the toggle reads and writes the same filter. */
+const ASSIGNEE_FIELD = 'assigneeLabel';
+
 /**
  * A case with the stretch of time it is filed under. The table groups by a field on the row and
  * sorts the groups by its value, so the row carries the beginning of its stretch as a number and
  * the heading to write above it.
  */
-type GroupedCase = Case & { receivedGroup: number; receivedGroupLabel: string };
+type GroupedCase = Case & { receivedGroup: number; receivedGroupLabel: string; assigneeLabel: string };
 
 /** The heading of a stretch, except for the months, which are named after themselves. */
 const GROUP_LABELS: Record<Exclude<CaseDateGroupKind, 'earlier'>, string> = {
@@ -143,6 +146,18 @@ export class CaseList {
 
   /** What the category cell offers. Empty while they are on their way, or could not be read. */
   readonly categories = input<SelectableCategory[]>([]);
+
+  /** The colleagues a case can be handed to. Empty while they are on their way. */
+  readonly assignableUsers = input<AssignableUser[]>([]);
+
+  /**
+   * The signed-in person's name, for "my cases". Handed in rather than read here: this is the ui
+   * layer, and who is signed in is the feature's knowledge.
+   */
+  readonly currentUserName = input<string | null>(null);
+
+  /** Assigning is the page's job, like deleting; null hands the case back to nobody. */
+  readonly assignmentChanged = output<{ id: string; userId: string | null }>();
 
   /**
    * Deleting is the page's job, not the table's: the list says what the user picked, the page
@@ -253,6 +268,19 @@ export class CaseList {
     return [...new Set(names)].sort((one, other) => one.localeCompare(other));
   });
 
+  /**
+   * Who the inbox at hand is spread across, with nobody first — most of a queue belongs to nobody,
+   * and that is the entry people reach for.
+   */
+  protected readonly assigneeOptions = computed<string[]>(() => {
+    this.translation();
+    const nobody = this.transloco.translate('cases.assigneeNobody');
+    const names = this.rows()
+      .map((row) => row.assigneeLabel)
+      .filter((label) => label !== nobody);
+    return [nobody, ...new Set([...names].sort((one, other) => one.localeCompare(other)))];
+  });
+
   /** Options of the tier multi-select filter, matching the raw values the rows carry. */
   protected readonly tierOptions = computed<{ label: string; value: CaseTier }[]>(() => {
     this.translation();
@@ -286,12 +314,16 @@ export class CaseList {
     const now = new Date();
     const month = new Intl.DateTimeFormat(this.transloco.getActiveLang(), { month: 'long' });
     const monthAndYear = new Intl.DateTimeFormat(this.transloco.getActiveLang(), { month: 'long', year: 'numeric' });
+    const nobody = this.transloco.translate('cases.assigneeNobody');
     return this.cases().map((aCase) => {
       // By the last move of the conversation: a customer writing again is news of today.
       const group = caseDateGroup(aCase.lastMessageAt, now);
       const sameYear = group.start.getFullYear() === now.getFullYear();
       return {
         ...aCase,
+        // Always a string: a row the table can sort, filter and export, where the case itself
+        // carries a null nobody can pick from a list.
+        assigneeLabel: aCase.assigneeName ?? nobody,
         receivedGroup: group.start.getTime(),
         receivedGroupLabel:
           group.kind === 'earlier'
@@ -318,7 +350,34 @@ export class CaseList {
   }
 
   protected onFilterChanged(): void {
+    this.readMineOnly();
     this.keepPage();
+  }
+
+  /**
+   * Whether the list is narrowed to the signed-in person's cases. Not a state of its own but a
+   * reading of the assignee filter: clearing that filter through the column menu has to turn the
+   * button off too, or the two would say different things about the same list.
+   */
+  protected readonly isMineOnly = signal(false);
+
+  /** Narrows the list to one's own cases, or hands it back to everybody. */
+  protected onToggleMine(): void {
+    const table = this.table();
+    const mine = this.currentUserName();
+    if (this.isMineOnly() || !mine) {
+      table.filter(null, ASSIGNEE_FIELD, 'in');
+    } else {
+      table.filter([mine], ASSIGNEE_FIELD, 'in');
+    }
+    this.readMineOnly();
+  }
+
+  private readMineOnly(): void {
+    const mine = this.currentUserName();
+    const filter = this.table().filters[ASSIGNEE_FIELD];
+    const value = Array.isArray(filter) ? filter[0]?.value : filter?.value;
+    this.isMineOnly.set(mine !== null && Array.isArray(value) && value.length === 1 && value[0] === mine);
   }
 
   protected onPageChanged(event: TablePageEvent): void {
@@ -391,6 +450,19 @@ export class CaseList {
       ...this.categories().map((category) => ({ label: category.name, value: category.id })),
     ];
   });
+
+  /** The colleagues, with "nobody" in front: putting a case down is as normal as picking it up. */
+  protected readonly assigneeChoices = computed(() => {
+    this.translation();
+    return [
+      { label: this.transloco.translate('cases.assigneeNobody'), value: null },
+      ...this.assignableUsers().map((user) => ({ label: user.name, value: user.id })),
+    ];
+  });
+
+  protected onPickAssignee(row: Case, userId: string | null): void {
+    this.assignmentChanged.emit({ id: row.id, userId });
+  }
 
   protected onPickCategory(row: Case, categoryId: string | null): void {
     // The tier travels along unchanged — a case the triage has not seen keeps its empty verdict.
@@ -534,6 +606,8 @@ export class CaseList {
     if (table.first() === undefined) {
       table.first.set(0);
     }
+    // A remembered assignee filter decides whether the button comes back pressed.
+    this.readMineOnly();
   }
 
   /**

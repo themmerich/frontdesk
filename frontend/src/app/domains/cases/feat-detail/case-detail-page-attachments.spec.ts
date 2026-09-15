@@ -39,6 +39,8 @@ const aCase: CaseDetail = {
   confidence: null,
   handledAt: null,
   deletedAt: null,
+  assigneeId: null,
+  assigneeName: null,
   draftText: null,
   draftGeneratedAt: null,
   draftUpdatedAt: null,

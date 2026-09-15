@@ -11,6 +11,7 @@ export type CaseColumnField =
   | 'summary'
   | 'categoryName'
   | 'tier'
+  | 'assigneeLabel'
   | 'confidence'
   | 'hasAttachments'
   | 'hasDraft'
@@ -40,6 +41,9 @@ export const CASE_COLUMNS: readonly CaseColumnDefinition[] = [
   // rows keep the raw values, so free text would have to match the untranslated
   // one — confusing.
   { field: 'tier', labelKey: 'cases.tier', sortable: true, filterable: true },
+  // Who has the case. The row carries a label rather than the raw name, because "nobody" is a
+  // filter people reach for first and a null cannot be picked from a list.
+  { field: 'assigneeLabel', labelKey: 'cases.assignee', sortable: true, filterable: true },
   // Whether a reply is waiting to be read. The tier says a draft is expected; this says it is
   // there. Filtered like the attachment column, through a tri-state checkbox.
   { field: 'hasDraft', labelKey: 'cases.draft', sortable: false, filterable: true },

@@ -239,6 +239,92 @@ class CaseControllerTest {
 
 	@Test
 	@AsUser("anna")
+	void letsAnyoneInTheInboxTakeACaseAndHandItBack() throws Exception {
+		AppUser ben = appUserRepository.save(new AppUser(tenant, "ben", "Ben", "Beispiel", "{noop}irrelevant",
+				UserRole.USER));
+		Case aCase = caseRepository.save(newCase(tenant, "<a@test>", Instant.now()));
+
+		// Anna is an ordinary user, not an admin: picking up work needs no administrator.
+		mockMvc.perform(put("/api/cases/{id}/assignee", aCase.getId()).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"userId\": \"" + ben.getId() + "\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.assigneeId").value(ben.getId().toString()))
+				.andExpect(jsonPath("$.assigneeName").value("Ben Beispiel"));
+
+		assertThat(caseEventRepository.findAllByMailCaseIdOrderByOccurredAtAsc(aCase.getId()))
+				.extracting(CaseEvent::getType).containsExactly(CaseEventType.ASSIGNED);
+
+		mockMvc.perform(put("/api/cases/{id}/assignee", aCase.getId()).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"userId\": null}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.assigneeId").doesNotExist());
+
+		assertThat(caseEventRepository.findAllByMailCaseIdOrderByOccurredAtAsc(aCase.getId()))
+				.extracting(CaseEvent::getType)
+				.containsExactly(CaseEventType.ASSIGNED, CaseEventType.UNASSIGNED);
+	}
+
+	@Test
+	@AsUser("anna")
+	void refusesAnAssigneeFromAnotherTenantWithoutSayingWhetherTheIdExists() throws Exception {
+		AppUser stranger = appUserRepository.save(new AppUser(otherTenant, "carla", "Carla", "Fremd",
+				"{noop}irrelevant", UserRole.USER));
+		Case aCase = caseRepository.save(newCase(tenant, "<a@test>", Instant.now()));
+
+		mockMvc.perform(put("/api/cases/{id}/assignee", aCase.getId()).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"userId\": \"" + stranger.getId() + "\"}"))
+				.andExpect(status().isBadRequest());
+
+		assertThat(caseRepository.findById(aCase.getId()).orElseThrow().getAssignee()).isNull();
+	}
+
+	@Test
+	@AsUser("anna")
+	void keepsTheAssigneeThroughHandlingAndThroughACustomerWritingAgain() throws Exception {
+		AppUser ben = appUserRepository.save(new AppUser(tenant, "ben", "Ben", "Beispiel", "{noop}irrelevant",
+				UserRole.USER));
+		Case aCase = caseRepository.save(newCase(tenant, "<a@test>", Instant.now()));
+		aCase.assignTo(ben);
+		caseRepository.save(aCase);
+
+		// Ticked off: the archive should still say who dealt with it.
+		mockMvc.perform(put("/api/cases/{id}/handled", aCase.getId()).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"handled\": true}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.assigneeId").value(ben.getId().toString()));
+
+		// The customer writes back: the matter lands with whoever was already on it.
+		Case reopened = caseRepository.findById(aCase.getId()).orElseThrow();
+		reopened.receiveFollowUp(Instant.now(), false);
+		caseRepository.save(reopened);
+
+		assertThat(caseRepository.findById(aCase.getId()).orElseThrow().getAssignee().getId())
+				.isEqualTo(ben.getId());
+	}
+
+	@Test
+	@AsUser("anna")
+	void namesTheAssigneeInTheListSoTheColumnNeedsNoSecondRequest() throws Exception {
+		AppUser ben = appUserRepository.save(new AppUser(tenant, "ben", "Ben", "Beispiel", "{noop}irrelevant",
+				UserRole.USER));
+		Case assigned = newCase(tenant, "<a@test>", Instant.now());
+		assigned.assignTo(ben);
+		caseRepository.save(assigned);
+		caseRepository.save(newCase(tenant, "<b@test>", Instant.now().minusSeconds(60)));
+
+		mockMvc.perform(get("/api/cases"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].assigneeName").value("Ben Beispiel"))
+				// Nobody has taken the other one.
+				.andExpect(jsonPath("$[1].assigneeId").doesNotExist());
+	}
+
+	@Test
+	@AsUser("anna")
 	void namesTheCategoryAndTierOfATriagedCase() throws Exception {
 		CaseCategory category = new CaseCategory(tenant, "ORDER_STATUS", "Statusanfrage Bestellung",
 				"Frage nach dem Liefertermin.", CaseTier.AUTOMATIC, 0);

@@ -17,6 +17,8 @@ const translations = {
       draft_generated: 'Draft written by the AI',
       draftGeneratedOnRequest: 'Draft written by the AI on request',
       draft_edited: 'Draft edited',
+      assigned: 'Assigned to {{assigneeName}}',
+      unassigned: 'Assignment cleared',
       handled: 'Done',
       reopened: 'Reopened',
       trashed: 'Moved to the trash',
@@ -59,6 +61,15 @@ describe('CaseTimeline', () => {
       icon: entry.closest('.p-timeline-event')?.querySelector('i')?.className,
     }));
   }
+
+  it('names who a case was handed to, and says when it was handed back', () => {
+    const element = render([event('assigned', { assigneeName: 'Ben Beispiel' }, 'Anna Muster'), event('unassigned', {}, 'Anna Muster')]);
+
+    // The name is written into the entry, not only into the case: the trail outlives the account.
+    expect(entries(element).map((entry) => entry.text)).toEqual(['Assigned to Ben Beispiel', 'Assignment cleared']);
+    // And each step carries an icon of its own rather than an empty circle.
+    expect(entries(element).every((entry) => entry.icon?.includes('pi-user'))).toBe(true);
+  });
 
   it('tells every step in a sentence, with what was written down about it filled in', () => {
     const element = render([
