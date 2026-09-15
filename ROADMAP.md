@@ -14,7 +14,9 @@ SMTP) in Docker Compose as the dev/demo mail infrastructure; the core entity is 
 - [x] **1. Mail ingest** — poll an IMAP mailbox (GreenMail in dev), persist each mail as a case,
       show cases in a simple list in the Angular app.
   - Per-tenant mailbox settings (IMAP + SMTP host, port, TLS, credentials encrypted at rest,
-    folder, polling on/off) with provider presets and a connection test, admin-only.
+    folder, polling on/off) with provider presets and a connection test, admin-only. The test
+    probes both halves and reports them apart: a mailbox that reads but cannot answer is not a
+    success.
   - The inbox is a working table: sortable and filterable columns, global search, paging,
     column toggle, reorder and resize, CSV export, all remembered per user; rows grouped
     under the stretch of time they came in; multi-select with bulk actions.

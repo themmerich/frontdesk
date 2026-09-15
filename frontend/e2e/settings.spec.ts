@@ -51,7 +51,9 @@ test.describe('Email settings', () => {
     // Nothing edited yet, so there is nothing to save.
     await expect(page.getByRole('button', { name: 'Speichern' })).toBeDisabled();
 
-    await page.route('**/api/settings/mail/test', (route) => route.fulfill({ json: { success: true, message: '' } }));
+    const probes = (imap: { success: boolean; message: string }, smtp: { success: boolean; message: string }) => ({ imap, smtp });
+    const reachable = { success: true, message: '' };
+    await page.route('**/api/settings/mail/test', (route) => route.fulfill({ json: probes(reachable, reachable) }));
 
     await page.getByRole('button', { name: 'Eigener Server (IMAP/SMTP)' }).click();
     // A provider preset prefills the connection; only credentials remain to type.
@@ -64,8 +66,19 @@ test.describe('Email settings', () => {
     await page.getByRole('button', { name: 'Verbindung testen' }).click();
     await expect(page.getByText('Verbindung erfolgreich')).toBeVisible();
 
-    await page.route('**/api/settings/mail/test', (route) => route.fulfill({ json: { success: false, message: 'AUTHENTICATIONFAILED' } }));
+    // A mailbox that reads but cannot answer used to pass as a success; now it says which half.
+    await page.route('**/api/settings/mail/test', (route) =>
+      route.fulfill({ json: probes(reachable, { success: false, message: 'Connection refused' }) }),
+    );
     await page.getByRole('button', { name: 'Verbindung testen' }).click();
+    await expect(page.getByText('Versand nicht erreichbar')).toBeVisible();
+    await expect(page.getByText('Connection refused')).toBeVisible();
+
+    await page.route('**/api/settings/mail/test', (route) =>
+      route.fulfill({ json: probes({ success: false, message: 'AUTHENTICATIONFAILED' }, reachable) }),
+    );
+    await page.getByRole('button', { name: 'Verbindung testen' }).click();
+    await expect(page.getByText('Posteingang nicht erreichbar')).toBeVisible();
     await expect(page.getByText('AUTHENTICATIONFAILED')).toBeVisible();
 
     await page.getByRole('button', { name: 'Speichern' }).click();

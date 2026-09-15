@@ -59,15 +59,19 @@ class MailSettingsController {
 	}
 
 	/**
-	 * Probes the IMAP mailbox with the form values as they currently stand — deliberately not
-	 * the stored ones, so a configuration can be tested before saving it. A blank password
-	 * means the stored one, mirroring the save semantics.
+	 * Probes both halves of the mailbox with the form values as they currently stand —
+	 * deliberately not the stored ones, so a configuration can be tested before saving it. A blank
+	 * password means the stored one, mirroring the save semantics. What is required here is what
+	 * is required to save: a test that accepts a configuration the save would reject tests
+	 * something nobody can keep.
 	 */
 	@PostMapping("/test")
 	MailConnectionTester.MailConnectionTestResult testConnection(@Valid @RequestBody UpdateMailSettingsRequest request) {
 		AppUser user = currentSession.user();
 		requireText(request.imapHost(), "imapHost");
 		requirePort(request.imapPort(), "imapPort");
+		requireText(request.smtpHost(), "smtpHost");
+		requirePort(request.smtpPort(), "smtpPort");
 		requireText(request.username(), "username");
 		requireText(request.folder(), "folder");
 		String password = StringUtils.hasText(request.password()) ? request.password()
@@ -77,7 +81,8 @@ class MailSettingsController {
 			throw badRequest("password is required — nothing stored to fall back to");
 		}
 		return mailConnectionTester.test(request.imapHost(), request.imapPort(),
-				Boolean.TRUE.equals(request.imapTls()), request.username(), password, request.folder());
+				Boolean.TRUE.equals(request.imapTls()), request.smtpHost(), request.smtpPort(),
+				Boolean.TRUE.equals(request.smtpTls()), request.username(), password, request.folder());
 	}
 
 	private void applyCustom(TenantMailSettings settings, UpdateMailSettingsRequest request) {

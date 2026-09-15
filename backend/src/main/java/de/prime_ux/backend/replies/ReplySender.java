@@ -6,6 +6,7 @@ import de.prime_ux.backend.cases.CaseEvents;
 import de.prime_ux.backend.cases.CaseMessage;
 import de.prime_ux.backend.cases.CaseMessageRepository;
 import de.prime_ux.backend.cases.CaseRepository;
+import de.prime_ux.backend.mailsettings.SmtpProperties;
 import de.prime_ux.backend.mailsettings.TenantMailSettings;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import de.prime_ux.backend.tenants.Tenant;
@@ -23,7 +24,6 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -48,8 +48,6 @@ public class ReplySender {
 
 	/** A subject that already says it is a reply, in either language, is left alone. */
 	private static final Pattern REPLY_PREFIX = Pattern.compile("^(re|aw)\\s*:", Pattern.CASE_INSENSITIVE);
-
-	private static final String TIMEOUT_MILLIS = "10000";
 
 	private final CaseRepository caseRepository;
 	private final CaseMessageRepository caseMessageRepository;
@@ -121,7 +119,8 @@ public class ReplySender {
 	private String deliver(Case mailCase, Tenant tenant, TenantMailSettings settings, List<CaseMessage> conversation,
 			CaseMessage answered, String to, String subject) {
 		try {
-			MimeMessage message = new MimeMessage(Session.getInstance(smtpProperties(settings)));
+			MimeMessage message = new MimeMessage(Session.getInstance(SmtpProperties.of(settings.getSmtpHost(),
+					settings.getSmtpPort(), settings.isSmtpTls())));
 			message.setFrom(new InternetAddress(settings.getUsername(), tenant.getName(), "UTF-8"));
 			String recipient = mailCase.getRecipient();
 			if (recipient != null && !recipient.isBlank() && !recipient.equalsIgnoreCase(settings.getUsername())) {
@@ -147,29 +146,6 @@ public class ReplySender {
 		} catch (MessagingException | UnsupportedEncodingException e) {
 			throw new ReplySendException("Could not send the reply to case " + mailCase.getId() + ": " + e.getMessage(), e);
 		}
-	}
-
-	/**
-	 * Port 465 is SMTP over TLS from the first byte; everything else is plain SMTP that upgrades
-	 * with STARTTLS when the settings ask for TLS — which is what port 587 and "TLS verwenden"
-	 * mean at every common provider.
-	 */
-	static Properties smtpProperties(TenantMailSettings settings) {
-		boolean implicitTls = settings.getSmtpPort() == 465;
-		String protocol = implicitTls ? "smtps" : "smtp";
-		Properties properties = new Properties();
-		properties.put("mail.transport.protocol", protocol);
-		properties.put("mail." + protocol + ".host", settings.getSmtpHost());
-		properties.put("mail." + protocol + ".port", String.valueOf(settings.getSmtpPort()));
-		properties.put("mail." + protocol + ".auth", "true");
-		properties.put("mail." + protocol + ".connectiontimeout", TIMEOUT_MILLIS);
-		properties.put("mail." + protocol + ".timeout", TIMEOUT_MILLIS);
-		properties.put("mail." + protocol + ".writetimeout", TIMEOUT_MILLIS);
-		if (!implicitTls && settings.isSmtpTls()) {
-			properties.put("mail.smtp.starttls.enable", "true");
-			properties.put("mail.smtp.starttls.required", "true");
-		}
-		return properties;
 	}
 
 	/** "Re: " in front of the subject, unless it already says so — in English or in German. */

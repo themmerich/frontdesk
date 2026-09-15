@@ -14,7 +14,14 @@ import { MessageModule } from 'primeng/message';
 import { SelectButtonModule } from 'primeng/selectbutton';
 
 import { MailSettingsService } from '../data/mail-settings-service';
-import { GREENMAIL_DEFAULTS, MAIL_PROVIDER_PRESETS, MailProviderPreset, MailSettings, MailSettingsMode } from '../model/mail-settings';
+import {
+  GREENMAIL_DEFAULTS,
+  MAIL_PROVIDER_PRESETS,
+  MailProviderPreset,
+  MailSettings,
+  MailSettingsMode,
+  ProbeResult,
+} from '../model/mail-settings';
 
 type MailSettingsFormModel = {
   mode: MailSettingsMode;
@@ -145,11 +152,19 @@ export class SettingsPage {
   }
 
   /**
-   * Probes the mailbox with the form values as they currently stand, without saving. Only the
-   * fields the probe actually needs (IMAP, username, folder) have to be valid.
+   * Probes both halves of the mailbox with the form values as they currently stand, without
+   * saving. Every field the probe needs has to be valid — the outgoing server included, which is
+   * what is tested here and not merely saved.
    */
   protected async onTestConnection(): Promise<void> {
-    const fieldsForTest = [this.settingsForm.imapHost, this.settingsForm.imapPort, this.settingsForm.username, this.settingsForm.folder];
+    const fieldsForTest = [
+      this.settingsForm.imapHost,
+      this.settingsForm.imapPort,
+      this.settingsForm.smtpHost,
+      this.settingsForm.smtpPort,
+      this.settingsForm.username,
+      this.settingsForm.folder,
+    ];
     if (fieldsForTest.some((field) => field().invalid())) {
       this.hasSubmitAttempted.set(true);
       return;
@@ -157,22 +172,32 @@ export class SettingsPage {
     this.isTesting.set(true);
     try {
       const result = await this.mailSettingsService.test(this.model());
-      if (result.success) {
+      if (result.imap.success && result.smtp.success) {
         this.messageService.add({ severity: 'success', summary: this.transloco.translate('settings.testSuccess') });
-      } else {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.transloco.translate('settings.testFailed'),
-          detail: result.message,
-          // The technical reason takes a moment to read.
-          life: 8000,
-        });
+        return;
       }
+      // One toast per broken half, each with its own reason: a single message could only ever
+      // name one of them, and the other would be the one that bites later.
+      this.reportFailedHalf('settings.testFailedImap', result.imap);
+      this.reportFailedHalf('settings.testFailedSmtp', result.smtp);
     } catch {
       this.messageService.add({ severity: 'error', summary: this.transloco.translate('settings.testError') });
     } finally {
       this.isTesting.set(false);
     }
+  }
+
+  private reportFailedHalf(summaryKey: string, probe: ProbeResult): void {
+    if (probe.success) {
+      return;
+    }
+    this.messageService.add({
+      severity: 'warn',
+      summary: this.transloco.translate(summaryKey),
+      detail: probe.message,
+      // The technical reason takes a moment to read.
+      life: 8000,
+    });
   }
 
   protected async onSave(event: Event): Promise<void> {
