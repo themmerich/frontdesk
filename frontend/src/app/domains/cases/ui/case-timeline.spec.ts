@@ -63,10 +63,7 @@ describe('CaseTimeline', () => {
   }
 
   it('names who a case was handed to, and says when it was handed back', () => {
-    const element = render([
-      event('assigned', { assigneeName: 'Ben Beispiel' }, 'Anna Muster'),
-      event('unassigned', {}, 'Anna Muster'),
-    ]);
+    const element = render([event('assigned', { assigneeName: 'Ben Beispiel' }, 'Anna Muster'), event('unassigned', {}, 'Anna Muster')]);
 
     // The name is written into the entry, not only into the case: the trail outlives the account.
     expect(entries(element).map((entry) => entry.text)).toEqual(['Assigned to Ben Beispiel', 'Assignment cleared']);
