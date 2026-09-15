@@ -9,12 +9,12 @@
         severity="secondary"
         [outlined]="true"
         [label]="t('dashboard.refresh')"
-        [loading]="casesService.cases.isLoading()"
+        [loading]="statisticsService.statistics.isLoading()"
         (onClick)="onRefresh()"
       />
     </div>
 
-    @if (casesService.cases.error()) {
+    @if (statisticsService.statistics.error()) {
       <p class="text-red-600 dark:text-red-400">{{ t('cases.loadError') }}</p>
     } @else {
       <!-- The numbers first, because they are read at a glance and the charts are not. Where the

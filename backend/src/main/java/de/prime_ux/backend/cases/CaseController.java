@@ -8,6 +8,9 @@ import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.users.AppUserRepository;
 import jakarta.validation.Valid;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -68,6 +71,35 @@ class CaseController {
 				.collect(Collectors.toMap(MessageCountPerCase::getCaseId, MessageCountPerCase::getMessageCount));
 		return caseRepository.findAllByTenantIdOrderByLastMessageAtDesc(tenantId).stream()
 				.map(aCase -> CaseResponse.from(aCase, messageCounts.getOrDefault(aCase.getId(), 0L))).toList();
+	}
+
+	/**
+	 * What the dashboard shows, summed in the database: the rows never leave the server, only the
+	 * numbers do. Stands before {@code /{id}}, which takes a UUID and therefore cannot catch it.
+	 */
+	@GetMapping("/statistics")
+	@Transactional(readOnly = true)
+	CaseStatisticsResponse getStatistics() {
+		Instant now = Instant.now();
+		UUID tenantId = currentSession.tenant().getId();
+		// The server's zone decides where a day and a month end; the tenants are German
+		// businesses and the server stands where they do.
+		ZoneId zone = ZoneId.systemDefault();
+		Map<String, CaseRepository.WindowCount> windows = new LinkedHashMap<>();
+		for (String window : CaseStatisticsReport.windows()) {
+			CaseStatisticsReport.Bounds bounds = CaseStatisticsReport.boundsFor(window, now, zone);
+			windows.put(window, caseRepository.countInWindow(tenantId, bounds.from(), bounds.to(),
+					bounds.previousFrom(), bounds.previousTo()));
+		}
+		return CaseStatisticsReport.build(caseRepository.totals(tenantId), windows,
+				caseRepository.countByCategory(tenantId), caseRepository.countByTier(tenantId),
+				caseRepository.countByPeriod(tenantId, CaseStatisticsReport.hoursReach(now, zone), "hour",
+						zone.getId(), "YYYY-MM-DD\"T\"HH24"),
+				caseRepository.countByPeriod(tenantId, CaseStatisticsReport.daysReach(now, zone), "day", zone.getId(),
+						"YYYY-MM-DD"),
+				caseRepository.countByPeriod(tenantId, CaseStatisticsReport.monthsReach(now, zone), "month",
+						zone.getId(), "YYYY-MM"),
+				now, zone);
 	}
 
 	/**

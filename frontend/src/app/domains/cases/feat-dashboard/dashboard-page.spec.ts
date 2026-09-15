@@ -4,8 +4,8 @@ import { By } from '@angular/platform-browser';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { UIChart } from 'primeng/chart';
 
-import { CasesService } from '../data/cases-service';
-import { Case } from '../model/case';
+import { CaseStatisticsService } from '../data/case-statistics-service';
+import { ArrivalBucket, CaseStatistics } from '../model/case-statistics';
 import { DashboardPage } from './dashboard-page';
 
 // A canvas has no drawing context in JSDOM, and Chart.js refuses to be built without one. The
@@ -53,32 +53,50 @@ const translations = {
   },
 };
 
-function aCase(overrides: Partial<Case> = {}): Case {
+/** Buckets as the server sends them: the full run, named by where each one begins. */
+function buckets(periods: string[], counts: Record<string, Record<string, number>> = {}): ArrivalBucket[] {
+  return periods.map((period) => {
+    const byCategory = counts[period] ?? {};
+    return {
+      period,
+      count: Object.values(byCategory).reduce((sum, count) => sum + count, 0),
+      byCategory,
+    };
+  });
+}
+
+function days(counts: Record<string, Record<string, number>> = {}): ArrivalBucket[] {
+  // Thirty consecutive days ending on a fixed one, so a label never depends on the day the test runs.
+  const periods = Array.from({ length: 30 }, (_, index) => {
+    const day = new Date(Date.UTC(2026, 8, 15));
+    day.setUTCDate(day.getUTCDate() - (29 - index));
+    return day.toISOString().slice(0, 10);
+  });
+  return buckets(periods, counts);
+}
+
+function statisticsFor(overrides: Partial<CaseStatistics> = {}): CaseStatistics {
   return {
-    id: '1',
-    sender: 'anna@example.com',
-    recipient: 'info@example.com',
-    subject: 'Delivery status',
-    receivedAt: new Date(),
-    lastMessageAt: new Date(),
-    messageCount: 1,
-    hasAttachments: false,
-    sizeBytes: 2048,
-    summary: null,
-    categoryId: null,
-    categoryName: null,
-    categoryColor: null,
-    tier: null,
-    confidence: null,
-    handledAt: null,
-    deletedAt: null,
-    hasDraft: false,
+    totals: { all: 0, untriaged: 0, manual: 0, archived: 0, trashed: 0 },
+    windows: { today: { count: 0, previous: 0 }, week: { count: 0, previous: 0 }, month: { count: 0, previous: 0 } },
+    byCategory: [],
+    byTier: [
+      { tier: 'automatic', count: 0 },
+      { tier: 'draft', count: 0 },
+      { tier: 'manual', count: 0 },
+      { tier: 'info', count: 0 },
+      { tier: 'ignore', count: 0 },
+      { tier: null, count: 0 },
+    ],
+    hours: buckets(Array.from({ length: 24 }, (_, hour) => `2026-09-15T${String(hour).padStart(2, '0')}`)),
+    days: days(),
+    months: buckets(Array.from({ length: 12 }, (_, index) => `2026-${String(index + 1).padStart(2, '0')}`)),
     ...overrides,
   };
 }
 
 describe('DashboardPage', () => {
-  const cases = signal<Case[]>([]);
+  const statistics = signal<CaseStatistics | undefined>(undefined);
   const error = signal<unknown>(undefined);
   const status = signal<'loading' | 'reloading' | 'resolved'>('resolved');
   const isLoading = computed(() => status() !== 'resolved');
@@ -94,7 +112,7 @@ describe('DashboardPage', () => {
       removeEventListener: () => undefined,
     });
 
-    cases.set([]);
+    statistics.set(statisticsFor());
     error.set(undefined);
     status.set('resolved');
     reload.mockClear();
@@ -110,10 +128,9 @@ describe('DashboardPage', () => {
       providers: [
         provideZonelessChangeDetection(),
         {
-          provide: CasesService,
-          // The page reads the whole list once and splits it itself, so every number on it comes
-          // from the same reading.
-          useValue: { cases: { value: cases, error, status, isLoading, reload } },
+          provide: CaseStatisticsService,
+          // Nothing is counted here: the page draws the sums the server already made.
+          useValue: { statistics: { value: statistics, error, status, isLoading, reload } },
         },
       ],
     }).compileComponents();
@@ -130,59 +147,25 @@ describe('DashboardPage', () => {
     return charts[index].componentInstance.data() as { labels: string[]; datasets: { data: number[] }[] };
   }
 
-  it('counts what the inbox holds, and what of it is waiting for someone', () => {
-    const midnight = new Date();
-    midnight.setHours(0, 0, 0, 0);
-    const yesterday = new Date(midnight);
-    yesterday.setDate(yesterday.getDate() - 1);
-    cases.set([
-      aCase({ tier: 'automatic' }),
-      aCase({ id: '2', tier: 'manual' }),
-      aCase({ id: '3', tier: 'draft' }),
-      // Not triaged, and not from today either.
-      aCase({ id: '4', receivedAt: yesterday }),
-    ]);
+  it('shows the tiles the server counted', () => {
+    statistics.set(statisticsFor({ totals: { all: 4, untriaged: 1, manual: 2, archived: 3, trashed: 2 } }));
 
     const text = (createFixture().nativeElement as HTMLElement).textContent;
 
     expect(text).toContain('Cases in total');
-    // Four in total, one untriaged, two on someone's desk, three of them from today.
     expect(text).toMatch(/Cases in total\s*4/);
     expect(text).toMatch(/Not triaged yet\s*1/);
     expect(text).toMatch(/Waiting for an answer\s*2/);
-    expect(text).toMatch(/Today\s*3/);
-  });
-
-  it('counts what is in the archive and in the trash, and leaves the trash out of the rest', () => {
-    cases.set([
-      aCase({ id: '1', tier: 'manual' }),
-      aCase({ id: '2', tier: 'info', handledAt: new Date() }),
-      aCase({ id: '3', tier: 'info', handledAt: new Date() }),
-      aCase({ id: '4', tier: 'manual', deletedAt: new Date() }),
-      // Thrown away after it was ticked off: it counts as trash, not as archive.
-      aCase({ id: '5', tier: 'info', handledAt: new Date(), deletedAt: new Date() }),
-    ]);
-
-    const text = (createFixture().nativeElement as HTMLElement).textContent;
-
-    expect(text).toMatch(/In the archive\s*2/);
+    expect(text).toMatch(/In the archive\s*3/);
     expect(text).toMatch(/In the trash\s*2/);
-    // Three left over, and the two in the trash are in none of the numbers about the work.
-    expect(text).toMatch(/Cases in total\s*3/);
-    expect(text).toMatch(/Waiting for an answer\s*1/);
   });
 
   it('marks a trend with a triangle that points and carries the colour', () => {
-    const hoursAgo = (hours: number) => {
-      const then = new Date();
-      then.setHours(then.getHours() - hours);
-      return then;
-    };
-    cases.set([
-      aCase({ receivedAt: hoursAgo(1) }),
-      aCase({ id: '2', receivedAt: hoursAgo(2) }),
-      aCase({ id: '3', receivedAt: hoursAgo(25) }),
-    ]);
+    statistics.set(
+      statisticsFor({
+        windows: { today: { count: 2, previous: 1 }, week: { count: 9, previous: 4 }, month: { count: 30, previous: 20 } },
+      }),
+    );
 
     const element = createFixture().nativeElement as HTMLElement;
 
@@ -196,8 +179,6 @@ describe('DashboardPage', () => {
   });
 
   it('leaves a stretch that did not move without a direction, and without a colour', () => {
-    cases.set([]);
-
     const element = createFixture().nativeElement as HTMLElement;
 
     // Nothing to point at, so there is no attribute for styles.css to colour — only the dash.
@@ -205,12 +186,43 @@ describe('DashboardPage', () => {
     expect(element.querySelectorAll('i.pi-minus').length).toBe(3);
   });
 
-  it('draws the categories, the tiers and the arrivals', () => {
-    cases.set([
-      aCase({ categoryId: 'c1', categoryName: 'Statusanfrage', categoryColor: 'blue', tier: 'automatic' }),
-      aCase({ id: '2', categoryId: 'c1', categoryName: 'Statusanfrage', categoryColor: 'blue', tier: 'automatic' }),
-      aCase({ id: '3' }),
-    ]);
+  it('measures each stretch against the one before it', () => {
+    statistics.set(
+      statisticsFor({
+        windows: { today: { count: 2, previous: 1 }, week: { count: 3, previous: 0 }, month: { count: 3, previous: 0 } },
+      }),
+    );
+
+    const text = (createFixture().nativeElement as HTMLElement).textContent;
+
+    expect(text).toMatch(/Today\s*2/);
+    // The space before the percent sign is a non-breaking one.
+    expect(text).toMatch(/\+100\s%/);
+    expect(text).toContain('vs. yesterday');
+    // Against nothing there is no percentage to give, only the number itself.
+    expect(text).toMatch(/Last 7 days\s*3/);
+    expect(text).toContain('+3');
+    expect(text).toContain('vs. previous week');
+  });
+
+  it('draws the categories, the tiers and the arrivals as they were handed over', () => {
+    statistics.set(
+      statisticsFor({
+        byCategory: [
+          { id: 'c1', name: 'Statusanfrage', color: 'blue', count: 2 },
+          { id: null, name: null, color: null, count: 1 },
+        ],
+        byTier: [
+          { tier: 'automatic', count: 2 },
+          { tier: 'draft', count: 0 },
+          { tier: 'manual', count: 0 },
+          { tier: 'info', count: 0 },
+          { tier: 'ignore', count: 0 },
+          { tier: null, count: 1 },
+        ],
+        days: days({ '2026-09-15': { c1: 2, none: 1 } }),
+      }),
+    );
 
     const fixture = createFixture();
 
@@ -219,82 +231,18 @@ describe('DashboardPage', () => {
     expect(categories.labels).toEqual(['Statusanfrage', 'Without a category']);
     expect(categories.datasets[0].data).toEqual([2, 1]);
     const tiers = chartData(fixture, 1);
+    // The ladder comes in order from the server, gaps and the untriaged behind it included.
     expect(tiers.labels).toEqual(['Automatic', 'Draft', 'Manual', 'Info', 'Ignore', 'Not triaged']);
     expect(tiers.datasets[0].data).toEqual([2, 0, 0, 0, 0, 1]);
-    // Thirty days to begin with, and today's three cases on the last of them.
     const arrivals = chartData(fixture, 2);
     expect(arrivals.labels).toHaveLength(30);
     expect(arrivals.datasets[0].data.at(-1)).toBe(3);
   });
 
-  it('asks for fresh cases when it opens, and keeps that one reading', async () => {
-    cases.set([aCase({ tier: 'automatic' })]);
-
+  it('switches the steps of the arrivals chart without asking again', async () => {
     const fixture = createFixture();
     await fixture.whenStable();
-
-    // Not whatever the last poll left behind: this visit gets its own answer.
-    expect(reload).toHaveBeenCalledTimes(1);
-    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*1/);
-
-    // What the ten-second poll does behind the page: it reloads and settles again on new cases.
-    // Redrawing on that is what made the charts flicker, so the page stays on what it opened with.
-    status.set('reloading');
-    await fixture.whenStable();
-    cases.set([aCase({ tier: 'automatic' }), aCase({ id: '2', tier: 'manual' })]);
-    status.set('resolved');
-    await fixture.whenStable();
-
-    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*1/);
-    expect(chartData(fixture, 1).datasets[0].data).toEqual([1, 0, 0, 0, 0, 0]);
-  });
-
-  it('waits for the answer to settle before it reads anything', async () => {
-    status.set('loading');
-    cases.set([]);
-
-    const fixture = createFixture();
-    await fixture.whenStable();
-    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*0/);
-
-    // The default value of an unsettled resource is empty; the page waits it out.
-    cases.set([aCase(), aCase({ id: '2' })]);
-    status.set('resolved');
-    await fixture.whenStable();
-
-    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*2/);
-  });
-
-  it('measures the last stretches against the ones before them', async () => {
-    const hoursAgo = (hours: number) => {
-      const then = new Date();
-      then.setHours(then.getHours() - hours);
-      return then;
-    };
-    cases.set([
-      // Two today, one yesterday around the same time: twice as many as the day before.
-      aCase({ receivedAt: hoursAgo(1) }),
-      aCase({ id: '2', receivedAt: hoursAgo(2) }),
-      aCase({ id: '3', receivedAt: hoursAgo(25) }),
-    ]);
-
-    const text = (createFixture().nativeElement as HTMLElement).textContent;
-
-    expect(text).toMatch(/Today\s*2/);
-    // The space before the percent sign is a non-breaking one.
-    expect(text).toMatch(/\+100\s%/);
-    expect(text).toContain('vs. yesterday');
-    // Nothing in the seven days before the last seven, so there is no percentage to give.
-    expect(text).toMatch(/Last 7 days\s*3/);
-    expect(text).toContain('+3');
-    expect(text).toContain('vs. previous week');
-    expect(text).toMatch(/Last 30 days\s*3/);
-  });
-
-  it('counts the arrivals in the steps the chosen period asks for', async () => {
-    cases.set([aCase()]);
-    const fixture = createFixture();
-    await fixture.whenStable();
+    reload.mockClear();
 
     // Thirty days to begin with, one point per day.
     expect(chartData(fixture, 2).labels).toHaveLength(30);
@@ -304,24 +252,37 @@ describe('DashboardPage', () => {
     const period = (label: string) => element.querySelector<HTMLElement>(`p-togglebutton[aria-label="${label}"]`)!;
     period('Today').click();
     await fixture.whenStable();
-    // Today, one point per hour.
     expect(chartData(fixture, 2).labels).toHaveLength(24);
+
+    period('7 days').click();
+    await fixture.whenStable();
+    // The week is the last seven of the thirty days; the server sends them once.
+    expect(chartData(fixture, 2).labels).toHaveLength(7);
 
     period('12 months').click();
     await fixture.whenStable();
     expect(chartData(fixture, 2).labels).toHaveLength(12);
+
+    // Every series came with the one reading, so switching costs no request.
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('narrows the arrivals to one category, and offers the ones the cases carry', async () => {
-    cases.set([
-      aCase({ categoryId: 'c1', categoryName: 'Jobsuche' }),
-      aCase({ id: '2', categoryId: 'c1', categoryName: 'Jobsuche' }),
-      aCase({ id: '3', categoryId: 'c2', categoryName: 'Werbung' }),
-      aCase({ id: '4' }),
-    ]);
+    statistics.set(
+      statisticsFor({
+        byCategory: [
+          { id: 'c1', name: 'Jobsuche', color: 'blue', count: 2 },
+          { id: 'c2', name: 'Werbung', color: 'amber', count: 1 },
+          { id: null, name: null, color: null, count: 1 },
+        ],
+        days: days({ '2026-09-15': { c1: 2, c2: 1, none: 1 } }),
+        totals: { all: 4, untriaged: 1, manual: 0, archived: 0, trashed: 0 },
+      }),
+    );
     const fixture = createFixture();
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
+    reload.mockClear();
 
     // Everything to begin with: all four on today's point.
     expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(4);
@@ -335,14 +296,23 @@ describe('DashboardPage', () => {
     (options[2] as HTMLElement).click();
     await fixture.whenStable();
 
-    // Only the one case filed under Werbung is left on the chart.
+    // Only the one case filed under Werbung is left on the chart, and it came out of the bucket.
     expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(1);
+    expect(reload).not.toHaveBeenCalled();
     // The numbers above the chart are not part of the filter.
     expect(element.textContent).toMatch(/Cases in total\s*4/);
   });
 
   it('goes back to every category when the one picked is no longer among the cases', async () => {
-    cases.set([aCase({ categoryId: 'c1', categoryName: 'Jobsuche' }), aCase({ id: '2' })]);
+    statistics.set(
+      statisticsFor({
+        byCategory: [
+          { id: 'c1', name: 'Jobsuche', color: 'blue', count: 1 },
+          { id: null, name: null, color: null, count: 1 },
+        ],
+        days: days({ '2026-09-15': { c1: 1, none: 1 } }),
+      }),
+    );
     const fixture = createFixture();
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
@@ -354,7 +324,12 @@ describe('DashboardPage', () => {
     expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(1);
 
     // Read again, and the Jobsuche case is gone.
-    cases.set([aCase({ id: '2' })]);
+    statistics.set(
+      statisticsFor({
+        byCategory: [{ id: null, name: null, color: null, count: 1 }],
+        days: days({ '2026-09-15': { none: 1 } }),
+      }),
+    );
     (element.querySelector('p-button button') as HTMLButtonElement).click();
     await fixture.whenStable();
 
@@ -363,22 +338,37 @@ describe('DashboardPage', () => {
   });
 
   it('reads again when the refresh button is pressed', async () => {
-    cases.set([aCase()]);
+    statistics.set(statisticsFor({ totals: { all: 1, untriaged: 1, manual: 0, archived: 0, trashed: 0 } }));
     const fixture = createFixture();
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toMatch(/Cases in total\s*1/);
 
     // What arrived while the page stood still.
-    cases.set([aCase(), aCase({ id: '2' })]);
+    statistics.set(statisticsFor({ totals: { all: 2, untriaged: 2, manual: 0, archived: 0, trashed: 0 } }));
     (element.querySelector('p-button button') as HTMLButtonElement).click();
     await fixture.whenStable();
 
-    expect(reload).toHaveBeenCalledTimes(2);
+    expect(reload).toHaveBeenCalledTimes(1);
     expect(element.textContent).toMatch(/Cases in total\s*2/);
   });
 
-  it('says so when the cases cannot be loaded, instead of drawing an empty chart', () => {
+  it('shows zeroes rather than nothing while the answer is still on its way', async () => {
+    status.set('loading');
+    statistics.set(undefined);
+
+    const fixture = createFixture();
+    await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*0/);
+
+    statistics.set(statisticsFor({ totals: { all: 2, untriaged: 2, manual: 0, archived: 0, trashed: 0 } }));
+    status.set('resolved');
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(/Cases in total\s*2/);
+  });
+
+  it('says so when the numbers cannot be loaded, instead of drawing an empty chart', () => {
     error.set(new Error('offline'));
 
     const fixture = createFixture();
