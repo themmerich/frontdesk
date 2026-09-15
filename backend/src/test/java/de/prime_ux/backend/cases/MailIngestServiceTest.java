@@ -395,7 +395,8 @@ class MailIngestServiceTest {
 		Case aCase = caseRepository.save(new Case(tenant, "<opening@example.com>", "kunde@example.com",
 				"inbox@frontdesk.local", subject, Instant.now().minusSeconds(3600), false, 2048));
 		caseMessageRepository.save(CaseMessage.incoming(aCase, 0, "<opening@example.com>", "kunde@example.com",
-				"inbox@frontdesk.local", subject, "Wann kommt die Lieferung?", null, aCase.getReceivedAt(), 2048));
+				"inbox@frontdesk.local", subject, "Wann kommt die Lieferung?", null, aCase.getReceivedAt(), 2048,
+				false));
 		caseMessageRepository.save(CaseMessage.outgoing(aCase, 1, "<reply@frontdesk.local>", "inbox@frontdesk.local",
 				"kunde@example.com", "Re: " + subject, "Morgen.", Instant.now().minusSeconds(1800), "Anna Muster"));
 		aCase.markSent(Instant.now().minusSeconds(1800));
@@ -478,14 +479,14 @@ class MailIngestServiceTest {
 		Case trashed = caseRepository.save(new Case(tenant, "<trashed@example.com>", "kunde@example.com",
 				"inbox@frontdesk.local", "Reklamation", Instant.now().minusSeconds(60), false, 1024));
 		caseMessageRepository.save(CaseMessage.incoming(trashed, 0, "<trashed@example.com>", "kunde@example.com",
-				"inbox@frontdesk.local", "Reklamation", "Kaputt.", null, trashed.getReceivedAt(), 1024));
+				"inbox@frontdesk.local", "Reklamation", "Kaputt.", null, trashed.getReceivedAt(), 1024, false));
 		trashed.moveToTrash();
 		caseRepository.save(trashed);
 		Case old = caseRepository.save(new Case(tenant, "<old@example.com>", "kunde@example.com",
 				"inbox@frontdesk.local", "Angebot", Instant.now().minus(MailIngestService.FOLLOW_UP_WINDOW).minusSeconds(60),
 				false, 1024));
 		caseMessageRepository.save(CaseMessage.incoming(old, 0, "<old@example.com>", "kunde@example.com",
-				"inbox@frontdesk.local", "Angebot", "Bitte ein Angebot.", null, old.getReceivedAt(), 1024));
+				"inbox@frontdesk.local", "Angebot", "Bitte ein Angebot.", null, old.getReceivedAt(), 1024, false));
 
 		// Somebody else on the same subject; the same customer on another subject; a reply to the
 		// case in the trash, headers and all; and the same subject long after the last word.
@@ -504,6 +505,74 @@ class MailIngestServiceTest {
 		assertThat(conversationOf(answered)).hasSize(2);
 		assertThat(conversationOf(trashed)).hasSize(1);
 		assertThat(conversationOf(old)).hasSize(1);
+	}
+
+	@Test
+	void opensItsOwnCaseForEveryBulkMailHoweverOftenTheSubjectRepeats() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Case answered = answeredCase("Lieferung 4711");
+		// Three ways a machine says it is one, each against a case it would otherwise join.
+		MimeMessage list = mailFrom("kunde@example.com", "Re: Lieferung 4711", "Neue Projekte: 2");
+		list.setHeader("List-Unsubscribe", "<https://example.com/abmelden>");
+		inbox.deliver(list);
+		MimeMessage precedence = mailFrom("kunde@example.com", "Re: Lieferung 4711", "Neue Projekte: 1");
+		precedence.setHeader("Precedence", "Bulk");
+		inbox.deliver(precedence);
+		MimeMessage generated = mailFrom("kunde@example.com", "Re: Lieferung 4711", "Neue Projekte: 3");
+		generated.setHeader("Auto-Submitted", "auto-generated");
+		inbox.deliver(generated);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		// Three cases of their own; the conversation is left as it was.
+		assertThat(caseRepository.count()).isEqualTo(4);
+		assertThat(conversationOf(answered)).hasSize(2);
+		assertThat(caseMessageRepository.findAll()).filteredOn(CaseMessage::isBulk).hasSize(3);
+	}
+
+	@Test
+	void staysWithTheConversationWhenTheHeadersSayItBelongsThereEvenForBulk() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Case answered = answeredCase("Lieferung 4711");
+		// A ticket system answering our reply marks itself automated, but names what it answers.
+		MimeMessage reply = mailFrom("kunde@example.com", "Re: Lieferung 4711", "Ticket 9 aktualisiert.");
+		reply.setHeader("Auto-Submitted", "auto-replied");
+		reply.setHeader("In-Reply-To", "<reply@frontdesk.local>");
+		inbox.deliver(reply);
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		// Evidence beats the guess: the headers place it, and the flag is still written down.
+		assertThat(caseRepository.count()).isEqualTo(1);
+		assertThat(conversationOf(answered)).hasSize(3).last().satisfies(last -> assertThat(last.isBulk()).isTrue());
+	}
+
+	@Test
+	void opensANewCaseForTheSameSubjectWhereNothingWasEverAnswered() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		// The shape of a notification that carries no headers at all: same sender, same subject,
+		// no "Re:" in front, and nobody ever wrote back to it.
+		inbox.deliver(mailFrom("office@example.com", "Architekt - Anzahl neue Projekte: 1", "Zwei Projekte."));
+		inbox.deliver(mailFrom("office@example.com", "Architekt - Anzahl neue Projekte: 1", "Ein Projekt."));
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		assertThat(caseRepository.count()).isEqualTo(2);
+		assertThat(caseRepository.findAll()).allSatisfy(aCase -> assertThat(conversationOf(aCase)).hasSize(1));
+	}
+
+	@Test
+	void filesAMailWithoutAPrefixUnderTheCaseItAnswersOnceWeHaveWritten() throws Exception {
+		GreenMailUser inbox = greenMail.setUser("inbox@frontdesk.local", "inbox@frontdesk.local", "secret");
+		Case answered = answeredCase("Lieferung 4711");
+		// A customer who composes a fresh mail instead of replying: no headers, no prefix. Our
+		// reply on the case is what makes it an answer to something.
+		inbox.deliver(mailFrom("kunde@example.com", "Lieferung 4711", "Ist das jetzt unterwegs?"));
+
+		mailIngestService.pollOnce(settingsFor(tenant, "inbox@frontdesk.local"));
+
+		assertThat(caseRepository.count()).isEqualTo(1);
+		assertThat(conversationOf(answered)).hasSize(3);
 	}
 
 	@Test
@@ -529,6 +598,38 @@ class MailIngestServiceTest {
 		assertThat(MailIngestService.normalizedSubject("  WG:Fwd: Angebot ")).isEqualTo("angebot");
 		assertThat(MailIngestService.normalizedSubject("Rechnung")).isEqualTo("rechnung");
 		assertThat(MailIngestService.normalizedSubject(null)).isEmpty();
+	}
+
+	@Test
+	void seesAReplyPrefixOnlyWhereAClientPutOneInFront() {
+		assertThat(MailIngestService.hasReplyPrefix("AW: Lieferung 4711")).isTrue();
+		assertThat(MailIngestService.hasReplyPrefix("  wg:Fwd: Angebot")).isTrue();
+		assertThat(MailIngestService.hasReplyPrefix("Rechnung")).isFalse();
+		// Only in front: a subject that merely mentions one is not a reply.
+		assertThat(MailIngestService.hasReplyPrefix("Angebot Re: Lieferung")).isFalse();
+		assertThat(MailIngestService.hasReplyPrefix(null)).isFalse();
+	}
+
+	@Test
+	void readsWhatAMailSaysAboutBeingAutomated() throws Exception {
+		assertThat(MailIngestService.isBulk(mailFrom("a@example.com", "Angebot", "Text"))).isFalse();
+		assertThat(MailIngestService.isBulk(withHeader("List-Id", "<projekte.example.com>"))).isTrue();
+		assertThat(MailIngestService.isBulk(withHeader("List-Unsubscribe", "<https://example.com/x>"))).isTrue();
+		assertThat(MailIngestService.isBulk(withHeader("List-Post", "<mailto:l@example.com>"))).isTrue();
+		assertThat(MailIngestService.isBulk(withHeader("Precedence", " BULK "))).isTrue();
+		assertThat(MailIngestService.isBulk(withHeader("Precedence", "list"))).isTrue();
+		assertThat(MailIngestService.isBulk(withHeader("Auto-Submitted", "auto-generated"))).isTrue();
+		// What RFC 3834 says a mail written by a person carries, where it carries the header at all.
+		assertThat(MailIngestService.isBulk(withHeader("Auto-Submitted", "no"))).isFalse();
+		// A Precedence that says nothing about bulk says nothing at all.
+		assertThat(MailIngestService.isBulk(withHeader("Precedence", "first-class"))).isFalse();
+	}
+
+	/** A plain mail with one header set, for the reading above. */
+	private MimeMessage withHeader(String name, String value) throws Exception {
+		MimeMessage mail = mailFrom("a@example.com", "Angebot", "Text");
+		mail.setHeader(name, value);
+		return mail;
 	}
 
 	@Test

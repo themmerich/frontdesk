@@ -68,8 +68,10 @@ Gaps in what exists, each small enough for one PR.
       opening in a tab, the rest downloading; inline pictures are put back into the HTML mail.
 - [x] **Conversations** — a case is a conversation: the opening mail, every follow-up and every
       sent reply as messages. A customer's reply is filed under its case by In-Reply-To and
-      References, or by the same sender on the same subject within 30 days; the case comes back
-      into the inbox and can be answered again.
+      References, or by the same sender on the same subject within 30 days — the latter only
+      where a reply is possible at all: not for automated bulk mail, and only where a client put
+      a "Re:" in front or we already answered. The case comes back into the inbox and can be
+      answered again.
 - [ ] **Assignment** — assign a case to a person, with a "my cases" filter.
 - [ ] **Notes** — internal notes on a case, never sent to the customer.
 - [ ] **Notifications** — put the bell in the navbar to use: new manual cases, failed triage,
@@ -101,7 +103,8 @@ Gaps in what exists, each small enough for one PR.
 - [ ] **Server-side paging and search** — the list loads all of a tenant's cases into the
       browser every ten seconds; fine for hundreds, not for tens of thousands.
 - [ ] **Spam** — either an own tier or the mailbox's junk folder, so the model does not rate
-      every advertisement.
+      every advertisement. Every message now carries a `bulk` flag, read from the mail's own
+      List-*, Precedence and Auto-Submitted headers at ingest; nothing acts on it yet.
 
 ## Expansion
 

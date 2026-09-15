@@ -2,9 +2,23 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "backend",
+      "runtimeExecutable": "backend\\gradlew.bat",
+      "runtimeArgs": [
+        "--project-dir",
+        "backend",
+        "bootRun"
+      ],
+      "port": 8080
+    },
+    {
       "name": "frontend",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "frontend", "start:local"],
+      "runtimeArgs": [
+        "--dir",
+        "frontend",
+        "start:local"
+      ],
       "port": 4200
     }
   ]

@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +44,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Pulls unseen mails from one tenant's IMAP inbox. Each one either joins the conversation it
  * answers — found through its threading headers, or through the same sender writing about the
- * same subject — or opens a {@link Case} of its own. Either way the mail becomes a
- * {@link CaseMessage}, with whatever was attached to it as that message's {@link CaseAttachment}s.
+ * same subject where a reply is plausible at all — or opens a {@link Case} of its own. Either way
+ * the mail becomes a {@link CaseMessage}, with whatever was attached to it as that message's
+ * {@link CaseAttachment}s.
  *
  * <p>Processed mails are marked SEEN on the server, so every poll only touches new arrivals. A
  * mail whose Message-ID is already part of one of the tenant's conversations is skipped (protects
@@ -61,6 +63,12 @@ public class MailIngestService {
 	/** What mail clients put in front of a subject when replying or forwarding, in either language. */
 	private static final Pattern SUBJECT_PREFIXES = Pattern.compile("^(?:(?:re|aw|fwd?|wg)\\s*:\\s*)+",
 			Pattern.CASE_INSENSITIVE);
+
+	/** Headers whose mere presence says a machine sent this to a list of people (RFC 2369/2919). */
+	private static final String[] LIST_HEADERS = { "List-Id", "List-Unsubscribe", "List-Post" };
+
+	/** What a Precedence header says when the mail is not personal correspondence. */
+	private static final Set<String> BULK_PRECEDENCES = Set.of("bulk", "list", "junk", "auto_reply");
 
 	/** What a nameless part is called, by what it is; the rest goes without an extension. */
 	private static final Map<String, String> EXTENSIONS = Map.of("image/png", ".png", "image/jpeg", ".jpg",
@@ -140,7 +148,8 @@ public class MailIngestService {
 		String bodyHtml = bodyHtmlOf(message);
 		Instant receivedAt = receivedAtOf(message);
 		long size = sizeOf(message);
-		Optional<UUID> conversation = conversationFor(message, tenant, sender, subject);
+		boolean bulk = isBulk(message);
+		Optional<UUID> conversation = conversationFor(message, tenant, sender, subject, bulk);
 
 		Case stored = transaction.execute(status -> {
 			Case aCase;
@@ -156,7 +165,7 @@ public class MailIngestService {
 				position = 0;
 			}
 			CaseMessage saved = caseMessageRepository.save(CaseMessage.incoming(aCase, position, messageId, sender,
-					recipient, subject, bodyText, bodyHtml, receivedAt, size));
+					recipient, subject, bodyText, bodyHtml, receivedAt, size, bulk));
 			for (AttachmentPart attachment : attachments) {
 				caseAttachmentRepository.save(new CaseAttachment(saved, attachment.position(), attachment.fileName(),
 						attachment.contentType(), attachment.contentId(), attachment.inline(), attachment.content()));
@@ -173,13 +182,20 @@ public class MailIngestService {
 	/**
 	 * The conversation a mail belongs to, if any. First by what the mail itself says: the
 	 * Message-IDs it names in In-Reply-To and References, matched against every message of the
-	 * tenant's conversations, ours and theirs. Then, for clients that set no such headers, by the
-	 * same customer writing about the same subject within {@link #FOLLOW_UP_WINDOW}. A case in the
-	 * trash never matches: a customer writing again about something that was thrown away is a new
-	 * matter.
+	 * tenant's conversations, ours and theirs. That is evidence and always counts.
+	 *
+	 * <p>Then, for clients that set no such headers, by the same customer writing about the same
+	 * subject within {@link #FOLLOW_UP_WINDOW}. That is a guess, and it only answers the question
+	 * it was meant to answer — <em>is this a reply to something?</em> — where a reply is possible:
+	 * the mail is not automated bulk, and either a client put a "Re:" in front or the case already
+	 * has an answer to reply to. Without those, a newsletter that repeats its subject every
+	 * morning collects a case's worth of mail that was never about the same matter.
+	 *
+	 * <p>A case in the trash never matches: a customer writing again about something that was
+	 * thrown away is a new matter.
 	 */
-	private Optional<UUID> conversationFor(MimeMessage message, Tenant tenant, String sender, String subject)
-			throws MessagingException {
+	private Optional<UUID> conversationFor(MimeMessage message, Tenant tenant, String sender, String subject,
+			boolean bulk) throws MessagingException {
 		List<String> referenced = referencedMessageIds(message);
 		if (!referenced.isEmpty()) {
 			// The message's case is a lazy reference that gives up nothing but its id out here, so
@@ -192,14 +208,47 @@ public class MailIngestService {
 				return byHeaders.map(Case::getId);
 			}
 		}
+		if (bulk) {
+			return Optional.empty();
+		}
 		String wanted = normalizedSubject(subject);
+		boolean looksLikeAReply = hasReplyPrefix(subject);
 		return caseRepository
 				.findAllByTenantIdAndSenderIgnoreCaseAndDeletedAtIsNullAndLastMessageAtAfterOrderByLastMessageAtDesc(
 						tenant.getId(), sender, Instant.now().minus(FOLLOW_UP_WINDOW))
 				.stream()
 				.filter(candidate -> normalizedSubject(candidate.getSubject()).equals(wanted))
+				// Asked last, and only of a case whose subject already matched, so the query runs
+				// for one candidate rather than for everything this sender ever opened.
+				.filter(candidate -> looksLikeAReply || caseMessageRepository
+						.existsByMailCaseIdAndDirection(candidate.getId(), MessageDirection.OUTGOING))
 				.findFirst()
 				.map(Case::getId);
+	}
+
+	/**
+	 * Whether the mail says of itself that it is automated bulk: a mailing list, a newsletter
+	 * marked by its Precedence, or something generated rather than written (RFC 3834). Such a mail
+	 * answers nothing, whatever its subject repeats.
+	 */
+	static boolean isBulk(MimeMessage message) throws MessagingException {
+		if (firstHeader(message, LIST_HEADERS) != null) {
+			return true;
+		}
+		String precedence = firstHeader(message, "Precedence");
+		if (precedence != null && BULK_PRECEDENCES.contains(precedence.trim().toLowerCase(Locale.ROOT))) {
+			return true;
+		}
+		String autoSubmitted = firstHeader(message, "Auto-Submitted");
+		return autoSubmitted != null && !"no".equalsIgnoreCase(autoSubmitted.trim());
+	}
+
+	/**
+	 * Whether a client put a "Re:", "AW:", "Fwd:" or "WG:" in front, which is something it only
+	 * does when the person hit reply or forward.
+	 */
+	static boolean hasReplyPrefix(String subject) {
+		return subject != null && SUBJECT_PREFIXES.matcher(subject.trim()).find();
 	}
 
 	/** Every Message-ID the mail says it answers, as the headers spell them, angle brackets and all. */
@@ -355,7 +404,7 @@ public class MailIngestService {
 		return firstHeader(message, "Delivered-To", "X-Original-To");
 	}
 
-	private String firstHeader(MimeMessage message, String... names) throws MessagingException {
+	private static String firstHeader(MimeMessage message, String... names) throws MessagingException {
 		for (String name : names) {
 			String[] values = message.getHeader(name);
 			if (values != null && values.length > 0 && !values[0].isBlank()) {

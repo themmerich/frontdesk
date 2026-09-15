@@ -77,9 +77,16 @@ public class CaseMessage {
 	@Column(name = "sent_by_name")
 	private String sentByName;
 
+	/**
+	 * Incoming only: the mail said it was automated bulk, through a List-* header, a Precedence
+	 * or an Auto-Submitted. Read while the headers are still there, because they are not stored.
+	 */
+	@Column(nullable = false)
+	private boolean bulk;
+
 	private CaseMessage(Case mailCase, int position, MessageDirection direction, String messageId, String sender,
 			String recipient, String subject, String bodyText, String bodyHtml, Instant occurredAt, long sizeBytes,
-			String sentByName) {
+			String sentByName, boolean bulk) {
 		this.mailCase = mailCase;
 		this.position = position;
 		this.direction = direction;
@@ -92,20 +99,21 @@ public class CaseMessage {
 		this.occurredAt = occurredAt;
 		this.sizeBytes = sizeBytes;
 		this.sentByName = sentByName;
+		this.bulk = bulk;
 	}
 
 	/** A mail that came in, the opening one or a follow-up. */
 	public static CaseMessage incoming(Case mailCase, int position, String messageId, String sender, String recipient,
-			String subject, String bodyText, String bodyHtml, Instant receivedAt, long sizeBytes) {
+			String subject, String bodyText, String bodyHtml, Instant receivedAt, long sizeBytes, boolean bulk) {
 		return new CaseMessage(mailCase, position, MessageDirection.INCOMING, messageId, sender, recipient, subject,
-				bodyText, bodyHtml, receivedAt, sizeBytes, null);
+				bodyText, bodyHtml, receivedAt, sizeBytes, null, bulk);
 	}
 
 	/** A reply that went out, from the mailbox, in somebody's name. */
 	public static CaseMessage outgoing(Case mailCase, int position, String messageId, String sender, String recipient,
 			String subject, String bodyText, Instant sentAt, String sentByName) {
 		return new CaseMessage(mailCase, position, MessageDirection.OUTGOING, messageId, sender, recipient, subject,
-				bodyText, null, sentAt, 0, sentByName);
+				bodyText, null, sentAt, 0, sentByName, false);
 	}
 
 	public boolean isIncoming() {

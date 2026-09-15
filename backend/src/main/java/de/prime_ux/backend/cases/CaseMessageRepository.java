@@ -21,6 +21,13 @@ public interface CaseMessageRepository extends JpaRepository<CaseMessage, UUID> 
 	boolean existsByMailCaseTenantIdAndMessageId(UUID tenantId, String messageId);
 
 	/**
+	 * Whether anything ever went out on this case. A reply that arrives without threading headers
+	 * answers something we wrote; where we wrote nothing, a mail that merely repeats a subject is
+	 * not a reply to it.
+	 */
+	boolean existsByMailCaseIdAndDirection(UUID caseId, MessageDirection direction);
+
+	/**
 	 * The message a reply refers to, by any of the ids the reply names in In-Reply-To and
 	 * References; the newest where several match. Its case is the conversation the reply belongs
 	 * to.
