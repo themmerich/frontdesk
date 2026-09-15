@@ -36,7 +36,7 @@ class AnthropicReplyDraftServiceTest {
 	/** A conversation of one: the mail that opened the case. */
 	private static List<CaseMessage> conversation(Case mailCase, String body) {
 		return List.of(CaseMessage.incoming(mailCase, 0, "<m@test>", "kunde@example.com", "info@musterfirma.de",
-				"Lieferung 4711", body, null, Instant.parse("2026-08-01T10:00:00Z"), 2048));
+				"Lieferung 4711", body, null, Instant.parse("2026-08-01T10:00:00Z"), 2048, false));
 	}
 
 	private static TenantTriageSettings settings(String instructions) {
@@ -151,13 +151,13 @@ class AnthropicReplyDraftServiceTest {
 		Instant start = Instant.parse("2026-08-01T10:00:00Z");
 		List<CaseMessage> thread = List.of(
 				CaseMessage.incoming(mailCase, 0, "<m1@test>", "kunde@example.com", "info@musterfirma.de",
-						"Lieferung 4711", "Wann kommt Bestellung 4711? " + "y".repeat(2_000), null, start, 2048),
+						"Lieferung 4711", "Wann kommt Bestellung 4711? " + "y".repeat(2_000), null, start, 2048, false),
 				CaseMessage.outgoing(mailCase, 1, "<r1@test>", "inbox@frontdesk.local", "kunde@example.com",
 						"Re: Lieferung 4711", "Guten Tag, die Lieferung geht morgen raus.", start.plusSeconds(3600),
 						"Anna Muster"),
 				CaseMessage.incoming(mailCase, 2, "<m2@test>", "kunde@example.com", "info@musterfirma.de",
 						"AW: Lieferung 4711", "Danke! Bekomme ich eine Sendungsnummer?", null, start.plusSeconds(7200),
-						1024));
+						1024, false));
 
 		String prompt = AnthropicReplyDraftService.userPrompt(mailCase, thread);
 

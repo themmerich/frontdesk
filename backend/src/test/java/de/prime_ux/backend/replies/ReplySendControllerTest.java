@@ -124,7 +124,7 @@ class ReplySendControllerTest {
 		aCase.applyDraft("Guten Tag,\n\ndie Lieferung ist unterwegs.\n\nMit freundlichen Grüßen\nMusterfirma GmbH");
 		Case saved = caseRepository.save(aCase);
 		caseMessageRepository.save(CaseMessage.incoming(saved, 0, messageId, "kunde@example.com", recipient, subject,
-				"Wann kommt die Lieferung?", null, saved.getReceivedAt(), 2048));
+				"Wann kommt die Lieferung?", null, saved.getReceivedAt(), 2048, false));
 		return saved;
 	}
 
@@ -198,7 +198,7 @@ class ReplySendControllerTest {
 				"kunde@example.com", "Re: Lieferung 4711", "Morgen.", Instant.parse("2026-08-01T11:00:00Z"), "Anna Muster"));
 		caseMessageRepository.save(CaseMessage.incoming(aCase, 2, "<m2@example.com>", "kunde.privat@example.com",
 				"inbox@frontdesk.local", "AW: Lieferung 4711", "Welche Sendungsnummer?", null,
-				Instant.parse("2026-08-01T12:00:00Z"), 1024));
+				Instant.parse("2026-08-01T12:00:00Z"), 1024, false));
 
 		mockMvc.perform(post("/api/cases/{id}/send", aCase.getId()).with(csrf())).andExpect(status().isOk());
 

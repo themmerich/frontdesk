@@ -99,7 +99,8 @@ class CaseControllerTest {
 	/** The mail that opened a case, as its first message. */
 	private CaseMessage opening(Case aCase, String bodyText, String bodyHtml) {
 		return caseMessageRepository.save(CaseMessage.incoming(aCase, 0, aCase.getMessageId(), aCase.getSender(),
-				aCase.getRecipient(), aCase.getSubject(), bodyText, bodyHtml, aCase.getReceivedAt(), aCase.getSizeBytes()));
+				aCase.getRecipient(), aCase.getSubject(), bodyText, bodyHtml, aCase.getReceivedAt(),
+				aCase.getSizeBytes(), false));
 	}
 
 	@Test
