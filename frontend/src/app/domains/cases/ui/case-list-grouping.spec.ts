@@ -115,7 +115,13 @@ describe('CaseList date groups', () => {
     expect(headings(fixture)).toEqual([]);
   });
   it('counts the messages of a conversation beside its subject, and says nothing for a single mail', () => {
-    const fixture = createFixture([aCase({ subject: 'Lieferung 4711', messageCount: 3 }), aCase({ id: '2', subject: 'Angebot' })]);
+    // Both moments are pinned: the table sorts by the last movement, and the default `new Date()`
+    // of two fixtures differs by a millisecond or by nothing at all, depending on where the clock
+    // ticks. That decided the row order, and on a loaded machine it decided it the other way.
+    const fixture = createFixture([
+      aCase({ subject: 'Lieferung 4711', messageCount: 3, lastMessageAt: daysAgo(0, 10) }),
+      aCase({ id: '2', subject: 'Angebot', lastMessageAt: daysAgo(0, 9) }),
+    ]);
     const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr[data-p-selectable-row]'));
 
     const badges = rows.map((row) => row.querySelector('[role="img"][aria-label*="essage"]')?.textContent?.trim() ?? null);
