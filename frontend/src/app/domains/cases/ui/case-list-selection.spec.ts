@@ -37,6 +37,8 @@ function aCase(overrides: Partial<Case> = {}): Case {
     handledAt: null,
     deletedAt: null,
     hasDraft: false,
+    assigneeId: null,
+    assigneeName: null,
     ...overrides,
   };
 }

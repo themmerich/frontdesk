@@ -1,6 +1,7 @@
 package de.prime_ux.backend.cases;
 
 import de.prime_ux.backend.triage.CaseCategory;
+import de.prime_ux.backend.users.AppUser;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,10 +16,11 @@ import java.util.UUID;
 public record CaseResponse(UUID id, String sender, String recipient, String subject, Instant receivedAt,
 		boolean hasAttachments, long sizeBytes, String summary, UUID categoryId, String categoryName,
 		String categoryColor, String tier, BigDecimal confidence, Instant handledAt, Instant deletedAt,
-		boolean hasDraft, Instant lastMessageAt, long messageCount) {
+		boolean hasDraft, Instant lastMessageAt, long messageCount, UUID assigneeId, String assigneeName) {
 
 	static CaseResponse from(Case aCase, long messageCount) {
 		CaseCategory category = aCase.getCategory();
+		AppUser assignee = aCase.getAssignee();
 		return new CaseResponse(aCase.getId(), aCase.getSender(), aCase.getRecipient(), aCase.getSubject(),
 				aCase.getReceivedAt(), aCase.isHasAttachments(), aCase.getSizeBytes(), aCase.getSummary(),
 				// The inbox lets a person file a case from the row it stands in, and a picker
@@ -36,6 +38,10 @@ public record CaseResponse(UUID id, String sender, String recipient, String subj
 				// split the list into.
 				aCase.getDeletedAt(),
 				// Whether a reply is waiting to be read; the text itself is the detail's.
-				aCase.hasDraft(), aCase.getLastMessageAt(), messageCount);
+				aCase.hasDraft(), aCase.getLastMessageAt(), messageCount,
+				// Who has the case, for the column and for "my cases"; the name so the list does
+				// not have to look every assignee up on its own.
+				assignee == null ? null : assignee.getId(),
+				assignee == null ? null : CaseEvents.nameOf(assignee));
 	}
 }

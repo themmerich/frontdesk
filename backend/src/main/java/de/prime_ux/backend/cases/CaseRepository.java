@@ -14,10 +14,10 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface CaseRepository extends JpaRepository<Case, UUID> {
 
-	// The category comes along eagerly: the inbox names it, and the lazy proxy
+	// The category and the assignee come along eagerly: the inbox names both, and a lazy proxy
 	// could not be resolved anymore outside the transaction. Ordered by the last
 	// move of the conversation: a customer writing again puts the case on top.
-	@EntityGraph(attributePaths = "category")
+	@EntityGraph(attributePaths = { "category", "assignee" })
 	List<Case> findAllByTenantIdOrderByLastMessageAtDesc(UUID tenantId);
 
 	/**
@@ -33,7 +33,7 @@ public interface CaseRepository extends JpaRepository<Case, UUID> {
 	 * The category comes along eagerly here for the same reason as in the list: the detail names
 	 * it, and outside the transaction the lazy proxy can no longer be resolved.
 	 */
-	@EntityGraph(attributePaths = "category")
+	@EntityGraph(attributePaths = { "category", "assignee" })
 	Optional<Case> findWithCategoryById(UUID id);
 
 	/**

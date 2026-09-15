@@ -17,6 +17,8 @@ const mockCases = [
     categoryColor: 'blue',
     tier: 'automatic',
     confidence: 0.95,
+    assigneeId: 'u1',
+    assigneeName: 'Anna Admin',
   },
   {
     id: '2',
@@ -32,6 +34,9 @@ const mockCases = [
     categoryColor: null,
     tier: null,
     confidence: null,
+    // Nobody has taken this one, which is what most of a queue looks like.
+    assigneeId: null,
+    assigneeName: null,
   },
 ];
 
@@ -53,6 +58,37 @@ test.describe('Cases page', () => {
       route.fulfill({ json: [{ id: 'c1', name: 'Statusanfrage Bestellung', color: 'blue' }] }),
     );
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
+    // The rows offer the colleagues a case can be handed to, for the same reason.
+    await page.route('**/api/users/assignable', (route) =>
+      route.fulfill({
+        json: [
+          { id: 'u1', name: 'Anna Admin' },
+          { id: 'u2', name: 'Ben Beispiel' },
+        ],
+      }),
+    );
+  });
+
+  test('names who has a case and narrows the list to one’s own', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    const rows = page.locator('tbody tr[data-p-selectable-row]');
+    await expect(rows).toHaveCount(2);
+    // Sorted by the last movement, so the newer of the two stands first and nobody has it.
+    // The assignee column names who has the other one.
+    await expect(rows.first()).not.toContainText('Anna Admin');
+    await expect(rows.nth(1)).toContainText('Anna Admin');
+
+    await page.getByRole('button', { name: 'Meine Vorgänge' }).click();
+
+    // Only what belongs to the signed-in person is left.
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('Delivery status');
+
+    // Pressed again it is a filter like any other: it goes, and everything is back.
+    await page.getByRole('button', { name: 'Meine Vorgänge' }).click();
+    await expect(rows).toHaveCount(2);
   });
 
   test('lists the cases returned by the API', async ({ page }) => {

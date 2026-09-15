@@ -17,6 +17,10 @@ public enum CaseEventType {
 	DRAFT_GENERATED,
 	/** A person saved an edited reply. */
 	DRAFT_EDITED,
+	/** Somebody took the case, or handed it to a colleague. */
+	ASSIGNED,
+	/** The case belongs to nobody again. */
+	UNASSIGNED,
 	/** Ticked off by hand. */
 	HANDLED,
 	/** Taken back into the inbox. */

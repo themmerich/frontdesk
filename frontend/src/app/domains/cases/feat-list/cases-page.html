@@ -21,6 +21,8 @@
         [showRestore]="inTrash()"
         [permanentDelete]="inTrash()"
         [categories]="categoriesService.categories.error() ? [] : categoriesService.categories.value()"
+        [assignableUsers]="assignableUsersService.users.error() ? [] : assignableUsersService.users.value()"
+        [currentUserName]="currentUserName()"
         [(columnOrder)]="columnsService.order"
         [(visibleFields)]="columnsService.visibleFields"
         [(columnWidths)]="columnsService.widths"
@@ -30,6 +32,7 @@
         (caseOpened)="onCaseOpened($event)"
         (orderChanged)="onOrderChanged($event)"
         (classificationChanged)="onClassificationChanged($event)"
+        (assignmentChanged)="onAssignmentChanged($event)"
         (summariesRequested)="onSummariesRequested($event)"
         [(reviewOpen)]="reviewOpen"
       />

@@ -23,6 +23,8 @@ const ICONS: Record<CaseEventType, string> = {
   classification_corrected: 'pi pi-pencil',
   draft_generated: 'pi pi-sparkles',
   draft_edited: 'pi pi-pencil',
+  assigned: 'pi pi-user',
+  unassigned: 'pi pi-user-minus',
   handled: 'pi pi-check-circle',
   reopened: 'pi pi-undo',
   trashed: 'pi pi-trash',
@@ -69,6 +71,10 @@ export class CaseTimeline {
         return this.transloco.translate(
           details['onRequest'] === true ? 'caseDetail.events.draftGeneratedOnRequest' : 'caseDetail.events.draft_generated',
         );
+      case 'assigned':
+        return this.transloco.translate('caseDetail.events.assigned', {
+          assigneeName: typeof details['assigneeName'] === 'string' ? details['assigneeName'] : '',
+        });
       case 'sent':
         return this.transloco.translate('caseDetail.events.sent', { to: typeof details['to'] === 'string' ? details['to'] : '' });
       default:

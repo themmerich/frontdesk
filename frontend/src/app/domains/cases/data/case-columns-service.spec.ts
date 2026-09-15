@@ -54,9 +54,9 @@ describe('CaseColumnsService', () => {
     const store = TestBed.inject(CaseColumnsService);
 
     expect(store.order()[0]).toBe('subject');
-    // The stored value predates the recipient, the triage and the draft columns; those
-    // are appended and start visible.
-    expect(store.visibleFields()).toEqual(['subject', 'recipient', 'categoryName', 'tier', 'hasDraft']);
+    // The stored value predates the recipient, the triage, the assignee and the draft columns;
+    // those are appended and start visible.
+    expect(store.visibleFields()).toEqual(['subject', 'recipient', 'categoryName', 'tier', 'assigneeLabel', 'hasDraft']);
   });
 
   it('falls back to the defaults for unparseable stored values', () => {

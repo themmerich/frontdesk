@@ -174,6 +174,27 @@ class CaseController {
 	}
 
 	/**
+	 * Somebody takes the case, hands it to a colleague, or puts it down again. Open to everyone
+	 * who works in the inbox, not only to admins: picking up work must not need an administrator,
+	 * and handing it over is the normal move in a shared queue.
+	 */
+	@PutMapping("/{id}/assignee")
+	@Transactional
+	CaseDetailResponse assign(@PathVariable UUID id, @Valid @RequestBody AssignCaseRequest request) {
+		AppUser person = currentSession.user();
+		UUID tenantId = currentSession.tenant().getId();
+		Case aCase = ownCase(id, tenantId);
+		AppUser assignee = request.userId() == null ? null : ownUser(request.userId(), tenantId);
+		aCase.assignTo(assignee);
+		Case saved = caseRepository.save(aCase);
+		caseEvents.record(saved, assignee == null ? CaseEventType.UNASSIGNED : CaseEventType.ASSIGNED, person,
+				// The name as it stands now, so the entry survives the account, the way the rest
+				// of the trail does.
+				CaseEvents.details("assigneeName", assignee == null ? null : CaseEvents.nameOf(assignee)));
+		return caseDetails.of(saved);
+	}
+
+	/**
 	 * A person taking note of a case, or taking that back. Not a deletion and not a correction of
 	 * the triage: what the model said still stands, it has just been read by somebody.
 	 */
@@ -237,6 +258,18 @@ class CaseController {
 		return caseRepository.findWithCategoryById(id)
 				.filter(aCase -> aCase.getTenant().getId().equals(tenantId))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+	}
+
+	/**
+	 * A colleague of this tenant. Somebody else's user is a bad request rather than a not-found:
+	 * the id came from a picker that only ever offers this tenant's people, so a mismatch is a
+	 * broken client, not a case of guessing at ids.
+	 */
+	private AppUser ownUser(UUID id, UUID tenantId) {
+		return appUserRepository.findById(id)
+				.filter(user -> user.getTenant() != null && user.getTenant().getId().equals(tenantId))
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+						"the user does not belong to this tenant"));
 	}
 
 	private CaseCategory ownCategory(UUID id, UUID tenantId) {

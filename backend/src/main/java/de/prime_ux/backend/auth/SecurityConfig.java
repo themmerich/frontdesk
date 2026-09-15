@@ -38,6 +38,10 @@ class SecurityConfig {
 				.requestMatchers("/api/auth/tenant").hasRole("SUPERUSER")
 				.requestMatchers("/api/tenants/**").hasRole("SUPERUSER")
 				.requestMatchers("/api/settings/**").hasAnyRole("ADMIN", "SUPERUSER")
+				// Before the admin rule below, which would otherwise swallow it: whoever works in
+				// the inbox hands a case to a colleague and needs the list of them. Managing the
+				// users stays with the admins.
+				.requestMatchers(HttpMethod.GET, "/api/users/assignable").authenticated()
 				.requestMatchers("/api/users/**").hasAnyRole("ADMIN", "SUPERUSER")
 				// What the model costs is the admin's concern, like the key that pays for it.
 				.requestMatchers("/api/ai-usage/**").hasAnyRole("ADMIN", "SUPERUSER")

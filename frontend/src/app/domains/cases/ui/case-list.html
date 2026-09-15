@@ -91,6 +91,16 @@
         </p-iconfield>
 
         <div class="flex items-center gap-2">
+          <!-- Not a button of its own but the assignee filter set to oneself: it composes with
+               everything else that is filtered, and is remembered with the rest of the state. -->
+          <p-button
+            icon="pi pi-user"
+            [severity]="isMineOnly() ? 'primary' : 'secondary'"
+            [outlined]="!isMineOnly()"
+            [label]="t('cases.mine')"
+            [pTooltip]="t('cases.mineHint')"
+            (onClick)="onToggleMine()"
+          />
           @if (showReview()) {
             <!-- The inbox in groups, for working it through rather than reading it. -->
             <p-button
@@ -199,6 +209,28 @@
                       </ng-template>
                     </p-columnfilter>
                   }
+                  @case ('assigneeLabel') {
+                    <!-- The people the inbox at hand is spread across, with nobody first. Typing
+                         a name by hand would only ever produce a list of nothing. -->
+                    <p-columnfilter
+                      field="assigneeLabel"
+                      matchMode="in"
+                      display="menu"
+                      [showMatchModes]="false"
+                      [showOperator]="false"
+                      [showAddButton]="false"
+                    >
+                      <ng-template #filter let-value let-filter="filterCallback">
+                        <p-multiselect
+                          [ngModel]="value"
+                          [options]="assigneeOptions()"
+                          [placeholder]="t('cases.assigneeAll')"
+                          [showToggleAll]="false"
+                          (onChange)="filter($event.value)"
+                        />
+                      </ng-template>
+                    </p-columnfilter>
+                  }
                   @case ('hasAttachments') {
                     <p-columnfilter type="boolean" display="menu" field="hasAttachments" [showOperator]="false" [showAddButton]="false" />
                   }
@@ -248,7 +280,7 @@
           <!-- The two the triage decided are corrected where they are read: a click on the cell
                opens the picker, picking saves. Clicks stay in the cell, or the row underneath
                would take them as picking the row and a double click would open the case. -->
-          @if (col.field === 'categoryName' || col.field === 'tier') {
+          @if (col.field === 'categoryName' || col.field === 'tier' || col.field === 'assigneeLabel') {
             <td
               [pEditableColumn]="row"
               [pEditableColumnField]="col.field"
@@ -257,7 +289,18 @@
             >
               <p-celleditor>
                 <ng-template #input>
-                  @if (col.field === 'categoryName') {
+                  @if (col.field === 'assigneeLabel') {
+                    <p-select
+                      appendTo="body"
+                      class="w-full"
+                      [options]="assigneeChoices()"
+                      optionLabel="label"
+                      optionValue="value"
+                      [ngModel]="row.assigneeId"
+                      [ariaLabel]="t('cases.assignee')"
+                      (onChange)="onPickAssignee(row, $event.value)"
+                    />
+                  } @else if (col.field === 'categoryName') {
                     <p-select
                       appendTo="body"
                       class="w-full"
@@ -282,7 +325,13 @@
                   }
                 </ng-template>
                 <ng-template #output>
-                  @if (col.field === 'categoryName') {
+                  @if (col.field === 'assigneeLabel') {
+                    @if (row.assigneeName) {
+                      {{ row.assigneeName }}
+                    } @else {
+                      <span class="text-surface-400 dark:text-surface-500">–</span>
+                    }
+                  } @else if (col.field === 'categoryName') {
                     @if (row.categoryName) {
                       {{ row.categoryName }}
                     } @else {

@@ -35,6 +35,9 @@ export type Case = {
   deletedAt: Date | null;
   /** Whether a reply is waiting to be read. The text itself is the detail's. */
   hasDraft: boolean;
+  /** Who has the case, or null while nobody has taken it; a picker needs the key, the list the name. */
+  assigneeId: string | null;
+  assigneeName: string | null;
   /** When the conversation last moved, in either direction; the list sorts and groups by it. */
   lastMessageAt: Date;
   /** How long the conversation is; more than one says the customer or the house wrote again. */
@@ -91,6 +94,8 @@ export type CaseEventType =
   | 'classification_corrected'
   | 'draft_generated'
   | 'draft_edited'
+  | 'assigned'
+  | 'unassigned'
   | 'handled'
   | 'reopened'
   | 'trashed'
@@ -130,6 +135,15 @@ export type SelectableCategory = {
   name: string;
   color: CaseCategoryColor | null;
 };
+
+/** A colleague a case can be handed to: what the picker needs and nothing else. */
+export type AssignableUser = {
+  id: string;
+  name: string;
+};
+
+/** What the assignee filter offers for a case nobody has taken; no user can carry this id. */
+export const NOBODY = 'none';
 
 /**
  * The palette a category's colour can come from. Spelled out here rather than imported from the

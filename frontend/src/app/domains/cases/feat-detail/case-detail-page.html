@@ -77,6 +77,23 @@
           @if (aCase.summary) {
             <p class="text-sm">{{ aCase.summary }}</p>
           }
+          <!-- Who has the case, above the verdict: whose it is comes before what it is. Picking
+               saves at once — taking work is not a correction, and the save button below is
+               about the verdict. -->
+          <div class="flex flex-col gap-2">
+            <label for="assignee" class="text-sm text-surface-500 dark:text-surface-400">{{ t('cases.assignee') }}</label>
+            <p-select
+              inputId="assignee"
+              appendTo="body"
+              class="w-full"
+              [options]="assigneeOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="aCase.assigneeId"
+              [disabled]="isSaving()"
+              (onChange)="onPickAssignee($event.value)"
+            />
+          </div>
           <!-- Both corrections stand where the verdict is read: the category says what the mail
                is about, the tier what happens with it, and the two are separate decisions. -->
           <div class="flex flex-col gap-2">

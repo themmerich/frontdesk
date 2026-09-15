@@ -83,6 +83,44 @@ class UserControllerTest {
 	}
 
 	@Test
+	@AsUser("ben")
+	void offersTheColleaguesToSomebodyWhoOnlyWorksInTheInbox() throws Exception {
+		// Ben is an ordinary user. The full list is closed to him; the colleagues he can hand a
+		// case to are not, or nothing could ever be assigned.
+		mockMvc.perform(get("/api/users")).andExpect(status().isForbidden());
+
+		mockMvc.perform(get("/api/users/assignable"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(2))
+				.andExpect(jsonPath("$[0].name").value("Anna Admin"))
+				.andExpect(jsonPath("$[1].name").value("Ben Benutzer"))
+				// Nothing administrative travels here: no username, no role.
+				.andExpect(jsonPath("$[0].username").doesNotExist())
+				.andExpect(jsonPath("$[0].role").doesNotExist());
+	}
+
+	@Test
+	@AsUser("ben")
+	void leavesADeactivatedColleagueOutOfThePicker() throws Exception {
+		anna.deactivate();
+		appUserRepository.save(anna);
+
+		mockMvc.perform(get("/api/users/assignable"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].name").value("Ben Benutzer"));
+	}
+
+	@Test
+	@AsUser("anna")
+	void neverOffersAnotherTenantsPeople() throws Exception {
+		mockMvc.perform(get("/api/users/assignable"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$..name").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers
+						.hasItem("Fritz Fremd"))));
+	}
+
+	@Test
 	@AsUser("anna")
 	void listsOnlyTheOwnTenantsUsersSortedByName() throws Exception {
 		mockMvc.perform(get("/api/users"))

@@ -46,6 +46,20 @@ class UserController {
 	}
 
 	/**
+	 * The colleagues a case can be handed to, for everyone who works in the inbox rather than in
+	 * the administration — the same split the categories make between the full list and the
+	 * selectable ones.
+	 *
+	 * <p>Only the active ones: a deactivated colleague is nobody to hand work to. A case already
+	 * assigned to one keeps its assignee, and that name travels on the case itself.
+	 */
+	@GetMapping("/assignable")
+	List<AssignableUserResponse> listAssignableUsers() {
+		return appUserRepository.findAllByTenantIdOrderByLastNameAscFirstNameAsc(currentSession.tenant().getId())
+				.stream().filter(AppUser::isActive).map(AssignableUserResponse::from).toList();
+	}
+
+	/**
 	 * Creates a user in the admin's own tenant — the company is never a choice. The admin sets
 	 * the initial password; the new user changes it on their profile page. A username already
 	 * taken answers 409.

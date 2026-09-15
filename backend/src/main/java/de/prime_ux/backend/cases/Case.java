@@ -1,6 +1,7 @@
 package de.prime_ux.backend.cases;
 
 import de.prime_ux.backend.tenants.Tenant;
+import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.triage.CaseCategory;
 import de.prime_ux.backend.triage.CaseTier;
 import jakarta.persistence.Column;
@@ -99,6 +100,14 @@ public class Case {
 	@Column(name = "deleted_at")
 	private Instant deletedAt;
 
+	/**
+	 * Who has the case, or null while nobody has taken it. On the case rather than in a table of
+	 * its own: one person owns a matter at a time, and "who is on it" has exactly one answer.
+	 */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "assignee_user_id")
+	private AppUser assignee;
+
 	// The model's one-sentence answer to "what does the sender want?".
 	@Column
 	private String summary;
@@ -144,6 +153,8 @@ public class Case {
 	 */
 	public void receiveFollowUp(Instant receivedAt, boolean withAttachments) {
 		requireNotTrashed();
+		// The assignee stays: whoever was on this matter is on it again now that the customer
+		// has written back, and handing it to somebody else is a decision, not a side effect.
 		this.handledAt = null;
 		this.lastMessageAt = receivedAt;
 		this.hasAttachments = this.hasAttachments || withAttachments;
@@ -175,12 +186,22 @@ public class Case {
 	 * the same taking note, and the second click says nothing new.
 	 */
 	public void markHandled(boolean handled) {
+		// The assignee stays here too, so the archive still says who dealt with the case.
 		if (!handled) {
 			this.handledAt = null;
 		}
 		else if (this.handledAt == null) {
 			this.handledAt = Instant.now();
 		}
+	}
+
+	/**
+	 * Somebody takes the case, or hands it back with null. Refused in the trash, like every other
+	 * change to a case that was thrown away.
+	 */
+	public void assignTo(AppUser person) {
+		requireNotTrashed();
+		this.assignee = person;
 	}
 
 	/**

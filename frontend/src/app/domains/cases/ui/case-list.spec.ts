@@ -28,6 +28,9 @@ const translations = {
     size: 'Size',
     filter: 'Filter …',
     columns: 'Columns',
+    assigneeNobody: 'Nobody',
+    mine: 'My cases',
+    mineHint: 'Shows only the cases assigned to you.',
     reset: 'Reset',
     resetView: 'Reset view',
     review: 'Review',
@@ -63,6 +66,8 @@ function aCase(overrides: Partial<Case> = {}): Case {
     handledAt: null,
     deletedAt: null,
     hasDraft: false,
+    assigneeId: null,
+    assigneeName: null,
     ...overrides,
   };
 }
@@ -145,7 +150,7 @@ describe('CaseList', () => {
 
     expect(element.querySelector('.p-datatable-resizable')).not.toBeNull();
     // A handle per column; the inbox has no action column beside them.
-    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(9);
+    expect(element.querySelectorAll('.p-datatable-column-resizer')).toHaveLength(10);
   });
 
   it('keeps the attachment header out of sight but not out of reach', () => {
@@ -169,6 +174,8 @@ describe('CaseList', () => {
         handledAt: null,
         deletedAt: null,
         hasDraft: false,
+        assigneeId: null,
+        assigneeName: null,
       }),
       aCase({
         id: '2',
@@ -348,14 +355,14 @@ describe('CaseList', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('input[aria-label="Search"]')).not.toBeNull();
     const buttonLabels = Array.from(element.querySelectorAll('p-button')).map((button) => button.textContent?.trim());
-    expect(buttonLabels).toEqual(['Columns', 'Review', 'Reset view', 'Export', 'Delete']);
+    expect(buttonLabels).toEqual(['Columns', 'My cases', 'Review', 'Reset view', 'Export', 'Delete']);
   });
 
   it('hides an unchecked column and restores it on reset', async () => {
     const fixture = createFixture([aCase()]);
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelectorAll('th')).toHaveLength(10);
+    expect(element.querySelectorAll('th')).toHaveLength(11);
 
     const columnsButton = element.querySelector('p-button button') as HTMLButtonElement;
     columnsButton.click();
@@ -366,7 +373,7 @@ describe('CaseList', () => {
     subjectCheckbox.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(9);
+    expect(element.querySelectorAll('th')).toHaveLength(10);
     expect(element.textContent).not.toContain('Delivery status');
 
     const resetButton = Array.from(document.querySelectorAll('button')).find((button) =>
@@ -376,7 +383,7 @@ describe('CaseList', () => {
     resetButton.click();
     await fixture.whenStable();
 
-    expect(element.querySelectorAll('th')).toHaveLength(10);
+    expect(element.querySelectorAll('th')).toHaveLength(11);
     expect(element.textContent).toContain('Delivery status');
   });
 
@@ -396,6 +403,7 @@ describe('CaseList', () => {
       'recipient',
       'categoryName',
       'tier',
+      'assigneeLabel',
       'hasDraft',
       'lastMessageAt',
       'sizeBytes',
@@ -407,10 +415,10 @@ describe('CaseList', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     // The attachment and the draft column filter without sorting, the size column does the
-    // opposite. Sortable: sender, recipient, subject, category, tier, received at, size.
+    // opposite. Sortable: sender, recipient, subject, category, tier, assignee, received at, size.
     // Filterable: everything but the size.
-    expect(element.querySelectorAll('p-sorticon')).toHaveLength(7);
-    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(8);
+    expect(element.querySelectorAll('p-sorticon')).toHaveLength(8);
+    expect(element.querySelectorAll('p-columnfilter')).toHaveLength(9);
   });
 
   // Filter toggle order matches the column order: attachment, sender, recipient,
@@ -432,7 +440,7 @@ describe('CaseList', () => {
   it('offers a date filter for the received-at column', async () => {
     const fixture = createFixture([]);
 
-    await openFilterMenu(fixture, 7);
+    await openFilterMenu(fixture, 8);
 
     expect(document.querySelector('p-datepicker')).not.toBeNull();
   });
