@@ -37,8 +37,10 @@ SMTP) in Docker Compose as the dev/demo mail infrastructure; the core entity is 
       by category and tier, with delete-all, show-in-table, and a page per group that lists the
       summaries and lets a person tick each mail off.
 - [x] **10. Dashboard** — totals per pile, arrivals today / 7 days / 30 days against the stretch
-      before, cases per category, per tier, and over time. _(Moved up from the expansion list;
-      the automation rate and hours-saved estimate still wait, now that step 5 gives them data.)_
+      before, cases per category, per tier, and over time. Every number is summed by the database
+      and read in one request; the cases themselves never travel for it. _(Moved up from the
+      expansion list; the automation rate and hours-saved estimate still wait, now that step 5
+      gives them data.)_
   - **Usage and cost per tenant** — every call to the model is recorded with its tokens and
     priced from a table in the configuration; an admin page shows the sums for today, 7 and 30
     days against the stretch before, cost per day by what the calls were for, and the price table.
@@ -101,7 +103,9 @@ Gaps in what exists, each small enough for one PR.
 - [ ] **Several mailboxes per tenant** — e.g. info@ and rechnung@ side by side, each with its
       own category mapping.
 - [ ] **Server-side paging and search** — the list loads all of a tenant's cases into the
-      browser every ten seconds; fine for hundreds, not for tens of thousands.
+      browser every ten seconds; fine for hundreds, not for tens of thousands. Nothing depends on
+      the full list anymore now that the dashboard reads its own sums, so this can be done on its
+      own.
 - [ ] **Spam** — either an own tier or the mailbox's junk folder, so the model does not rate
       every advertisement. Every message now carries a `bulk` flag, read from the mail's own
       List-*, Precedence and Auto-Submitted headers at ingest; nothing acts on it yet.

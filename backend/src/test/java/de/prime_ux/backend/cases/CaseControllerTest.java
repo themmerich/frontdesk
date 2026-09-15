@@ -27,6 +27,8 @@ import de.prime_ux.backend.users.AppUserRepository;
 import de.prime_ux.backend.users.UserRole;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -129,6 +131,110 @@ class CaseControllerTest {
 				.andExpect(jsonPath("$[0].tier").doesNotExist())
 				.andExpect(jsonPath("$[0].summary").doesNotExist())
 				.andExpect(jsonPath("$[0].confidence").doesNotExist());
+	}
+
+	@Test
+	@AsUser("anna")
+	void sumsTheTilesWithTheTrashCountedApart() throws Exception {
+		CaseCategory category = category("ORDER_STATUS", "Statusanfrage", CategoryColor.BLUE);
+		caseRepository.save(triaged("<a@test>", category, CaseTier.DRAFT));
+		caseRepository.save(triaged("<b@test>", category, CaseTier.MANUAL));
+		caseRepository.save(triaged("<c@test>", category, CaseTier.AUTOMATIC));
+		// Untriaged, and therefore neither on a tier nor archived.
+		caseRepository.save(newCase(tenant, "<d@test>", Instant.now()));
+		Case handled = triaged("<e@test>", category, CaseTier.INFO);
+		handled.markHandled(true);
+		caseRepository.save(handled);
+		Case trashed = newCase(tenant, "<f@test>", Instant.now());
+		trashed.moveToTrash();
+		caseRepository.save(trashed);
+		// Another tenant's mail is none of this tenant's business.
+		caseRepository.save(newCase(otherTenant, "<g@test>", Instant.now()));
+
+		mockMvc.perform(get("/api/cases/statistics"))
+				.andExpect(status().isOk())
+				// Five, not six: the one in the trash is not work that is left.
+				.andExpect(jsonPath("$.totals.all").value(5))
+				.andExpect(jsonPath("$.totals.untriaged").value(1))
+				// Manual and draft together: what a person has to deal with.
+				.andExpect(jsonPath("$.totals.manual").value(2))
+				.andExpect(jsonPath("$.totals.archived").value(1))
+				.andExpect(jsonPath("$.totals.trashed").value(1));
+	}
+
+	@Test
+	@AsUser("anna")
+	void runsEverySeriesItsFullLengthAndNamesTheThreeWindows() throws Exception {
+		caseRepository.save(newCase(tenant, "<a@test>", Instant.now()));
+
+		mockMvc.perform(get("/api/cases/statistics"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.hours.length()").value(24))
+				.andExpect(jsonPath("$.days.length()").value(30))
+				.andExpect(jsonPath("$.months.length()").value(12))
+				// The ladder plus the untriaged behind it, whatever the cases carry.
+				.andExpect(jsonPath("$.byTier.length()").value(6))
+				.andExpect(jsonPath("$.windows.today").exists())
+				.andExpect(jsonPath("$.windows.week").exists())
+				.andExpect(jsonPath("$.windows.month").exists());
+	}
+
+	@Test
+	@AsUser("anna")
+	void putsWhatCameInTodayIntoTodaysBucketUnderItsCategory() throws Exception {
+		CaseCategory category = category("ORDER_STATUS", "Statusanfrage", CategoryColor.BLUE);
+		caseRepository.save(triaged("<a@test>", category, CaseTier.DRAFT));
+		caseRepository.save(triaged("<b@test>", category, CaseTier.DRAFT));
+		// Untriaged: counted in the same bucket, under the absence of a category.
+		caseRepository.save(newCase(tenant, "<c@test>", Instant.now()));
+		Case trashed = newCase(tenant, "<d@test>", Instant.now());
+		trashed.moveToTrash();
+		caseRepository.save(trashed);
+		String today = LocalDate.now(ZoneId.systemDefault()).toString();
+
+		mockMvc.perform(get("/api/cases/statistics"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.days[29].period").value(today))
+				// Three, not four: the trash is out of the chart as it is out of the tiles.
+				.andExpect(jsonPath("$.days[29].count").value(3))
+				.andExpect(jsonPath("$.days[29].byCategory['" + category.getId() + "']").value(2))
+				.andExpect(jsonPath("$.days[29].byCategory.none").value(1))
+				.andExpect(jsonPath("$.windows.today.count").value(3))
+				.andExpect(jsonPath("$.byCategory.length()").value(2))
+				.andExpect(jsonPath("$.byCategory[0].name").value("Statusanfrage"))
+				.andExpect(jsonPath("$.byCategory[0].color").value("blue"))
+				// The absence of a category is last, whatever it holds.
+				.andExpect(jsonPath("$.byCategory[1].name").doesNotExist());
+	}
+
+	@Test
+	@AsUser("anna")
+	void leavesTheDetailEndpointToTheUuidItTakes() throws Exception {
+		Case aCase = caseRepository.save(newCase(tenant, "<a@test>", Instant.now()));
+		opening(aCase, "Wann kommt die Lieferung?", null);
+
+		// "statistics" is not a UUID, so the two paths cannot catch each other.
+		mockMvc.perform(get("/api/cases/{id}", aCase.getId()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.subject").value("Lieferung 4711"));
+	}
+
+	/** A case of this tenant that arrived now, which is what every series is measured against. */
+	private Case newCase(Tenant owner, String messageId, Instant receivedAt) {
+		return new Case(owner, messageId, "anna@example.com", "info@example.com", "Lieferung 4711", receivedAt, false,
+				2048);
+	}
+
+	private Case triaged(String messageId, CaseCategory category, CaseTier tier) {
+		Case aCase = newCase(tenant, messageId, Instant.now());
+		aCase.applyTriage(category, tier, new BigDecimal("0.90"), "Kurz gefasst.");
+		return aCase;
+	}
+
+	private CaseCategory category(String code, String name, CategoryColor color) {
+		CaseCategory category = new CaseCategory(tenant, code, name, "Beschreibung.", CaseTier.AUTOMATIC, 0);
+		category.recolor(color);
+		return caseCategoryRepository.save(category);
 	}
 
 	@Test

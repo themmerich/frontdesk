@@ -9,51 +9,58 @@ const mockUser = {
   tenant: { slug: 'musterfirma', name: 'Musterfirma GmbH' },
 };
 
-/** Two from earlier today, one from yesterday around the same time; one still untriaged. */
-function mockCases() {
-  const today = new Date();
-  today.setMinutes(today.getMinutes() - 5);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const base = { recipient: 'info@example.com', hasAttachments: false, sizeBytes: 2048, summary: null };
-  return [
-    {
-      ...base,
-      id: '1',
-      sender: 'anna@example.com',
-      subject: 'Lieferstatus',
-      receivedAt: today.toISOString(),
-      categoryId: 'c1',
-      categoryName: 'Statusanfrage Bestellung',
-      categoryColor: 'blue',
-      tier: 'automatic',
-      confidence: 0.95,
-    },
-    {
-      ...base,
-      id: '2',
-      sender: 'ben@example.com',
-      subject: 'Reklamation',
-      receivedAt: today.toISOString(),
-      categoryId: 'c2',
-      categoryName: 'Reklamation',
-      categoryColor: 'red',
-      tier: 'manual',
-      confidence: 0.7,
-    },
-    {
-      ...base,
-      id: '3',
-      sender: 'cara@example.com',
-      subject: 'Noch unbewertet',
-      receivedAt: yesterday.toISOString(),
-      categoryId: null,
-      categoryName: null,
-      categoryColor: null,
-      tier: null,
-      confidence: null,
-    },
-  ];
+/** A local date as the server spells a day bucket, so the labels land on the right days. */
+function isoDay(daysAgo: number): string {
+  const day = new Date();
+  day.setDate(day.getDate() - daysAgo);
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+}
+
+function isoMonth(monthsAgo: number): string {
+  const month = new Date();
+  month.setDate(1);
+  month.setMonth(month.getMonth() - monthsAgo);
+  return `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
+}
+
+type Counts = Record<string, number>;
+
+function bucket(period: string, byCategory: Counts = {}) {
+  return { period, count: Object.values(byCategory).reduce((sum, count) => sum + count, 0), byCategory };
+}
+
+/**
+ * What the endpoint answers: two cases from today under two categories, one untriaged from
+ * yesterday. The same numbers the old list fixture produced, only already added up.
+ */
+function mockStatistics(overrides: Record<string, unknown> = {}) {
+  const today = { c1: 1, c2: 1 };
+  const yesterday = { none: 1 };
+  return {
+    totals: { all: 3, untriaged: 1, manual: 1, archived: 0, trashed: 0 },
+    windows: { today: { count: 2, previous: 1 }, week: { count: 3, previous: 0 }, month: { count: 3, previous: 0 } },
+    // Equal counts, so the server's name tiebreaker puts Reklamation first.
+    byCategory: [
+      { id: 'c2', name: 'Reklamation', color: 'red', count: 1 },
+      { id: 'c1', name: 'Statusanfrage Bestellung', color: 'blue', count: 1 },
+      { id: null, name: null, color: null, count: 1 },
+    ],
+    byTier: [
+      { tier: 'automatic', count: 1 },
+      { tier: 'draft', count: 0 },
+      { tier: 'manual', count: 1 },
+      { tier: 'info', count: 0 },
+      { tier: 'ignore', count: 0 },
+      { tier: null, count: 1 },
+    ],
+    hours: Array.from({ length: 24 }, (_, hour) => bucket(`${isoDay(0)}T${String(hour).padStart(2, '0')}`, hour === 9 ? today : {})),
+    days: Array.from({ length: 30 }, (_, index) => {
+      const daysAgo = 29 - index;
+      return bucket(isoDay(daysAgo), daysAgo === 0 ? today : daysAgo === 1 ? yesterday : {});
+    }),
+    months: Array.from({ length: 12 }, (_, index) => bucket(isoMonth(11 - index), index === 11 ? { ...today, ...yesterday } : {})),
+    ...overrides,
+  };
 }
 
 test.describe('Dashboard', () => {
@@ -63,11 +70,12 @@ test.describe('Dashboard', () => {
     // back 401 from the real backend and the interceptor sends the browser to the login.
     await page.route('**/api/case-categories/selectable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
+    // The dashboard never asks for this one anymore; the inbox behind it might.
+    await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
+    await page.route('**/api/cases/statistics', (route) => route.fulfill({ json: mockStatistics() }));
   });
 
   test('opens from the sidebar, above the inbox, and counts what came in', async ({ page }) => {
-    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
-
     await page.goto('/');
     // The order in the sidebar: the dashboard first, then the inbox and the archive.
     const casesLinks = page.getByRole('navigation').getByRole('link');
@@ -88,9 +96,24 @@ test.describe('Dashboard', () => {
     await expect(page.locator('p-card').filter({ hasText: 'ggü. gestern' })).toContainText('2');
   });
 
-  test('draws the three charts', async ({ page }) => {
-    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
+  test('asks the server for the numbers rather than for the cases', async ({ page }) => {
+    const asked: string[] = [];
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if (url.pathname.startsWith('/api/cases')) {
+        asked.push(url.pathname);
+      }
+    });
 
+    await page.goto('/dashboard');
+    await expect(page.getByText('Vorgänge gesamt').locator('xpath=following-sibling::p')).toHaveText('3');
+
+    // The rows never travel for this: the sums do.
+    expect(asked).toContain('/api/cases/statistics');
+    expect(asked).not.toContain('/api/cases');
+  });
+
+  test('draws the three charts', async ({ page }) => {
     await page.goto('/dashboard');
 
     await expect(page.getByText('Vorgänge je Kategorie')).toBeVisible();
@@ -105,8 +128,6 @@ test.describe('Dashboard', () => {
   });
 
   test('measures today and the last stretches against the ones before them', async ({ page }) => {
-    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
-
     await page.goto('/dashboard');
 
     // Two came in today, one yesterday around the same time: twice as many as the day before.
@@ -120,33 +141,8 @@ test.describe('Dashboard', () => {
   });
 
   test('counts what is filed and what was thrown away, and keeps the trash out of the rest', async ({ page }) => {
-    const today = new Date();
-    today.setMinutes(today.getMinutes() - 5);
-    const extra = (id: string, subject: string, fields: Record<string, unknown>) => ({
-      recipient: 'info@example.com',
-      hasAttachments: false,
-      sizeBytes: 2048,
-      summary: null,
-      sender: 'dora@example.com',
-      categoryName: null,
-      categoryColor: null,
-      tier: 'info',
-      confidence: null,
-      receivedAt: today.toISOString(),
-      id,
-      subject,
-      ...fields,
-    });
-    await page.route('**/api/cases', (route) =>
-      route.fulfill({
-        json: [
-          ...mockCases(),
-          extra('4', 'Abgehakt', { handledAt: today.toISOString() }),
-          extra('5', 'Weggeworfen', { deletedAt: today.toISOString() }),
-          // Thrown away after it was ticked off: it counts as trash, not as archive.
-          extra('6', 'Beides', { handledAt: today.toISOString(), deletedAt: today.toISOString() }),
-        ],
-      }),
+    await page.route('**/api/cases/statistics', (route) =>
+      route.fulfill({ json: mockStatistics({ totals: { all: 4, untriaged: 1, manual: 1, archived: 1, trashed: 2 } }) }),
     );
 
     await page.goto('/dashboard');
@@ -159,8 +155,6 @@ test.describe('Dashboard', () => {
   });
 
   test('points the trend with a triangle, green up and red down', async ({ page }) => {
-    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
-
     await page.goto('/dashboard');
 
     // Two today against one yesterday: up, and drawn in the colour styles.css gives that direction.
@@ -172,11 +166,11 @@ test.describe('Dashboard', () => {
     expect(up).toBe('rgb(21, 128, 61)');
 
     // The other way round: yesterday held two, today holds none.
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    await page.route('**/api/cases', (route) =>
+    await page.route('**/api/cases/statistics', (route) =>
       route.fulfill({
-        json: mockCases().map((aCase) => ({ ...aCase, receivedAt: yesterday.toISOString() })),
+        json: mockStatistics({
+          windows: { today: { count: 0, previous: 2 }, week: { count: 3, previous: 0 }, month: { count: 3, previous: 0 } },
+        }),
       }),
     );
     await page.reload();
@@ -186,8 +180,12 @@ test.describe('Dashboard', () => {
     expect(await trend.evaluate((element) => getComputedStyle(element).color)).toBe('rgb(185, 28, 28)');
   });
 
-  test('switches the arrivals chart between today, the days and the months', async ({ page }) => {
-    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
+  test('switches the arrivals chart between today, the days and the months without asking again', async ({ page }) => {
+    let asked = 0;
+    await page.route('**/api/cases/statistics', (route) => {
+      asked++;
+      return route.fulfill({ json: mockStatistics() });
+    });
 
     await page.goto('/dashboard');
     const chart = page.locator('canvas').last();
@@ -204,11 +202,11 @@ test.describe('Dashboard', () => {
 
     await expect(page.getByRole('button', { name: '12 Monate' })).toHaveAttribute('aria-pressed', 'true');
     expect(await chart.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).not.toBe(thirtyDays);
+    // Every series came with the one reading.
+    expect(asked).toBe(1);
   });
 
   test('narrows the arrivals chart to one category', async ({ page }) => {
-    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases() }));
-
     await page.goto('/dashboard');
     const chart = page.locator('canvas').last();
     await expect(chart).toBeVisible();
@@ -232,10 +230,11 @@ test.describe('Dashboard', () => {
   test('picks up what came in while the page stood still, when asked to', async ({ page }) => {
     // The page reads once when it opens; the second answer is only shown on request.
     let asked = 0;
-    await page.route('**/api/cases', (route) => {
-      const cases = mockCases();
-      return route.fulfill({ json: asked++ === 0 ? cases : [...cases, { ...cases[0], id: '4', subject: 'Gerade erst' }] });
-    });
+    await page.route('**/api/cases/statistics', (route) =>
+      route.fulfill({
+        json: asked++ === 0 ? mockStatistics() : mockStatistics({ totals: { all: 4, untriaged: 2, manual: 1, archived: 0, trashed: 0 } }),
+      }),
+    );
 
     await page.goto('/dashboard');
     const total = page.getByText('Vorgänge gesamt').locator('xpath=following-sibling::p');
@@ -247,7 +246,7 @@ test.describe('Dashboard', () => {
   });
 
   test('shows an error message when the API is unreachable', async ({ page }) => {
-    await page.route('**/api/cases', (route) => route.abort('connectionrefused'));
+    await page.route('**/api/cases/statistics', (route) => route.abort('connectionrefused'));
 
     await page.goto('/dashboard');
 
