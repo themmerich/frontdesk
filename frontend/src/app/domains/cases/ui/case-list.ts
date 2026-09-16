@@ -1,6 +1,7 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePipe, DOCUMENT } from '@angular/common';
 import {
+  afterNextRender,
   afterRenderEffect,
   Component,
   computed,
@@ -229,6 +230,12 @@ export class CaseList {
    */
   private renderedRows: GroupedCase[] | null = null;
 
+  /**
+   * The filters the table read back out of its own storage, kept until they can be put back —
+   * see the afterNextRender in the constructor for why they have to be.
+   */
+  private restoredFilters: NonNullable<TableState['filters']> | null = null;
+
   /** The name the row actions are remembered under; the others go by their field. */
   protected readonly actionsColumn = ACTIONS_COLUMN;
 
@@ -238,6 +245,24 @@ export class CaseList {
     // arrangement is on screen — after a column was hidden, shown, or moved.
     afterRenderEffect(() => {
       this.renderedRows = this.rows();
+    });
+
+    // PrimeNG restores the filters and throws them away again in the same breath: `filters` is
+    // an input whose default is an empty object, and the effect syncing it is declared after the
+    // one that restores the state, so it runs second and assigns `{}` over what was just read
+    // back. What one sees then depends on whether the cases had already arrived — with them, the
+    // rows the restore filtered stay on screen and only the filters behind them are gone; without
+    // them, the list comes back unfiltered under a search box that still says what it was
+    // filtered by. So they are put back once, after that effect has had its turn.
+    afterNextRender(() => {
+      const filters = this.restoredFilters;
+      if (filters === null) {
+        return;
+      }
+      this.restoredFilters = null;
+      const table = this.table();
+      table.filters = filters;
+      table._filter();
     });
 
     afterRenderEffect(() => {
@@ -588,6 +613,8 @@ export class CaseList {
    * this the rows would come back filtered under an empty search field, with no way to see why.
    */
   protected onStateRestore(state: TableState): void {
+    this.restoredFilters = state.filters ?? null;
+
     // The global filter is a single entry; only a column filter can be a list of them.
     const global = state.filters?.['global'];
     this.globalSearch.set(global !== undefined && !Array.isArray(global) ? String(global.value ?? '') : '');
