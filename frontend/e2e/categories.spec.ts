@@ -43,6 +43,9 @@ test.describe('Case categories', () => {
   test.beforeEach(async ({ page }) => {
     // The inbox the shell opens on offers the colleagues a case can be handed to.
     await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     // The inbox offers the categories for picking in its rows; unanswered, the request comes
     // back 401 from the real backend and the interceptor sends the browser to the login.
@@ -289,6 +292,9 @@ test.describe('Case categories', () => {
   test('hides the categories from regular users and redirects them away', async ({ page }) => {
     // The inbox the shell opens on offers the colleagues a case can be handed to.
     await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: regularUser }));
 
     await page.goto('/categories');

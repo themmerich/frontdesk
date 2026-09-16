@@ -1,10 +1,13 @@
+import { DatePipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { TranslocoDirective } from '@jsverse/transloco';
+import { RouterLink } from '@angular/router';
 import { AvatarModule } from 'primeng/avatar';
 import { PopoverModule } from 'primeng/popover';
 import { StyleClassModule } from 'primeng/styleclass';
 
 import { AuthStore } from '../../../shared/data/auth-store';
+import { NotificationsService } from '../../data/notifications-service';
 import { PRESET_NAMES, ThemeService, TINTED_SURFACES } from '../../data/theme-service';
 
 type Swatch = { name: string; color: string };
@@ -48,7 +51,7 @@ function toSurfaceSwatch(name: string): Swatch {
  */
 @Component({
   selector: 'app-navbar',
-  imports: [TranslocoDirective, AvatarModule, PopoverModule, StyleClassModule],
+  imports: [DatePipe, RouterLink, TranslocoDirective, AvatarModule, PopoverModule, StyleClassModule],
   templateUrl: './navbar.html',
   // Keeps the topbar div a direct child of the shell's content column.
   host: { class: 'contents' },
@@ -56,10 +59,19 @@ function toSurfaceSwatch(name: string): Swatch {
 export class Navbar {
   protected readonly themeService = inject(ThemeService);
   protected readonly authStore = inject(AuthStore);
+  protected readonly notificationsService = inject(NotificationsService);
 
   protected readonly primarySwatches: Swatch[] = PRIMARY_COLORS.map(toSwatch);
   protected readonly surfaceSwatches: Swatch[] = SURFACE_COLORS.map(toSurfaceSwatch);
   protected readonly presets = PRESET_NAMES;
+
+  /**
+   * Opening is reading: the badge goes, and what is listed stays readable. Marking here rather
+   * than on the poll is what keeps the count from clearing itself while nobody looks.
+   */
+  protected onOpenNotifications(): void {
+    void this.notificationsService.markSeen();
+  }
 
   protected onToggleTheme(): void {
     this.themeService.toggleDark();

@@ -21,6 +21,9 @@ test.describe('Login', () => {
   test('redirects anonymous visitors to the login page', async ({ page }) => {
     // The inbox the shell opens on offers the colleagues a case can be handed to.
     await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401 }));
 
     await page.goto('/');
@@ -33,6 +36,9 @@ test.describe('Login', () => {
   test('signs in and lands on the cases page', async ({ page }) => {
     // The inbox the shell opens on offers the colleagues a case can be handed to.
     await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401 }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
@@ -64,6 +70,9 @@ test.describe('Login', () => {
   test('shows an error for rejected credentials and stays on the login page', async ({ page }) => {
     // The inbox the shell opens on offers the colleagues a case can be handed to.
     await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401 }));
     await page.route('**/api/auth/login', (route) => route.fulfill({ status: 401 }));
 
@@ -79,6 +88,9 @@ test.describe('Login', () => {
   test('validates the form before calling the backend', async ({ page }) => {
     // The inbox the shell opens on offers the colleagues a case can be handed to.
     await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401 }));
     let loginCalled = false;
     await page.route('**/api/auth/login', (route) => {
@@ -97,6 +109,9 @@ test.describe('Login', () => {
     const superuser = { username: 'super', displayName: 'Sina Super', role: 'superuser', tenant: null };
     // The inbox the shell opens on offers the colleagues a case can be handed to.
     await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401 }));
     await page.route('**/api/auth/login', (route) => route.fulfill({ json: superuser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'frontdesk', hasLogo: false } }));
