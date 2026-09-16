@@ -173,6 +173,24 @@
   user-select: none;
 }
 
+/* The open message fills the panel it stands in (cases/ui/case-conversation). A <details> keeps
+   everything but its summary in a ::details-content box of the browser's own, and that box is no
+   flex item — so the frame showing the mail would stop at the height a frame has by default,
+   however much room the panel offers. `display: contents` takes the box out of the way and lets
+   the mail claim the space. Where the pseudo-element is unknown, the frame keeps the min-height
+   it carries and the page looks as it did before. */
+app-case-conversation details[open]::details-content {
+  display: contents;
+}
+
+/* Where it is unknown, the frame keeps the height it had before rather than falling back to the
+   150 pixels a frame is by default. */
+@supports not selector(::details-content) {
+  app-case-conversation details[open] iframe {
+    min-height: 24rem;
+  }
+}
+
 /* CDK drag & drop styling for the column-toggle popover (cases/ui/case-list).
    The drag preview and the popover overlay are attached to <body>, so
    component-scoped styles cannot reach them. */
