@@ -180,6 +180,7 @@ describe('CasesPage', () => {
       hasDraft: false,
       assigneeId: null,
       assigneeName: null,
+      noteCount: 0,
       ...overrides,
     };
   }

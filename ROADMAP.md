@@ -80,7 +80,11 @@ Gaps in what exists, each small enough for one PR.
       on the detail page, a filter over the tenant's people plus nobody, and a "Meine Vorgänge"
       toggle. Anyone who works in the inbox may assign; the assignment survives both handling and a
       customer writing again.
-- [ ] **Notes** — internal notes on a case, never sent to the customer.
+- [x] **Notes** — internal notes on a case, in the detail page's left column: each with its
+      author and moment, editable and removable only by whoever wrote it, and a count in the
+      inbox. Removing one is written into the trail, without its words; writing and editing are
+      not, because the note itself says both. Never sent to the customer, and two tests say so on
+      the two paths where it could break.
 - [ ] **Notifications** — put the bell in the navbar to use: new manual cases, failed triage,
       drafts waiting for approval.
 - [ ] **Manual cases** — create a case by hand, for a call or a fax.

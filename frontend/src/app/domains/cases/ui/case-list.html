@@ -375,6 +375,14 @@
                 }
                 @case ('subject') {
                   {{ row.subject }}
+                  @if (row.noteCount > 0) {
+                    <!-- Colleagues have said something about this one; what, is the detail's. -->
+                    <i
+                      class="pi pi-comment ml-2 text-xs! text-surface-500 dark:text-surface-400"
+                      role="img"
+                      [attr.aria-label]="t('cases.noteCount', { count: row.noteCount })"
+                    ></i>
+                  }
                   @if (row.messageCount > 1) {
                     <!-- A conversation, not a single mail: how many messages it holds. -->
                     <span

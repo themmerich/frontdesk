@@ -68,6 +68,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
     hasDraft: false,
     assigneeId: null,
     assigneeName: null,
+    noteCount: 0,
     ...overrides,
   };
 }
@@ -176,6 +177,7 @@ describe('CaseList', () => {
         hasDraft: false,
         assigneeId: null,
         assigneeName: null,
+        noteCount: 0,
       }),
       aCase({
         id: '2',

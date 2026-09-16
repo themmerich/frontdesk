@@ -36,6 +36,7 @@ function manyCases(count: number): Case[] {
     hasDraft: false,
     assigneeId: null,
     assigneeName: null,
+    noteCount: 0,
   }));
 }
 

@@ -19,6 +19,7 @@ const translations = {
       draft_edited: 'Draft edited',
       assigned: 'Assigned to {{assigneeName}}',
       unassigned: 'Assignment cleared',
+      note_deleted: 'Internal note from {{writtenAt}} deleted',
       handled: 'Done',
       reopened: 'Reopened',
       trashed: 'Moved to the trash',
@@ -69,6 +70,16 @@ describe('CaseTimeline', () => {
     expect(entries(element).map((entry) => entry.text)).toEqual(['Assigned to Ben Beispiel', 'Assignment cleared']);
     // And each step carries an icon of its own rather than an empty circle.
     expect(entries(element).every((entry) => entry.icon?.includes('pi-user'))).toBe(true);
+  });
+
+  it('says that an internal note was removed, and never what it said', () => {
+    const element = render([event('note_deleted', { writtenAt: '2026-08-19T08:30:00Z' }, 'Anna Muster')]);
+
+    const entry = entries(element)[0];
+    // When it had been written, so one can tell which note went — the words are gone for good,
+    // which is the point of deleting one.
+    expect(entry.text).toContain('Internal note from');
+    expect(entry.icon).toContain('pi-comment');
   });
 
   it('tells every step in a sentence, with what was written down about it filled in', () => {

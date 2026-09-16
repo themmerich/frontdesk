@@ -1,6 +1,7 @@
 package de.prime_ux.backend.cases;
 
 import de.prime_ux.backend.cases.CaseMessageRepository.MessageCountPerCase;
+import de.prime_ux.backend.cases.CaseNoteRepository.NoteCountPerCase;
 import de.prime_ux.backend.triage.CaseCategory;
 import de.prime_ux.backend.triage.CaseCategoryRepository;
 import de.prime_ux.backend.users.AppUser;
@@ -41,6 +42,7 @@ class CaseController {
 	private final CurrentSession currentSession;
 	private final CaseRepository caseRepository;
 	private final CaseMessageRepository caseMessageRepository;
+	private final CaseNoteRepository caseNoteRepository;
 	private final CaseAttachmentRepository caseAttachmentRepository;
 	private final CaseDetails caseDetails;
 	private final CaseEvents caseEvents;
@@ -48,11 +50,13 @@ class CaseController {
 	private final AppUserRepository appUserRepository;
 
 	CaseController(CurrentSession currentSession, CaseRepository caseRepository, CaseMessageRepository caseMessageRepository,
-			CaseAttachmentRepository caseAttachmentRepository, CaseDetails caseDetails, CaseEvents caseEvents,
-			CaseCategoryRepository caseCategoryRepository, AppUserRepository appUserRepository) {
+			CaseNoteRepository caseNoteRepository, CaseAttachmentRepository caseAttachmentRepository,
+			CaseDetails caseDetails, CaseEvents caseEvents, CaseCategoryRepository caseCategoryRepository,
+			AppUserRepository appUserRepository) {
 		this.currentSession = currentSession;
 		this.caseRepository = caseRepository;
 		this.caseMessageRepository = caseMessageRepository;
+		this.caseNoteRepository = caseNoteRepository;
 		this.caseAttachmentRepository = caseAttachmentRepository;
 		this.caseDetails = caseDetails;
 		this.caseEvents = caseEvents;
@@ -69,8 +73,12 @@ class CaseController {
 		UUID tenantId = currentSession.tenant().getId();
 		Map<UUID, Long> messageCounts = caseMessageRepository.countPerCase(tenantId).stream()
 				.collect(Collectors.toMap(MessageCountPerCase::getCaseId, MessageCountPerCase::getMessageCount));
+		Map<UUID, Long> noteCounts = caseNoteRepository.countPerCase(tenantId).stream()
+				.collect(Collectors.toMap(NoteCountPerCase::getCaseId, NoteCountPerCase::getNoteCount));
 		return caseRepository.findAllByTenantIdOrderByLastMessageAtDesc(tenantId).stream()
-				.map(aCase -> CaseResponse.from(aCase, messageCounts.getOrDefault(aCase.getId(), 0L))).toList();
+				.map(aCase -> CaseResponse.from(aCase, messageCounts.getOrDefault(aCase.getId(), 0L),
+						noteCounts.getOrDefault(aCase.getId(), 0L)))
+				.toList();
 	}
 
 	/**

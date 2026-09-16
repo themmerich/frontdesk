@@ -19,10 +19,12 @@ import { TooltipModule } from 'primeng/tooltip';
 import { AssignableUsersService } from '../data/assignable-users-service';
 import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseDetailService } from '../data/case-detail-service';
+import { CaseNotesService } from '../data/case-notes-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
-import { CaseDetail, CaseTier } from '../model/case';
+import { CaseDetail, CaseNote, CaseTier } from '../model/case';
 import { CaseConversation } from '../ui/case-conversation';
+import { CaseNotes } from '../ui/case-notes';
 import { CaseTimeline } from '../ui/case-timeline';
 import { FileSizePipe } from '../ui/file-size-pipe';
 import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from '../ui/tier-tag';
@@ -37,6 +39,7 @@ import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from '../ui/tier-tag';
     DatePipe,
     PercentPipe,
     CaseConversation,
+    CaseNotes,
     CaseTimeline,
     FileSizePipe,
     FormsModule,
@@ -60,6 +63,7 @@ export class CaseDetailPage {
   protected readonly detailService = inject(CaseDetailService);
   protected readonly categoriesService = inject(CaseCategoriesService);
   protected readonly assignableUsersService = inject(AssignableUsersService);
+  protected readonly notesService = inject(CaseNotesService);
   private readonly casesService = inject(CasesService);
   private readonly orderStore = inject(CaseOrderStore);
   private readonly confirmationService = inject(ConfirmationService);
@@ -167,7 +171,42 @@ export class CaseDetailPage {
   );
 
   constructor() {
-    effect(() => this.detailService.id.set(this.id()));
+    effect(() => {
+      this.detailService.id.set(this.id());
+      this.notesService.caseId.set(this.id());
+    });
+  }
+
+  /** While a note is on its way, so a second press cannot write it twice. */
+  protected readonly isSavingNote = signal(false);
+
+  protected async onAddNote(text: string): Promise<void> {
+    await this.withNote(() => this.notesService.add(text), 'caseDetail.noteSaved');
+  }
+
+  protected async onEditNote(change: { id: string; text: string }): Promise<void> {
+    await this.withNote(() => this.notesService.edit(change.id, change.text), 'caseDetail.noteSaved');
+  }
+
+  protected async onRemoveNote(note: CaseNote): Promise<void> {
+    await this.withNote(() => this.notesService.remove(note.id), 'caseDetail.noteDeleted');
+  }
+
+  /**
+   * The list reloads either way, so what stands there is what the backend holds. The inbox is
+   * reloaded too: a row shows whether a case carries notes at all.
+   */
+  private async withNote(change: () => Promise<void>, savedKey: string): Promise<void> {
+    this.isSavingNote.set(true);
+    try {
+      await change();
+      this.casesService.cases.reload();
+      this.toast('success', savedKey);
+    } catch {
+      this.toast('error', 'caseDetail.noteError');
+    } finally {
+      this.isSavingNote.set(false);
+    }
   }
 
   private readonly translation = toSignal(this.transloco.selectTranslation());

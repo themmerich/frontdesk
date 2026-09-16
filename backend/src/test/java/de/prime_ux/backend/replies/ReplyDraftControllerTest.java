@@ -11,6 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import de.prime_ux.backend.TestcontainersConfiguration;
 import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseMessage;
+import de.prime_ux.backend.cases.CaseNote;
+import de.prime_ux.backend.cases.CaseNoteRepository;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
 import de.prime_ux.backend.tenants.Tenant;
@@ -53,6 +56,9 @@ class ReplyDraftControllerTest {
 	private AppUserRepository appUserRepository;
 
 	@Autowired
+	private CaseNoteRepository caseNoteRepository;
+
+	@Autowired
 	private TenantRepository tenantRepository;
 
 	@Autowired
@@ -90,6 +96,27 @@ class ReplyDraftControllerTest {
 
 	private Case reload(Case aCase) {
 		return caseRepository.findById(aCase.getId()).orElseThrow();
+	}
+
+	@Test
+	@AsUser("anna")
+	void neverHandsAnInternalNoteToTheDrafter() throws Exception {
+		Case aCase = caseOf(tenant, "Lieferung 4711");
+		caseNoteRepository.save(new CaseNote(aCase,
+				appUserRepository.findByTenantIdAndUsernameIgnoreCase(tenant.getId(), "anna").orElseThrow(),
+				"Anna Muster", "Stammkunde, zahlt immer zu spaet - nicht erwaehnen!"));
+
+		mockMvc.perform(post("/api/cases/{id}/draft", aCase.getId()).with(csrf())).andExpect(status().isOk());
+
+		// The drafter is handed the case and its messages, and a note is neither. The signature of
+		// ReplyDraftService is what guarantees it; this is here so that widening the conversation
+		// with anything note-shaped fails loudly rather than quietly reaching a customer.
+		assertThat(stubReplyDraftService.lastConversation)
+				.extracting(CaseMessage::getBodyText)
+				.noneMatch(body -> body != null && body.contains("zahlt immer zu spaet"));
+		assertThat(stubReplyDraftService.lastConversation)
+				.extracting(CaseMessage::getSubject)
+				.noneMatch(subject -> subject != null && subject.contains("zahlt immer zu spaet"));
 	}
 
 	@Test
