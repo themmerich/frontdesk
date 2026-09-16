@@ -1,18 +1,17 @@
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { palette, updatePrimaryPalette, usePreset } from '@primeuix/themes';
 
 import { CompanyService } from '../../shared/data/company-service';
-import { THEME_STORAGE, ThemeService } from './theme-service';
+import { THEME_API, ThemeApi, THEME_STORAGE, ThemeService } from './theme-service';
 
-// Mocked so the specs can assert which palettes get applied; the real runtime
-// writes CSS variables, which jsdom cannot meaningfully verify.
-vi.mock('@primeuix/themes', () => ({
-  palette: vi.fn((value: unknown) => ({ paletteOf: value })),
-  updatePrimaryPalette: vi.fn(),
-  updateSurfacePalette: vi.fn(),
-  usePreset: vi.fn(),
-}));
+// Provided rather than module-mocked so the specs can assert which palettes get applied; the
+// real runtime writes CSS variables, which jsdom cannot meaningfully verify. See THEME_API for
+// why a provider and not a vi.mock.
+const palette = vi.fn((value: unknown) => ({ paletteOf: value }));
+const updatePrimaryPalette = vi.fn();
+const updateSurfacePalette = vi.fn();
+const usePreset = vi.fn();
+const themeApi = { palette, updatePrimaryPalette, updateSurfacePalette, usePreset } as unknown as ThemeApi;
 
 // In-memory Storage fake: depending on Node version and jsdom, no real
 // localStorage is reliably available in unit tests.
@@ -50,6 +49,7 @@ describe('ThemeService', () => {
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
+        { provide: THEME_API, useValue: themeApi },
         { provide: THEME_STORAGE, useValue: storage },
         { provide: CompanyService, useValue: { primaryColor: companyColor } as unknown as CompanyService },
       ],
@@ -148,7 +148,7 @@ describe('ThemeService', () => {
     companyColor.set('#10b981');
     TestBed.tick();
     expect(updatePrimaryPalette).toHaveBeenCalledWith({ paletteOf: '#10b981' });
-    vi.mocked(usePreset).mockClear();
+    usePreset.mockClear();
 
     companyColor.set(null);
     TestBed.tick();

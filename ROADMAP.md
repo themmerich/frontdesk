@@ -85,8 +85,11 @@ Gaps in what exists, each small enough for one PR.
       inbox. Removing one is written into the trail, without its words; writing and editing are
       not, because the note itself says both. Never sent to the customer, and two tests say so on
       the two paths where it could break.
-- [ ] **Notifications** — put the bell in the navbar to use: new manual cases, failed triage,
-      drafts waiting for approval.
+- [x] **Notifications** — the bell carries what the inbox cannot show: what happened on one's own
+      cases while one was not looking — a colleague handed a case over, a customer wrote again.
+      Deliberately not the three originally listed: new cases and waiting drafts are everybody's
+      and the list already shows them, and a failed triage leaves no trace to notify from until
+      "Robustness" gives it one.
 - [ ] **Manual cases** — create a case by hand, for a call or a fax.
 - [ ] **Re-triage** — run the triage again for one case or a selection, e.g. after the
       categories changed.

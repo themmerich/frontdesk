@@ -33,6 +33,9 @@ test.describe('Email settings', () => {
   test('lets an admin switch to a custom server and saves it', async ({ page }) => {
     // The inbox the shell opens on offers the colleagues a case can be handed to.
     await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));
@@ -91,6 +94,9 @@ test.describe('Email settings', () => {
   test('validates the custom form before saving', async ({ page }) => {
     // The inbox the shell opens on offers the colleagues a case can be handed to.
     await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     await page.route('**/api/settings/mail', (route) => route.fulfill({ json: greenMailSettings }));
@@ -116,6 +122,9 @@ test.describe('Email settings', () => {
   test('hides the settings from regular users and redirects them away', async ({ page }) => {
     // The inbox the shell opens on offers the colleagues a case can be handed to.
     await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: regularUser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: [] }));

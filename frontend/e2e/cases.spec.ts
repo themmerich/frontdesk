@@ -51,6 +51,9 @@ const mockUser = {
 
 test.describe('Cases page', () => {
   test.beforeEach(async ({ page }) => {
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: mockUser }));
     // The rows offer the categories for picking; unanswered, the request comes back 401 from the
     // real backend and the interceptor sends the browser to the login.

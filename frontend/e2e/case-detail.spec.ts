@@ -66,6 +66,9 @@ function withMail(overrides: Partial<typeof openingMail>) {
 
 test.describe('Case detail', () => {
   test.beforeEach(async ({ page }) => {
+    // The bell is on every page and polls; unanswered with a backend behind the dev server
+    // it comes back 401 and the interceptor sends the browser to the login.
+    await page.route('**/api/notifications', (route) => route.fulfill({ json: { unseenCount: 0, items: [] } }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: mockUser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
     await page.route('**/api/cases', (route) => route.fulfill({ json: listed }));

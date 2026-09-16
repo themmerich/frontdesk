@@ -20,8 +20,21 @@
       </button>
     </div>
     <div class="flex items-center gap-8">
-      <button type="button" [attr.aria-label]="t('shell.notifications')" class="cursor-pointer">
+      <button
+        type="button"
+        [attr.aria-label]="t('shell.notifications')"
+        class="relative cursor-pointer"
+        (click)="notificationsPopover.toggle($event); onOpenNotifications()"
+      >
         <i class="pi pi-bell text-lg! leading-none! text-surface-500 dark:text-surface-400" aria-hidden="true"></i>
+        @if (notificationsService.unseenCount(); as unseen) {
+          <!-- What is waiting, said in a number rather than only in a coloured dot. -->
+          <span
+            class="absolute -top-2 -right-2 min-w-4 rounded-full bg-primary px-1 text-[0.625rem] leading-4 font-medium text-primary-contrast"
+            data-notification-badge
+            >{{ unseen }}</span
+          >
+        }
       </button>
       <button type="button" (click)="themeSettings.toggle($event)" [attr.aria-label]="t('shell.themeSettings')" class="cursor-pointer">
         <i class="pi pi-palette text-lg! leading-none! text-surface-500 dark:text-surface-400" aria-hidden="true"></i>
@@ -47,6 +60,38 @@
     </div>
     <!-- `contents` removes the host's flex box (it would push the button group off the right edge
          in the justify-between row); the overlay itself is absolutely positioned and unaffected. -->
+    <p-popover #notificationsPopover class="contents" styleClass="w-80">
+      <div class="flex flex-col">
+        <h2 class="border-b border-surface-200 px-4 py-3 text-sm font-semibold dark:border-surface-700">
+          {{ t('shell.notifications') }}
+        </h2>
+        @if (notificationsService.items().length === 0) {
+          <p class="px-4 py-6 text-center text-sm text-surface-500 dark:text-surface-400">{{ t('shell.noNotifications') }}</p>
+        } @else {
+          <ul class="max-h-96 overflow-y-auto py-1">
+            @for (item of notificationsService.items(); track item.caseId + item.occurredAt.toISOString()) {
+              <li>
+                <a
+                  [routerLink]="['/cases', item.caseId]"
+                  (click)="notificationsPopover.hide()"
+                  class="flex flex-col gap-0.5 px-4 py-2 text-sm hover:bg-surface-100 dark:hover:bg-surface-800"
+                >
+                  <span class="text-surface-600 dark:text-surface-300">
+                    @if (item.type === 'assigned') {
+                      {{ t('shell.notificationAssigned', { actorName: item.actorName ?? '' }) }}
+                    } @else {
+                      {{ t('shell.notificationFollowUp') }}
+                    }
+                  </span>
+                  <span class="font-medium">{{ item.subject }}</span>
+                  <span class="text-xs text-surface-500 dark:text-surface-400">{{ item.occurredAt | date: 'short' }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </p-popover>
     <p-popover #themeSettings class="contents">
       <div class="flex w-60 flex-col gap-4 p-1">
         <div>

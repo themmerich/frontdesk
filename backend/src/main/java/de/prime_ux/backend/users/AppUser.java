@@ -89,6 +89,13 @@ public class AppUser {
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
+	/**
+	 * How far this person has read the bell; everything on their cases after it is unseen. Set
+	 * when the account is made, so a new colleague starts on what happens from now.
+	 */
+	@Column(name = "notifications_seen_at")
+	private Instant notificationsSeenAt;
+
 	public AppUser(Tenant tenant, String username, String firstName, String lastName, String passwordHash,
 			UserRole role) {
 		this.tenant = tenant;
@@ -99,6 +106,7 @@ public class AppUser {
 		this.role = role;
 		this.active = true;
 		this.createdAt = Instant.now();
+		this.notificationsSeenAt = this.createdAt;
 	}
 
 	/** A person above the tenants: no tenant of their own, and the run of the Mandanten page. */
@@ -146,6 +154,11 @@ public class AppUser {
 
 	public void changePassword(String passwordHash) {
 		this.passwordHash = passwordHash;
+	}
+
+	/** Everything up to this moment has been read. */
+	public void markNotificationsSeen(Instant seenAt) {
+		this.notificationsSeenAt = seenAt;
 	}
 
 	public void activate() {
