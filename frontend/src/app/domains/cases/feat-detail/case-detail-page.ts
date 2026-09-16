@@ -8,6 +8,7 @@ import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { map } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
+import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
@@ -30,6 +31,15 @@ import { FileSizePipe } from '../ui/file-size-pipe';
 import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from '../ui/tier-tag';
 
 /**
+ * What stands in the assignee and category pickers when nothing is chosen. A null model value is
+ * an empty field to PrimeNG, and a float label over an empty field stays in the middle of the box
+ * — right on top of the option that says the field is deliberately empty. A value that is not
+ * empty keeps the label in the notch; it turns back into null on the way out.
+ */
+const NOBODY = 'nobody';
+const NO_CATEGORY = 'none';
+
+/**
  * One case in full: the mail as it arrived, what the triage made of it, the reply the model wrote
  * to it, and what a person can do about both — correct the verdict, and edit the reply.
  */
@@ -46,6 +56,7 @@ import { TIER_LABEL_KEY, TIER_SEVERITY, TierSeverity } from '../ui/tier-tag';
     RouterLink,
     TranslocoDirective,
     ButtonModule,
+    FloatLabelModule,
     InputTextModule,
     MessageModule,
     SelectModule,
@@ -83,7 +94,7 @@ export class CaseDetailPage {
    * What a person has picked but not saved yet. Both follow the case they belong to: opening
    * another one starts from what the triage made of that case, not from the last edit.
    */
-  protected readonly draftCategoryId = linkedSignal(() => this.detailService.detail.value()?.categoryId ?? null);
+  protected readonly draftCategoryId = linkedSignal(() => this.detailService.detail.value()?.categoryId ?? NO_CATEGORY);
   protected readonly draftTier = linkedSignal(() => this.detailService.detail.value()?.tier ?? null);
 
   /**
@@ -108,7 +119,7 @@ export class CaseDetailPage {
 
   private readonly isClassificationDirty = computed(() => {
     const aCase = this.detailService.detail.value();
-    return aCase !== undefined && (this.draftCategoryId() !== aCase.categoryId || this.draftTier() !== aCase.tier);
+    return aCase !== undefined && (this.draftCategoryId() !== (aCase.categoryId ?? NO_CATEGORY) || this.draftTier() !== aCase.tier);
   });
 
   private readonly isDraftDirty = computed(() => {
@@ -229,14 +240,24 @@ export class CaseDetailPage {
     const users = this.assignableUsersService.users.error() ? [] : this.assignableUsersService.users.value();
     const known = users.some((user) => user.id === current?.assigneeId);
     return [
-      { label: this.transloco.translate('cases.assigneeNobody'), value: null },
+      { label: this.transloco.translate('cases.assigneeNobody'), value: NOBODY },
       ...(known || !current?.assigneeId ? [] : [{ label: current.assigneeName ?? '', value: current.assigneeId }]),
       ...users.map((user) => ({ label: user.name, value: user.id })),
     ];
   });
 
+  /** Which of the two pickers stands on its empty choice, as the template needs it. */
+  protected readonly nobody = NOBODY;
+
+  /** The category as the server knows it: the placeholder means none. */
+  private readonly chosenCategoryId = computed(() => {
+    const chosen = this.draftCategoryId();
+    return chosen === NO_CATEGORY ? null : chosen;
+  });
+
   /** Picking saves at once, the way it does in the row of the inbox. */
-  protected async onPickAssignee(userId: string | null): Promise<void> {
+  protected async onPickAssignee(chosen: string): Promise<void> {
+    const userId = chosen === NOBODY ? null : chosen;
     try {
       await this.detailService.assign(userId);
       this.casesService.cases.reload();
@@ -259,7 +280,7 @@ export class CaseDetailPage {
     const categories = this.categoriesService.categories.error() ? [] : this.categoriesService.categories.value();
     const known = categories.some((category) => category.id === current?.categoryId);
     return [
-      { label: this.transloco.translate('caseDetail.noCategory'), value: null },
+      { label: this.transloco.translate('caseDetail.noCategory'), value: NO_CATEGORY },
       ...(known || current?.categoryId === undefined || current?.categoryId === null
         ? []
         : [{ label: current.categoryName ?? '', value: current.categoryId }]),
@@ -304,7 +325,7 @@ export class CaseDetailPage {
     this.isSaving.set(true);
     try {
       if (this.isClassificationDirty()) {
-        await this.detailService.changeClassification(this.draftCategoryId(), this.draftTier());
+        await this.detailService.changeClassification(this.chosenCategoryId(), this.draftTier());
       }
       if (this.isDraftDirty() && !this.isDraftBlank()) {
         await this.detailService.saveDraft(this.draftText());

@@ -80,8 +80,7 @@
           <!-- Who has the case, above the verdict: whose it is comes before what it is. Picking
                saves at once — taking work is not a correction, and the save button below is
                about the verdict. -->
-          <div class="flex flex-col gap-2">
-            <label for="assignee" class="text-sm text-surface-500 dark:text-surface-400">{{ t('cases.assignee') }}</label>
+          <p-floatlabel variant="on">
             <p-select
               inputId="assignee"
               appendTo="body"
@@ -89,15 +88,15 @@
               [options]="assigneeOptions()"
               optionLabel="label"
               optionValue="value"
-              [ngModel]="aCase.assigneeId"
+              [ngModel]="aCase.assigneeId ?? nobody"
               [disabled]="isSaving()"
               (onChange)="onPickAssignee($event.value)"
             />
-          </div>
+            <label for="assignee">{{ t('cases.assignee') }}</label>
+          </p-floatlabel>
           <!-- Both corrections stand where the verdict is read: the category says what the mail
                is about, the tier what happens with it, and the two are separate decisions. -->
-          <div class="flex flex-col gap-2">
-            <label for="category" class="text-sm text-surface-500 dark:text-surface-400">{{ t('caseDetail.category') }}</label>
+          <p-floatlabel variant="on">
             <p-select
               inputId="category"
               appendTo="body"
@@ -108,11 +107,11 @@
               [(ngModel)]="draftCategoryId"
               [disabled]="isSaving()"
             />
-          </div>
-          <div class="flex flex-col gap-2">
-            <label for="tier" class="text-sm text-surface-500 dark:text-surface-400">{{ t('caseDetail.tier') }}</label>
-            <!-- Overruling the triage is the point of the human in the loop, so it happens
-                 where the verdict is read, not in a separate dialog. -->
+            <label for="category">{{ t('caseDetail.category') }}</label>
+          </p-floatlabel>
+          <!-- Overruling the triage is the point of the human in the loop, so it happens
+               where the verdict is read, not in a separate dialog. -->
+          <p-floatlabel variant="on">
             <p-select
               inputId="tier"
               appendTo="body"
@@ -123,7 +122,8 @@
               [(ngModel)]="draftTier"
               [disabled]="isSaving()"
             />
-          </div>
+            <label for="tier">{{ t('caseDetail.tier') }}</label>
+          </p-floatlabel>
           <!-- What colleagues say to each other about the case, between the verdict and the
                record of it: notes are what one is working with, the trail is what happened. -->
           <h2 class="mt-2 text-sm font-medium">{{ t('caseDetail.notes') }}</h2>
