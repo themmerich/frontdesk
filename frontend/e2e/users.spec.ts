@@ -45,6 +45,8 @@ const anna = {
 
 test.describe('Users', () => {
   test('adds a user through the dialog, in the admin’s own company', async ({ page }) => {
+    // The inbox the shell opens on offers the colleagues a case can be handed to.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: company }));
     await page.route('**/api/branches', (route) => route.fulfill({ json: [headquarters, filiale] }));
@@ -97,6 +99,8 @@ test.describe('Users', () => {
   });
 
   test('edits a user through its row action, with no password in sight', async ({ page }) => {
+    // The inbox the shell opens on offers the colleagues a case can be handed to.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: company }));
     await page.route('**/api/branches', (route) => route.fulfill({ json: [headquarters, filiale] }));
@@ -131,6 +135,8 @@ test.describe('Users', () => {
   });
 
   test('validates the form before calling the backend', async ({ page }) => {
+    // The inbox the shell opens on offers the colleagues a case can be handed to.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: company }));
     await page.route('**/api/branches', (route) => route.fulfill({ json: [headquarters] }));
@@ -154,6 +160,8 @@ test.describe('Users', () => {
   });
 
   test('lets the admin resize a column', async ({ page }) => {
+    // The inbox the shell opens on offers the colleagues a case can be handed to.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: company }));
     await page.route('**/api/branches', (route) => route.fulfill({ json: [headquarters] }));
@@ -176,6 +184,8 @@ test.describe('Users', () => {
   });
 
   test('generates an initial password on request', async ({ page }) => {
+    // The inbox the shell opens on offers the colleagues a case can be handed to.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: company }));
     await page.route('**/api/branches', (route) => route.fulfill({ json: [headquarters] }));

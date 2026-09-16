@@ -65,6 +65,8 @@ function mockStatistics(overrides: Record<string, unknown> = {}) {
 
 test.describe('Dashboard', () => {
   test.beforeEach(async ({ page }) => {
+    // The inbox the shell opens on offers the colleagues a case can be handed to.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: mockUser }));
     // The inbox offers the categories for picking in its rows; unanswered, the request comes
     // back 401 from the real backend and the interceptor sends the browser to the login.

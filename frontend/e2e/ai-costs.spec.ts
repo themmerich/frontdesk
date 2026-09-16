@@ -58,6 +58,8 @@ function usage() {
 
 test.describe('AI costs', () => {
   test.beforeEach(async ({ page }) => {
+    // The inbox the shell opens on offers the colleagues a case can be handed to.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: adminUser }));
     await page.route('**/api/case-categories/selectable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'Musterfirma GmbH', hasLogo: false } }));
@@ -99,6 +101,8 @@ test.describe('AI costs', () => {
   });
 
   test('hides the page from regular users and redirects them away', async ({ page }) => {
+    // The inbox the shell opens on offers the colleagues a case can be handed to.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: { ...adminUser, role: 'user' } }));
 
     await page.goto('/ai-costs');

@@ -22,6 +22,8 @@ const beispiel = { ...musterfirma, id: 't2', slug: 'beispiel-ag', name: 'Beispie
 
 test.describe('Tenants', () => {
   test.beforeEach(async ({ page }) => {
+    // The inbox the shell opens on offers the colleagues a case can be handed to.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/auth/me', (route) => route.fulfill({ json: superuser }));
     await page.route('**/api/company', (route) => route.fulfill({ json: { name: 'frontdesk', hasLogo: false } }));
   });
@@ -141,6 +143,8 @@ test.describe('Tenants', () => {
   });
 
   test('hides the page from admins and redirects them away', async ({ page }) => {
+    // The inbox the shell opens on offers the colleagues a case can be handed to.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/auth/me', (route) =>
       route.fulfill({
         json: { username: 'admin', displayName: 'Anna Admin', role: 'admin', tenant: { slug: 'musterfirma', name: 'Musterfirma GmbH' } },
