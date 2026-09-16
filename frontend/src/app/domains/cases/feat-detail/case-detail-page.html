@@ -68,14 +68,12 @@
              footer below must stay where it is. -->
         <aside class="flex flex-col gap-3 lg:min-h-0 lg:w-72 lg:shrink-0 lg:overflow-y-auto">
           <h2 class="text-sm font-medium">{{ t('caseDetail.verdict') }}</h2>
-          <dl class="flex flex-col gap-2 text-sm">
-            <div class="flex items-baseline justify-between gap-3">
-              <dt class="text-surface-500 dark:text-surface-400">{{ t('caseDetail.confidence') }}</dt>
-              <dd>{{ aCase.confidence !== null ? (aCase.confidence | percent) : '–' }}</dd>
-            </div>
-          </dl>
+          <!-- What the model made of the mail, in its own words. A case the triage has not seen
+               has none, and an empty box says nothing worth the room it takes. -->
           @if (aCase.summary) {
-            <p class="text-sm">{{ aCase.summary }}</p>
+            <p-fieldset [legend]="t('caseDetail.summary')">
+              <p class="p-1 text-sm">{{ aCase.summary }}</p>
+            </p-fieldset>
           }
           <!-- Who has the case, above the verdict: whose it is comes before what it is. Picking
                saves at once — taking work is not a correction, and the save button below is
@@ -124,9 +122,27 @@
             />
             <label for="tier">{{ t('caseDetail.tier') }}</label>
           </p-floatlabel>
+          <!-- How sure the model was of what stands in the three fields above it — under them,
+               because it qualifies them and not the summary. -->
+          <dl class="text-sm">
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-surface-500 dark:text-surface-400">{{ t('caseDetail.confidence') }}</dt>
+              <dd>{{ aCase.confidence !== null ? (aCase.confidence | percent) : '–' }}</dd>
+            </div>
+          </dl>
           <!-- What colleagues say to each other about the case, between the verdict and the
                record of it: notes are what one is working with, the trail is what happened. -->
-          <h2 class="mt-2 text-sm font-medium">{{ t('caseDetail.notes') }}</h2>
+          <h2 class="mt-2 flex items-center gap-1.5 text-sm font-medium">
+            {{ t('caseDetail.notes') }}
+            <!-- Who may read a note is the first question anyone writing one has; it hangs on the
+                 heading rather than standing under it, where it pushed the notes down the page. -->
+            <i
+              class="pi pi-lock text-xs! text-surface-500 dark:text-surface-400"
+              tabindex="0"
+              [pTooltip]="t('caseDetail.notesInternal')"
+              [attr.aria-label]="t('caseDetail.notesInternal')"
+            ></i>
+          </h2>
           <app-case-notes
             [notes]="notesService.notes.error() ? [] : notesService.notes.value()"
             [busy]="isSavingNote()"

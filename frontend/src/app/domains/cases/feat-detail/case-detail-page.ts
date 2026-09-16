@@ -8,6 +8,7 @@ import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { map } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
+import { FieldsetModule } from 'primeng/fieldset';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
@@ -56,6 +57,7 @@ const NO_CATEGORY = 'none';
     RouterLink,
     TranslocoDirective,
     ButtonModule,
+    FieldsetModule,
     FloatLabelModule,
     InputTextModule,
     MessageModule,

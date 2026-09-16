@@ -131,8 +131,12 @@ test.describe('Case detail', () => {
 
     await page.goto('/cases/1');
 
-    // Said before anybody writes: whoever is unsure writes nothing at all.
-    await expect(page.getByText('Notizen gehen nie an den Kunden')).toBeVisible();
+    // Said where it is asked: who may read a note hangs on the heading rather than standing
+    // under it, so it does not push the notes themselves down the page.
+    const hint = page.locator('h2 i[aria-label]').first();
+    await expect(hint).toHaveAttribute('aria-label', /Notizen gehen nie an den Kunden/);
+    await hint.hover();
+    await expect(page.getByRole('tooltip')).toContainText('Notizen gehen nie an den Kunden');
 
     await page.getByLabel('Neue Notiz').fill('Stammkunde, nicht erwähnen.');
     await page.getByRole('button', { name: 'Notiz hinzufügen' }).click();
