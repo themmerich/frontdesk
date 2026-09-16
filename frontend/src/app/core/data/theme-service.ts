@@ -78,9 +78,25 @@ export const TINTED_SURFACES: Record<string, Record<number, string>> = {
   },
 };
 
-function surfacePalette(name: string): object {
-  return TINTED_SURFACES[name] ?? palette(`{${name}}`);
-}
+/** The @primeuix/themes runtime calls this service makes. */
+export type ThemeApi = {
+  palette: typeof palette;
+  updatePrimaryPalette: typeof updatePrimaryPalette;
+  updateSurfacePalette: typeof updateSurfacePalette;
+  usePreset: typeof usePreset;
+};
+
+/**
+ * The theming runtime, injectable for the same reason as THEME_STORAGE below: the specs need to
+ * see which palettes get applied, and jsdom cannot verify the CSS variables the real one writes.
+ * A module mock did that job until a new spec next door quietly changed how the test bundler
+ * chunks this file, and the mock stopped intercepting — silently, as zero calls rather than an
+ * error. A provider cannot miss its target that way.
+ */
+export const THEME_API = new InjectionToken<ThemeApi>('THEME_API', {
+  providedIn: 'root',
+  factory: () => ({ palette, updatePrimaryPalette, updateSurfacePalette, usePreset }),
+});
 
 /**
  * The storage backing the theme choice. Injectable so tests can provide an
@@ -104,6 +120,7 @@ export const THEME_STORAGE = new InjectionToken<Storage | null>('THEME_STORAGE',
 export class ThemeService {
   private readonly document = inject(DOCUMENT);
   private readonly storage = inject(THEME_STORAGE);
+  private readonly theme = inject(THEME_API);
   private readonly companyService = inject(CompanyService);
 
   private readonly settings = this.initialSettings();
@@ -129,7 +146,7 @@ export class ThemeService {
       }
       appliedCompanyColor = companyColor;
       if (companyColor !== null) {
-        updatePrimaryPalette(palette(companyColor));
+        this.theme.updatePrimaryPalette(this.theme.palette(companyColor));
       } else {
         void this.applyPreset(this.preset());
       }
@@ -155,7 +172,7 @@ export class ThemeService {
   setPrimary(name: string): void {
     this.primary.set(name);
     this.persist();
-    updatePrimaryPalette(palette(`{${name}}`));
+    this.theme.updatePrimaryPalette(this.theme.palette(`{${name}}`));
   }
 
   /** Forgets the own primary choice: back to the company color, or the preset's default. */
@@ -164,7 +181,7 @@ export class ThemeService {
     this.persist();
     const companyColor = this.companyService.primaryColor();
     if (companyColor !== null) {
-      updatePrimaryPalette(palette(companyColor));
+      this.theme.updatePrimaryPalette(this.theme.palette(companyColor));
     } else {
       // Re-applying the preset restores its default primary palette.
       void this.applyPreset(this.preset());
@@ -174,12 +191,16 @@ export class ThemeService {
   setSurface(name: string): void {
     this.surface.set(name);
     this.persist();
-    updateSurfacePalette(surfacePalette(name));
+    this.theme.updateSurfacePalette(this.surfacePalette(name));
+  }
+
+  private surfacePalette(name: string): object {
+    return TINTED_SURFACES[name] ?? this.theme.palette(`{${name}}`);
   }
 
   private async applyPreset(name: PresetName): Promise<void> {
     const preset = await PRESETS[name]();
-    usePreset(preset.default);
+    this.theme.usePreset(preset.default);
     // usePreset resets the palettes to the preset's defaults.
     this.applyPalettes();
   }
@@ -188,13 +209,13 @@ export class ThemeService {
     const primary = this.primary();
     const companyColor = this.companyService.primaryColor();
     if (primary !== null) {
-      updatePrimaryPalette(palette(`{${primary}}`));
+      this.theme.updatePrimaryPalette(this.theme.palette(`{${primary}}`));
     } else if (companyColor !== null) {
-      updatePrimaryPalette(palette(companyColor));
+      this.theme.updatePrimaryPalette(this.theme.palette(companyColor));
     }
     const surface = this.surface();
     if (surface !== null) {
-      updateSurfacePalette(surfacePalette(surface));
+      this.theme.updateSurfacePalette(this.surfacePalette(surface));
     }
   }
 
