@@ -17,6 +17,8 @@ import de.prime_ux.backend.cases.CaseEventRepository;
 import de.prime_ux.backend.cases.CaseEventType;
 import de.prime_ux.backend.cases.CaseMessage;
 import de.prime_ux.backend.cases.CaseMessageRepository;
+import de.prime_ux.backend.cases.CaseNote;
+import de.prime_ux.backend.cases.CaseNoteRepository;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.mailsettings.MailSettingsMode;
 import de.prime_ux.backend.mailsettings.TenantMailSettings;
@@ -74,6 +76,9 @@ class ReplySendControllerTest {
 
 	@Autowired
 	private AppUserRepository appUserRepository;
+
+	@Autowired
+	private CaseNoteRepository caseNoteRepository;
 
 	@Autowired
 	private TenantRepository tenantRepository;
@@ -134,6 +139,33 @@ class ReplySendControllerTest {
 
 	private List<CaseMessage> conversationOf(Case aCase) {
 		return caseMessageRepository.findAllByMailCaseIdOrderByPositionAsc(aCase.getId());
+	}
+
+	@Test
+	@AsUser("anna")
+	void neverCarriesAnInternalNoteOutOfTheHouse() throws Exception {
+		mailboxOnPort(greenMail.getSmtp().getPort());
+		Case aCase = drafted("rechnung@musterfirma.de", "Lieferung 4711");
+		// What colleagues say to each other, in words no customer may ever read.
+		caseNoteRepository.save(new CaseNote(aCase,
+				appUserRepository.findByTenantIdAndUsernameIgnoreCase(tenant.getId(), "anna").orElseThrow(),
+				"Anna Muster", "Stammkunde, zahlt immer zu spaet - nicht erwaehnen!"));
+
+		mockMvc.perform(post("/api/cases/{id}/send", aCase.getId()).with(csrf())).andExpect(status().isOk());
+
+		assertThat(greenMail.waitForIncomingEmail(5000, 1)).isTrue();
+		MimeMessage sent = greenMail.getReceivedMessages()[0];
+		// Not in the body, not in the subject, not anywhere in the mail as it went over the wire.
+		assertThat((String) sent.getContent()).doesNotContain("zahlt immer zu spaet");
+		assertThat(sent.getSubject()).doesNotContain("zahlt immer zu spaet");
+		assertThat(rawOf(sent)).doesNotContain("zahlt immer zu spaet");
+	}
+
+	/** The mail as the server received it, headers and all — the one place nothing can hide. */
+	private static String rawOf(MimeMessage message) throws Exception {
+		java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+		message.writeTo(bytes);
+		return bytes.toString(java.nio.charset.StandardCharsets.UTF_8);
 	}
 
 	@Test

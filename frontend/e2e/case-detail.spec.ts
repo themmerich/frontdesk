@@ -75,6 +75,12 @@ test.describe('Case detail', () => {
       route.fulfill({ json: [{ id: 'c1', name: 'Rechnung', color: 'amber' }] }),
     );
     await page.route('**/api/cases/1', (route) => route.fulfill({ json: detail }));
+    // The inbox this spec opens from offers the colleagues a case can be handed to. Unanswered
+    // with a backend running behind the dev server, it comes back 401 and the interceptor sends
+    // the browser to the login — which is why this spec passed in CI, where none is running.
+    await page.route('**/api/users/assignable', (route) => route.fulfill({ json: [{ id: 'u1', name: 'Anna Admin' }] }));
+    // Every case reads its notes; without an answer the interceptor sends the browser away.
+    await page.route('**/api/cases/*/notes', (route) => route.fulfill({ json: [] }));
     await page.route('**/api/cases/2', (route) =>
       route.fulfill({
         json: {
@@ -99,6 +105,44 @@ test.describe('Case detail', () => {
     await expect(page.getByText('72')).toBeVisible();
     // The mail says it has attachments, so the page says they are missing.
     await expect(page.getByText('Diese Mail hat Anhänge')).toBeVisible();
+  });
+
+  test('keeps internal notes on the case, and never in the reply', async ({ page }) => {
+    const notes: { id: string; authorName: string; text: string; createdAt: string; updatedAt: string | null; own: boolean }[] = [];
+    let written: { text: string } | null = null;
+    await page.route('**/api/cases/1/notes', async (route) => {
+      if (route.request().method() === 'POST') {
+        written = route.request().postDataJSON();
+        notes.push({
+          id: 'n1',
+          authorName: 'Anna Admin',
+          text: written!.text,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+          own: true,
+        });
+        return route.fulfill({ status: 201, json: notes[0] });
+      }
+      return route.fulfill({ json: notes });
+    });
+
+    await page.goto('/cases/1');
+
+    // Said before anybody writes: whoever is unsure writes nothing at all.
+    await expect(page.getByText('Notizen gehen nie an den Kunden')).toBeVisible();
+
+    await page.getByLabel('Neue Notiz').fill('Stammkunde, nicht erwähnen.');
+    await page.getByRole('button', { name: 'Notiz hinzufügen' }).click();
+
+    await expect(page.getByText('Notiz gespeichert.')).toBeVisible();
+    expect(written).toEqual({ text: 'Stammkunde, nicht erwähnen.' });
+    // The note stands on the case, under the name of whoever wrote it.
+    const note = page.locator('article').filter({ hasText: 'Stammkunde, nicht erwähnen.' });
+    await expect(note).toBeVisible();
+    await expect(note).toContainText('Anna Admin');
+
+    // And nowhere near the reply: the draft box is what goes to the customer.
+    await expect(page.locator('textarea#draft')).toHaveValue('');
   });
 
   test('lists the attachments and opens each the way its kind asks for', async ({ page }) => {

@@ -16,9 +16,10 @@ import java.util.UUID;
 public record CaseResponse(UUID id, String sender, String recipient, String subject, Instant receivedAt,
 		boolean hasAttachments, long sizeBytes, String summary, UUID categoryId, String categoryName,
 		String categoryColor, String tier, BigDecimal confidence, Instant handledAt, Instant deletedAt,
-		boolean hasDraft, Instant lastMessageAt, long messageCount, UUID assigneeId, String assigneeName) {
+		boolean hasDraft, Instant lastMessageAt, long messageCount, UUID assigneeId, String assigneeName,
+		long noteCount) {
 
-	static CaseResponse from(Case aCase, long messageCount) {
+	static CaseResponse from(Case aCase, long messageCount, long noteCount) {
 		CaseCategory category = aCase.getCategory();
 		AppUser assignee = aCase.getAssignee();
 		return new CaseResponse(aCase.getId(), aCase.getSender(), aCase.getRecipient(), aCase.getSubject(),
@@ -42,6 +43,9 @@ public record CaseResponse(UUID id, String sender, String recipient, String subj
 				// Who has the case, for the column and for "my cases"; the name so the list does
 				// not have to look every assignee up on its own.
 				assignee == null ? null : assignee.getId(),
-				assignee == null ? null : CaseEvents.nameOf(assignee));
+				assignee == null ? null : CaseEvents.nameOf(assignee),
+				// Whether colleagues have said anything about the case; what they said is the
+				// detail's.
+				noteCount);
 	}
 }

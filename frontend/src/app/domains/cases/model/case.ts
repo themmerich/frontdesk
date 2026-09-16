@@ -38,6 +38,8 @@ export type Case = {
   /** Who has the case, or null while nobody has taken it; a picker needs the key, the list the name. */
   assigneeId: string | null;
   assigneeName: string | null;
+  /** How many internal notes the case carries; what they say is the detail's. */
+  noteCount: number;
   /** When the conversation last moved, in either direction; the list sorts and groups by it. */
   lastMessageAt: Date;
   /** How long the conversation is; more than one says the customer or the house wrote again. */
@@ -94,6 +96,7 @@ export type CaseEventType =
   | 'classification_corrected'
   | 'draft_generated'
   | 'draft_edited'
+  | 'note_deleted'
   | 'assigned'
   | 'unassigned'
   | 'handled'
@@ -134,6 +137,20 @@ export type SelectableCategory = {
   id: string;
   name: string;
   color: CaseCategoryColor | null;
+};
+
+/**
+ * An internal note on a case: what colleagues tell each other about it, and never the customer.
+ * `updatedAt` is null while the note stands as it was written.
+ */
+export type CaseNote = {
+  id: string;
+  authorName: string;
+  text: string;
+  createdAt: Date;
+  updatedAt: Date | null;
+  /** Whether the person reading wrote it — the server decides, the page only offers accordingly. */
+  own: boolean;
 };
 
 /** A colleague a case can be handed to: what the picker needs and nothing else. */

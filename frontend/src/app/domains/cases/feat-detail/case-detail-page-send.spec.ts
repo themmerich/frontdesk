@@ -52,6 +52,7 @@ const aCase: CaseDetail = {
   deletedAt: null,
   assigneeId: null,
   assigneeName: null,
+  noteCount: 0,
   draftText: 'Guten Tag,\n\ndie Lieferung ist unterwegs.',
   draftGeneratedAt: new Date('2026-08-19T10:00:00Z'),
   draftUpdatedAt: new Date('2026-08-19T10:00:00Z'),

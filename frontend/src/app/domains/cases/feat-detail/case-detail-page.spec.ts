@@ -77,6 +77,7 @@ const aCase: CaseDetail = {
   deletedAt: null,
   assigneeId: null,
   assigneeName: null,
+  noteCount: 0,
   draftText: null,
   draftGeneratedAt: null,
   draftUpdatedAt: null,

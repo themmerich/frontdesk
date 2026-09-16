@@ -49,6 +49,8 @@ class ReplyDraftProcessorTest {
 		final List<String> draftedSubjects = new ArrayList<>();
 		String lastSignature;
 		String lastInstruction;
+		/** Everything the drafter was handed to write from — read by the leak test. */
+		List<CaseMessage> lastConversation = List.of();
 
 		@Override
 		public String draft(Case mailCase, List<CaseMessage> conversation, TenantTriageSettings settings,
@@ -56,6 +58,7 @@ class ReplyDraftProcessorTest {
 			draftedSubjects.add(mailCase.getSubject());
 			lastSignature = signature;
 			lastInstruction = instruction;
+			lastConversation = List.copyOf(conversation);
 			if (failing) {
 				throw new ReplyDraftException("no answer", null);
 			}
@@ -76,6 +79,7 @@ class ReplyDraftProcessorTest {
 			this.failing = false;
 			this.lastSignature = null;
 			this.lastInstruction = null;
+			this.lastConversation = List.of();
 			draftedSubjects.clear();
 		}
 	}

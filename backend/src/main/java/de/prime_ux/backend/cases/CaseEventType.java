@@ -17,6 +17,12 @@ public enum CaseEventType {
 	DRAFT_GENERATED,
 	/** A person saved an edited reply. */
 	DRAFT_EDITED,
+	/**
+	 * An internal note was removed. Writing one and changing one are not recorded: the note
+	 * carries its own author and moment and says when it was edited, so an entry would only
+	 * repeat what stands beside it. Removing leaves nothing behind, which is why this one does.
+	 */
+	NOTE_DELETED,
 	/** Somebody took the case, or handed it to a colleague. */
 	ASSIGNED,
 	/** The case belongs to nobody again. */

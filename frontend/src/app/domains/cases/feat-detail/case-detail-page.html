@@ -124,6 +124,16 @@
               [disabled]="isSaving()"
             />
           </div>
+          <!-- What colleagues say to each other about the case, between the verdict and the
+               record of it: notes are what one is working with, the trail is what happened. -->
+          <h2 class="mt-2 text-sm font-medium">{{ t('caseDetail.notes') }}</h2>
+          <app-case-notes
+            [notes]="notesService.notes.error() ? [] : notesService.notes.value()"
+            [busy]="isSavingNote()"
+            (added)="onAddNote($event)"
+            (edited)="onEditNote($event)"
+            (removed)="onRemoveNote($event)"
+          />
           <!-- What the case has been through, under the verdict: came in, was judged, was
                corrected, was answered — each step with who took it and when. -->
           @if (aCase.events.length > 0) {
