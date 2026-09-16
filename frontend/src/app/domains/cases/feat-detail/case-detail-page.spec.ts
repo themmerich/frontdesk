@@ -15,6 +15,7 @@ import { CaseDetailPage } from './case-detail-page';
 
 const translations = {
   cases: {
+    assigneeNobody: 'Nobody',
     tierAutomatic: 'Automatic',
     tierDraft: 'Draft',
     tierManual: 'Manual',
@@ -268,7 +269,8 @@ describe('CaseDetailPage', () => {
     const page = fixture.componentInstance;
     expect(page['isDirty']()).toBe(false);
 
-    page['draftCategoryId'].set(null);
+    // The first option of the picker is the one that says no category at all.
+    page['draftCategoryId'].set(page['categoryOptions']()[0].value);
     await fixture.whenStable();
     expect(page['isDirty']()).toBe(true);
 
@@ -276,6 +278,18 @@ describe('CaseDetailPage', () => {
     page['draftCategoryId'].set('c1');
     await fixture.whenStable();
     expect(page['isDirty']()).toBe(false);
+  });
+
+  it('gives both empty choices a value, so the float label stays out of their way', async () => {
+    const fixture = createFixture();
+    const page = fixture.componentInstance;
+
+    // PrimeNG reads an empty model value as an empty field and leaves the float label in the
+    // middle of the box — on top of the very option that says the field is deliberately empty.
+    expect(page['assigneeOptions']()[0].label).toBe('Nobody');
+    expect(page['assigneeOptions']()[0].value).toBeTruthy();
+    expect(page['categoryOptions']()[0].label).toBe('Without a category');
+    expect(page['categoryOptions']()[0].value).toBeTruthy();
   });
 
   it('starts from what the next case says, not from the edit left on the last one', async () => {
