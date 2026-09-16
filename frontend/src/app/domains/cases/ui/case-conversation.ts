@@ -32,6 +32,9 @@ type ConversationEntry = {
   selector: 'app-case-conversation',
   imports: [DatePipe, FileSizePipe, TranslocoDirective, ButtonModule],
   templateUrl: './case-conversation.html',
+  // Claims the height its panel offers: without this the host is a plain inline box, the column
+  // inside it has nothing to fill, and the mail is as tall as whatever it was given.
+  host: { class: 'flex min-h-0 flex-auto flex-col' },
 })
 export class CaseConversation {
   readonly messages = input.required<CaseMessage[]>();

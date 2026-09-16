@@ -46,6 +46,9 @@ const translations = {
     saveError: 'The classification could not be saved.',
     send: 'Send',
     confidence: 'Model confidence',
+    summary: 'Summary',
+    notes: 'Notes',
+    notesInternal: 'For colleagues only. A note never reaches the customer.',
     tier: 'Tier',
     messages: 'Messages',
     htmlMail: 'Message',
@@ -290,6 +293,23 @@ describe('CaseDetailPage', () => {
     expect(page['assigneeOptions']()[0].value).toBeTruthy();
     expect(page['categoryOptions']()[0].label).toBe('Without a category');
     expect(page['categoryOptions']()[0].value).toBeTruthy();
+  });
+
+  it('gathers the verdict under one heading and says who may read a note', () => {
+    const element = createFixture().nativeElement as HTMLElement;
+
+    // What the model wrote stands in a box of its own; how sure it was belongs to the three
+    // fields it decided, not to the sentence.
+    const fieldset = element.querySelector('p-fieldset') as HTMLElement;
+    expect(fieldset.textContent).toContain('Summary');
+    expect(fieldset.textContent).toContain('Kunde bittet um eine Kopie.');
+    expect(fieldset.textContent).not.toContain('Model confidence');
+    expect(element.textContent).toContain('Model confidence');
+
+    // Somebody unsure whether this reaches the customer writes nothing at all — so it hangs on
+    // the heading, where it is asked, rather than standing under it.
+    const hint = element.querySelector('h2 i[aria-label]') as HTMLElement;
+    expect(hint.getAttribute('aria-label')).toContain('A note never reaches the customer.');
   });
 
   it('starts from what the next case says, not from the edit left on the last one', async () => {

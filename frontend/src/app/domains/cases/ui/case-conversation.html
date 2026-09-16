@@ -12,7 +12,7 @@
       <!-- Native details: the newest message stands open, the ones before it fold to their
            header and open on a click, with nothing to script. -->
       <details
-        class="rounded-lg border border-surface-200 dark:border-surface-700"
+        class="rounded-lg border border-surface-200 open:flex open:min-h-0 open:flex-auto open:flex-col dark:border-surface-700"
         [open]="entry.open"
         data-message
         [attr.data-direction]="entry.message.direction"
@@ -28,7 +28,7 @@
           </span>
           <span class="text-surface-500 dark:text-surface-400">{{ entry.message.occurredAt | date: 'short' }}</span>
         </summary>
-        <div class="flex flex-col gap-2 px-3 pb-3">
+        <div class="flex min-h-0 flex-auto flex-col gap-2 px-3 pb-3">
           @if (entry.document; as document) {
             <!-- The mail is a document of its own, in a frame that may do nothing: no scripts, no
                  origin of its own, no forms to submit, nothing fetched but what the policy in its
@@ -38,14 +38,14 @@
               sandbox="allow-popups allow-popups-to-escape-sandbox"
               referrerpolicy="no-referrer"
               [title]="t('caseDetail.htmlMail')"
-              class="h-96 w-full rounded-lg border border-surface-200 bg-white dark:border-surface-700"
+              class="min-h-0 w-full flex-auto rounded-lg border border-surface-200 bg-white dark:border-surface-700"
             ></iframe>
           } @else {
             <!-- Every piece bound as text; only the ones that are addresses get an anchor around
                  them. Nothing of the mail is ever rendered as markup. Written without a break
                  between the pieces: the box preserves whitespace. -->
             <!-- prettier-ignore -->
-            <div class="rounded-lg bg-surface-50 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:bg-surface-800"
+            <div class="min-h-0 flex-auto overflow-y-auto rounded-lg bg-surface-50 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:bg-surface-800"
             >@for (part of entry.textParts; track $index) {@if (part.href) {<a [href]="part.href" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2 hover:no-underline">{{ part.text }}</a>} @else {{{ part.text }}}}</div>
           }
           @if (entry.attachments.length > 0) {

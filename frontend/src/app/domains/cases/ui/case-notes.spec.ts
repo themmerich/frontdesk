@@ -7,7 +7,6 @@ import { CaseNotes } from './case-notes';
 
 const translations = {
   caseDetail: {
-    notesInternal: 'For colleagues only. A note never reaches the customer.',
     noteNew: 'New note',
     notePlaceholder: 'What the others should know …',
     noteAdd: 'Add note',
@@ -65,13 +64,6 @@ describe('CaseNotes', () => {
     box.dispatchEvent(new Event('input'));
     await fixture.whenStable();
   }
-
-  it('says that a note stays in the house, before anybody writes one', () => {
-    const element = createFixture().nativeElement as HTMLElement;
-
-    // Somebody unsure whether this reaches the customer writes nothing at all.
-    expect(element.textContent).toContain('A note never reaches the customer.');
-  });
 
   it('shows each note with who wrote it and when, and marks an edited one', () => {
     const element = createFixture([
