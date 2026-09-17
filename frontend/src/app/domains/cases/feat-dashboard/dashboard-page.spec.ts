@@ -36,11 +36,14 @@ const translations = {
     comparedTo: { today: 'vs. yesterday', week: 'vs. previous week', month: 'vs. previous month' },
     period: { today: 'Today', week: '7 days', month: '30 days', year: '12 months' },
     byCategory: 'Cases per category',
+    byChannel: 'Cases per channel',
     byTier: 'Cases per tier',
     arrivals: 'Arrivals',
     withoutCategory: 'Without a category',
     everyCategory: 'All categories',
+    everyChannel: 'All channels',
     filterCategory: 'Arrivals by category',
+    filterChannel: 'Arrivals by channel',
     notTriaged: 'Not triaged',
   },
   cases: {
@@ -49,23 +52,29 @@ const translations = {
     tierManual: 'Manual',
     tierInfo: 'Info',
     tierIgnore: 'Ignore',
+    channel: { mail: 'Mail', phone: 'Phone', fax: 'Fax', other: 'Other' },
     loadError: 'Cases could not be loaded.',
   },
 };
 
+/** What a bucket caught, keyed by category and then by channel, as the spec writes it down. */
+type BucketCounts = Record<string, Record<string, number>>;
+
 /** Buckets as the server sends them: the full run, named by where each one begins. */
-function buckets(periods: string[], counts: Record<string, Record<string, number>> = {}): ArrivalBucket[] {
+function buckets(periods: string[], counts: Record<string, BucketCounts> = {}): ArrivalBucket[] {
   return periods.map((period) => {
-    const byCategory = counts[period] ?? {};
+    const caught = counts[period] ?? {};
     return {
       period,
-      count: Object.values(byCategory).reduce((sum, count) => sum + count, 0),
-      byCategory,
+      count: Object.values(caught)
+        .flatMap((byChannel) => Object.values(byChannel))
+        .reduce((sum, count) => sum + count, 0),
+      counts: caught,
     };
   });
 }
 
-function days(counts: Record<string, Record<string, number>> = {}): ArrivalBucket[] {
+function days(counts: Record<string, BucketCounts> = {}): ArrivalBucket[] {
   // Thirty consecutive days ending on a fixed one, so a label never depends on the day the test runs.
   const periods = Array.from({ length: 30 }, (_, index) => {
     const day = new Date(Date.UTC(2026, 8, 15));
@@ -80,6 +89,12 @@ function statisticsFor(overrides: Partial<CaseStatistics> = {}): CaseStatistics 
     totals: { all: 0, untriaged: 0, manual: 0, archived: 0, trashed: 0 },
     windows: { today: { count: 0, previous: 0 }, week: { count: 0, previous: 0 }, month: { count: 0, previous: 0 } },
     byCategory: [],
+    byChannel: [
+      { channel: 'mail', count: 0 },
+      { channel: 'phone', count: 0 },
+      { channel: 'fax', count: 0 },
+      { channel: 'other', count: 0 },
+    ],
     byTier: [
       { tier: 'automatic', count: 0 },
       { tier: 'draft', count: 0 },
@@ -205,12 +220,18 @@ describe('DashboardPage', () => {
     expect(text).toContain('vs. previous week');
   });
 
-  it('draws the categories, the tiers and the arrivals as they were handed over', () => {
+  it('draws the categories, the channels, the tiers and the arrivals as they were handed over', () => {
     statistics.set(
       statisticsFor({
         byCategory: [
           { id: 'c1', name: 'Statusanfrage', color: 'blue', count: 2 },
           { id: null, name: null, color: null, count: 1 },
+        ],
+        byChannel: [
+          { channel: 'mail', count: 2 },
+          { channel: 'phone', count: 1 },
+          { channel: 'fax', count: 0 },
+          { channel: 'other', count: 0 },
         ],
         byTier: [
           { tier: 'automatic', count: 2 },
@@ -220,21 +241,25 @@ describe('DashboardPage', () => {
           { tier: 'ignore', count: 0 },
           { tier: null, count: 1 },
         ],
-        days: days({ '2026-09-15': { c1: 2, none: 1 } }),
+        days: days({ '2026-09-15': { c1: { mail: 2 }, none: { phone: 1 } } }),
       }),
     );
 
     const fixture = createFixture();
 
-    expect(fixture.debugElement.queryAll(By.directive(UIChart))).toHaveLength(3);
+    expect(fixture.debugElement.queryAll(By.directive(UIChart))).toHaveLength(4);
     const categories = chartData(fixture, 0);
     expect(categories.labels).toEqual(['Statusanfrage', 'Without a category']);
     expect(categories.datasets[0].data).toEqual([2, 1]);
-    const tiers = chartData(fixture, 1);
+    const channels = chartData(fixture, 1);
+    // All four, in the order the model names them; the ones nothing came in over stay at zero.
+    expect(channels.labels).toEqual(['Mail', 'Phone', 'Fax', 'Other']);
+    expect(channels.datasets[0].data).toEqual([2, 1, 0, 0]);
+    const tiers = chartData(fixture, 2);
     // The ladder comes in order from the server, gaps and the untriaged behind it included.
     expect(tiers.labels).toEqual(['Automatic', 'Draft', 'Manual', 'Info', 'Ignore', 'Not triaged']);
     expect(tiers.datasets[0].data).toEqual([2, 0, 0, 0, 0, 1]);
-    const arrivals = chartData(fixture, 2);
+    const arrivals = chartData(fixture, 3);
     expect(arrivals.labels).toHaveLength(30);
     expect(arrivals.datasets[0].data.at(-1)).toBe(3);
   });
@@ -245,23 +270,23 @@ describe('DashboardPage', () => {
     reload.mockClear();
 
     // Thirty days to begin with, one point per day.
-    expect(chartData(fixture, 2).labels).toHaveLength(30);
+    expect(chartData(fixture, 3).labels).toHaveLength(30);
 
     const element = fixture.nativeElement as HTMLElement;
     // Each option of the select button renders as a toggle button carrying its label.
     const period = (label: string) => element.querySelector<HTMLElement>(`p-togglebutton[aria-label="${label}"]`)!;
     period('Today').click();
     await fixture.whenStable();
-    expect(chartData(fixture, 2).labels).toHaveLength(24);
+    expect(chartData(fixture, 3).labels).toHaveLength(24);
 
     period('7 days').click();
     await fixture.whenStable();
     // The week is the last seven of the thirty days; the server sends them once.
-    expect(chartData(fixture, 2).labels).toHaveLength(7);
+    expect(chartData(fixture, 3).labels).toHaveLength(7);
 
     period('12 months').click();
     await fixture.whenStable();
-    expect(chartData(fixture, 2).labels).toHaveLength(12);
+    expect(chartData(fixture, 3).labels).toHaveLength(12);
 
     // Every series came with the one reading, so switching costs no request.
     expect(reload).not.toHaveBeenCalled();
@@ -275,7 +300,7 @@ describe('DashboardPage', () => {
           { id: 'c2', name: 'Werbung', color: 'amber', count: 1 },
           { id: null, name: null, color: null, count: 1 },
         ],
-        days: days({ '2026-09-15': { c1: 2, c2: 1, none: 1 } }),
+        days: days({ '2026-09-15': { c1: { mail: 2 }, c2: { fax: 1 }, none: { phone: 1 } } }),
         totals: { all: 4, untriaged: 1, manual: 0, archived: 0, trashed: 0 },
       }),
     );
@@ -285,9 +310,9 @@ describe('DashboardPage', () => {
     reload.mockClear();
 
     // Everything to begin with: all four on today's point.
-    expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(4);
+    expect(chartData(fixture, 3).datasets[0].data.at(-1)).toBe(4);
 
-    (element.querySelector('p-select') as HTMLElement).click();
+    (element.querySelector('p-select[inputid="dashboard-arrivals-category"]') as HTMLElement).click();
     await fixture.whenStable();
     const options = Array.from(document.querySelectorAll('li[role="option"]'));
     // The largest category first, as in the doughnut, and the uncategorised at the very end.
@@ -297,10 +322,47 @@ describe('DashboardPage', () => {
     await fixture.whenStable();
 
     // Only the one case filed under Werbung is left on the chart, and it came out of the bucket.
-    expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(1);
+    expect(chartData(fixture, 3).datasets[0].data.at(-1)).toBe(1);
     expect(reload).not.toHaveBeenCalled();
     // The numbers above the chart are not part of the filter.
     expect(element.textContent).toMatch(/Cases in total\s*4/);
+  });
+
+  it('narrows the arrivals to one channel, and to a category and a channel together', async () => {
+    statistics.set(
+      statisticsFor({
+        byCategory: [
+          { id: 'c1', name: 'Jobsuche', color: 'blue', count: 3 },
+          { id: 'c2', name: 'Werbung', color: 'amber', count: 1 },
+        ],
+        days: days({ '2026-09-15': { c1: { mail: 2, phone: 1 }, c2: { phone: 1 } } }),
+      }),
+    );
+    const fixture = createFixture();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(chartData(fixture, 3).datasets[0].data.at(-1)).toBe(4);
+
+    (element.querySelector('p-select[inputid="dashboard-arrivals-channel"]') as HTMLElement).click();
+    await fixture.whenStable();
+    const options = Array.from(document.querySelectorAll('li[role="option"]'));
+    expect(options.map((option) => option.textContent?.trim())).toEqual(['All channels', 'Mail', 'Phone', 'Fax', 'Other']);
+
+    (options[2] as HTMLElement).click();
+    await fixture.whenStable();
+
+    // Two came in by telephone, one under each category.
+    expect(chartData(fixture, 3).datasets[0].data.at(-1)).toBe(2);
+
+    // Both narrowings at once: only the one call filed under Jobsuche is left.
+    (element.querySelector('p-select[inputid="dashboard-arrivals-category"]') as HTMLElement).click();
+    await fixture.whenStable();
+    (document.querySelectorAll('li[role="option"]')[1] as HTMLElement).click();
+    await fixture.whenStable();
+
+    expect(chartData(fixture, 3).datasets[0].data.at(-1)).toBe(1);
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('goes back to every category when the one picked is no longer among the cases', async () => {
@@ -310,31 +372,31 @@ describe('DashboardPage', () => {
           { id: 'c1', name: 'Jobsuche', color: 'blue', count: 1 },
           { id: null, name: null, color: null, count: 1 },
         ],
-        days: days({ '2026-09-15': { c1: 1, none: 1 } }),
+        days: days({ '2026-09-15': { c1: { mail: 1 }, none: { mail: 1 } } }),
       }),
     );
     const fixture = createFixture();
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
-    (element.querySelector('p-select') as HTMLElement).click();
+    (element.querySelector('p-select[inputid="dashboard-arrivals-category"]') as HTMLElement).click();
     await fixture.whenStable();
     (document.querySelectorAll('li[role="option"]')[1] as HTMLElement).click();
     await fixture.whenStable();
-    expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(1);
+    expect(chartData(fixture, 3).datasets[0].data.at(-1)).toBe(1);
 
     // Read again, and the Jobsuche case is gone.
     statistics.set(
       statisticsFor({
         byCategory: [{ id: null, name: null, color: null, count: 1 }],
-        days: days({ '2026-09-15': { none: 1 } }),
+        days: days({ '2026-09-15': { none: { mail: 1 } } }),
       }),
     );
     (element.querySelector('p-button button') as HTMLButtonElement).click();
     await fixture.whenStable();
 
-    expect(element.querySelector('p-select')?.textContent).toContain('All categories');
-    expect(chartData(fixture, 2).datasets[0].data.at(-1)).toBe(1);
+    expect(element.querySelector('p-select[inputid="dashboard-arrivals-category"]')?.textContent).toContain('All categories');
+    expect(chartData(fixture, 3).datasets[0].data.at(-1)).toBe(1);
   });
 
   it('reads again when the refresh button is pressed', async () => {

@@ -154,6 +154,24 @@ public interface CaseRepository extends JpaRepository<Case, UUID> {
 		long getCount();
 	}
 
+	/**
+	 * Cases per channel, the trash left out; a channel nothing came in over simply does not come
+	 * back, and the report puts it in the row at zero.
+	 */
+	@Query(value = """
+			select c.channel as "channel", count(*) as "count"
+			from cases c
+			where c.tenant_id = :tenantId and c.deleted_at is null
+			group by c.channel""", nativeQuery = true)
+	List<ChannelCount> countByChannel(UUID tenantId);
+
+	interface ChannelCount {
+
+		String getChannel();
+
+		long getCount();
+	}
+
 	/** Cases per tier, the trash left out; a tier nothing points at simply does not come back. */
 	@Query(value = """
 			select c.tier as "tier", count(*) as "count"
@@ -170,9 +188,12 @@ public interface CaseRepository extends JpaRepository<Case, UUID> {
 	}
 
 	/**
-	 * Arrivals per stretch of the calendar and category, for one granularity of the chart. The
-	 * zone decides where a stretch begins; the format is how it is spelled, as {@code to_char}
-	 * takes it.
+	 * Arrivals per stretch of the calendar, category and channel, for one granularity of the
+	 * chart. The zone decides where a stretch begins; the format is how it is spelled, as
+	 * {@code to_char} takes it.
+	 *
+	 * <p>Both breakdowns come out of the same grouping, so the chart can be narrowed to a
+	 * category, to a channel or to both without asking the database again.
 	 *
 	 * @param unit {@code hour}, {@code day} or {@code month}
 	 * @param format {@code YYYY-MM-DD"T"HH24}, {@code YYYY-MM-DD} or {@code YYYY-MM}
@@ -180,11 +201,12 @@ public interface CaseRepository extends JpaRepository<Case, UUID> {
 	@Query(value = """
 			select to_char(date_trunc(:unit, c.received_at at time zone :zone), :format) as "period",
 			       coalesce(c.category_id::text, 'none')                                 as "category",
+			       c.channel                                                             as "channel",
 			       count(*)                                                              as "count"
 			from cases c
 			where c.tenant_id = :tenantId and c.deleted_at is null and c.received_at >= :since
-			group by 1, 2
-			order by 1, 2""", nativeQuery = true)
+			group by 1, 2, 3
+			order by 1, 2, 3""", nativeQuery = true)
 	List<PeriodCount> countByPeriod(UUID tenantId, Instant since, String unit, String zone, String format);
 
 	interface PeriodCount {
@@ -192,6 +214,8 @@ public interface CaseRepository extends JpaRepository<Case, UUID> {
 		String getPeriod();
 
 		String getCategory();
+
+		String getChannel();
 
 		long getCount();
 	}

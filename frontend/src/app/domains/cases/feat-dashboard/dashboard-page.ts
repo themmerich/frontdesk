@@ -11,7 +11,7 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { ChartOptionsBase } from 'primeng/types/chart';
 
 import { CaseStatisticsService } from '../data/case-statistics-service';
-import { CaseTier } from '../model/case';
+import { CaseChannel, CaseTier } from '../model/case';
 import { ArrivalBucket, NO_CATEGORY, WindowName } from '../model/case-statistics';
 
 /** How far back the arrivals chart looks, and in what steps it counts on the way. */
@@ -25,6 +25,9 @@ const WEEK_DAYS = 7;
 
 /** What the arrivals chart may be narrowed to when it is narrowed to nothing. */
 const EVERY_CATEGORY = 'all';
+
+/** The same for the other narrowing: every way into the house at once. */
+const EVERY_CHANNEL = 'all';
 
 /** The tier a case sits on, and the label its bar carries — the same wording as in the inbox. */
 const TIER_LABELS: Record<CaseTier | 'none', string> = {
@@ -44,6 +47,14 @@ const TIER_COLORS: Record<CaseTier | 'none', string> = {
   info: '--app-tier-info',
   ignore: '--app-tier-ignore',
   none: '--app-tier-none',
+};
+
+/** The way a case came in, and the token its slice is drawn in — one colour per way. */
+const CHANNEL_COLORS: Record<CaseChannel, string> = {
+  mail: '--app-channel-mail',
+  phone: '--app-channel-phone',
+  fax: '--app-channel-fax',
+  other: '--app-channel-other',
 };
 
 @Component({
@@ -154,6 +165,26 @@ export class DashboardPage {
   });
 
   /**
+   * How the post reached the house, in the order the model names the channels. A channel nothing
+   * came in over keeps its slice at zero rather than disappearing: which way stays unused is worth
+   * reading too, and the doughnut would otherwise change colours from one visit to the next.
+   */
+  protected readonly channelData = computed(() => {
+    this.translation();
+    const counts = this.statistics()?.byChannel ?? [];
+    return {
+      labels: counts.map((count) => this.transloco.translate(`cases.channel.${count.channel}`)),
+      datasets: [
+        {
+          data: counts.map((count) => count.count),
+          backgroundColor: counts.map((count) => this.color(CHANNEL_COLORS[count.channel])),
+          borderWidth: 0,
+        },
+      ],
+    };
+  });
+
+  /**
    * The categories the arrivals chart can be narrowed to: the ones the cases at hand carry, in the
    * order the doughnut draws them, with everything in front and the uncategorised behind.
    */
@@ -180,6 +211,19 @@ export class DashboardPage {
       previous !== undefined && options.some((option) => option.value === previous.value) ? previous.value : EVERY_CATEGORY,
   });
 
+  /** The ways in the arrivals chart can be narrowed to, all of them in front. */
+  protected readonly channelOptions = computed(() => {
+    this.translation();
+    const counts = this.statistics()?.byChannel ?? [];
+    return [
+      { value: EVERY_CHANNEL, label: this.transloco.translate('dashboard.everyChannel') },
+      ...counts.map((count) => ({ value: count.channel as string, label: this.transloco.translate(`cases.channel.${count.channel}`) })),
+    ];
+  });
+
+  /** Which way in the arrivals chart is about; unlike the categories, the four never change. */
+  protected readonly arrivalChannel = signal<string>(EVERY_CHANNEL);
+
   /**
    * The buckets the arrivals chart draws. The week is the last seven of the thirty days — the
    * same seven buckets, so the server sends them once.
@@ -200,15 +244,18 @@ export class DashboardPage {
   protected readonly arrivalData = computed(() => {
     this.translation();
     const category = this.arrivalCategory();
+    const channel = this.arrivalChannel();
     const buckets = this.arrivalBuckets();
     const format = this.bucketFormat();
+    // A line drawn in the colour of the one channel it is about, so the picture says which.
+    const line = this.color(channel === EVERY_CHANNEL ? '--app-chart-line' : CHANNEL_COLORS[channel as CaseChannel]);
     return {
       labels: buckets.map((bucket) => format.format(periodStart(bucket.period))),
       datasets: [
         {
-          data: buckets.map((bucket) => (category === EVERY_CATEGORY ? bucket.count : (bucket.byCategory[category] ?? 0))),
-          borderColor: this.color('--app-chart-line'),
-          backgroundColor: this.color('--app-chart-line'),
+          data: buckets.map((bucket) => arrivals(bucket, category, channel)),
+          borderColor: line,
+          backgroundColor: line,
           tension: 0.35,
           fill: false,
         },
@@ -258,6 +305,26 @@ export class DashboardPage {
     this.theme();
     return getComputedStyle(this.document.documentElement).getPropertyValue(token).trim();
   }
+}
+
+/**
+ * What a bucket holds under the narrowings in force: the whole of it, one category of it, one
+ * channel of it, or the one combination of the two. The bucket only carries what it caught, so a
+ * combination nobody sent anything over is a zero rather than a gap in the line.
+ */
+function arrivals(bucket: ArrivalBucket, category: string, channel: string): number {
+  if (category === EVERY_CATEGORY && channel === EVERY_CHANNEL) {
+    return bucket.count;
+  }
+  const categories = category === EVERY_CATEGORY ? Object.values(bucket.counts) : [bucket.counts[category] ?? {}];
+  return categories.reduce(
+    (sum, byChannel) =>
+      sum +
+      (channel === EVERY_CHANNEL
+        ? Object.values(byChannel).reduce((channels, count) => channels + count, 0)
+        : (byChannel[channel as CaseChannel] ?? 0)),
+    0,
+  );
 }
 
 /**
