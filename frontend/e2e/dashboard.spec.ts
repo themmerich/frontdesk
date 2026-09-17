@@ -97,7 +97,7 @@ test.describe('Dashboard', () => {
     // The order in the sidebar: the dashboard first, then the inbox and the archive.
     const casesLinks = page.getByRole('navigation').getByRole('link');
     await expect(casesLinks.first()).toHaveText('Dashboard');
-    await expect(casesLinks.nth(1)).toHaveText('Posteingang');
+    await expect(casesLinks.nth(1)).toHaveText('Offen');
     await expect(casesLinks.nth(2)).toHaveText('Archiv');
     await expect(casesLinks.nth(3)).toHaveText('Papierkorb');
 

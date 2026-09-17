@@ -132,7 +132,7 @@ test.describe('Email settings', () => {
     await page.goto('/settings');
 
     // The admin guard sends them to the start page; the sidebar offers no administration section.
-    await expect(page.getByRole('heading', { name: 'Vorgänge' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Offen' })).toBeVisible();
     await expect(page.getByText('Administration')).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'E-Mail' })).toHaveCount(0);
     // The profile menu at the sidebar's bottom keeps its personal entries.

@@ -2,7 +2,7 @@
   "shell": {
     "cases": "Vorgänge",
     "dashboard": "Dashboard",
-    "inbox": "Posteingang",
+    "inbox": "Offen",
     "archive": "Archiv",
     "trash": "Papierkorb",
     "administration": "Administration",
@@ -64,7 +64,7 @@
     }
   },
   "cases": {
-    "title": "Vorgänge",
+    "title": "Offen",
     "sender": "Absender",
     "recipient": "Empfänger",
     "subject": "Betreff",
@@ -96,7 +96,7 @@
     "markHandledError": "Vorgang konnte nicht ins Archiv verschoben werden.",
     "reopen": "Wieder öffnen",
     "reopenRow": "„{{subject}}“ wieder öffnen",
-    "reopened": "Vorgang ist wieder im Posteingang.",
+    "reopened": "Vorgang ist wieder offen.",
     "reopenError": "Vorgang konnte nicht wieder geöffnet werden.",
     "deleteSelected": "Auswahl löschen",
     "deleteHeader": "Löschen bestätigen",
@@ -119,7 +119,7 @@
     "restored": "Vorgang wiederhergestellt.",
     "restoreError": "Vorgang konnte nicht wiederhergestellt werden.",
     "deleteError": "Löschen fehlgeschlagen.",
-    "empty": "Noch keine Vorgänge — sobald eine E-Mail eingeht, erscheint sie hier.",
+    "empty": "Nichts offen — sobald eine E-Mail eingeht oder ein Anruf notiert wird, erscheint er hier.",
     "archiveTitle": "Archiv",
     "emptyArchive": "Noch nichts erledigt — abgehakte Vorgänge sammeln sich hier.",
     "trashTitle": "Papierkorb",
@@ -149,7 +149,7 @@
     "tierInfo": "Info",
     "tierIgnore": "Ignorieren",
     "review": "Durchsicht",
-    "reviewHint": "Posteingang nach Kategorie und Stufe durchsehen",
+    "reviewHint": "Offene Vorgänge nach Kategorie und Stufe durchsehen",
     "reviewTitle": "Durchsicht",
     "reviewCaption": "Vorgänge nach Kategorie und Stufe",
     "reviewCount": "Anzahl",
@@ -196,7 +196,7 @@
     "empty": "Hier ist nichts mehr zu tun."
   },
   "caseDetail": {
-    "backToInbox": "Posteingang",
+    "backToInbox": "Offen",
     "position": "Vorgang {{position}} von {{total}}",
     "previous": "Vorheriger Vorgang",
     "next": "Nächster Vorgang",

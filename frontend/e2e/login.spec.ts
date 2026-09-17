@@ -55,7 +55,7 @@ test.describe('Login', () => {
     await page.getByLabel('Passwort').fill('secret');
     await page.getByRole('button', { name: 'Anmelden' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Vorgänge' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Offen' })).toBeVisible();
     expect(sent).toEqual({ tenant: 'musterfirma', username: 'admin', password: 'secret' });
     // The sidebar footer shows who is signed in, and for which tenant; the
     // company name also brands the sidebar's top, hence first().

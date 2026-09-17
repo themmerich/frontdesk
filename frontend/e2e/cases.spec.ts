@@ -140,7 +140,7 @@ test.describe('Cases page', () => {
 
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Vorgänge' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Offen' })).toBeVisible();
     await expect(page.getByRole('row', { name: /anna@example\.com/ })).toBeVisible();
     await expect(page.getByRole('row', { name: /Invoice copy/ })).toBeVisible();
     // German number format and unit for the size column; paperclip only on the attachment row.
@@ -1002,11 +1002,11 @@ test.describe('Cases page', () => {
 
     await page.getByRole('button', { name: '„Zu früh abgehakt“ wieder öffnen' }).click();
 
-    await expect(page.getByText('Vorgang ist wieder im Posteingang.')).toBeVisible();
+    await expect(page.getByText('Vorgang ist wieder offen.')).toBeVisible();
     expect(reopened).toEqual({ id: '3', handled: false });
     // Out of the archive, and there in the inbox.
     await expect(page.getByRole('row', { name: /Zu früh abgehakt/ })).toHaveCount(0);
-    await page.getByRole('link', { name: 'Posteingang' }).click();
+    await page.getByRole('link', { name: 'Offen', exact: true }).click();
     await expect(page.getByRole('row', { name: /Zu früh abgehakt/ })).toBeVisible();
   });
 
@@ -1019,7 +1019,7 @@ test.describe('Cases page', () => {
     // The archive keeps what it was filtered by, under a name of its own.
     await expect.poll(() => page.evaluate(() => localStorage.getItem('frontdesk-archive-table'))).toContain('Rückblick');
 
-    await page.getByRole('link', { name: 'Posteingang' }).click();
+    await page.getByRole('link', { name: 'Offen', exact: true }).click();
 
     // The inbox is untouched by it: both mails are there, the search box is empty.
     await expect(page.getByRole('textbox', { name: 'Suchen' })).toHaveValue('');
@@ -1106,7 +1106,7 @@ test.describe('Cases page', () => {
 
     await page.getByRole('link', { name: 'Archiv' }).click();
     await expect(page.getByRole('row', { name: /Doch nicht weg/ })).toBeVisible();
-    await page.getByRole('link', { name: 'Posteingang', exact: true }).click();
+    await page.getByRole('link', { name: 'Offen', exact: true }).click();
     await expect(page.getByRole('row', { name: /Doch nicht weg/ })).toHaveCount(0);
   });
 
@@ -1248,7 +1248,7 @@ test.describe('Cases page', () => {
 
     await page.goto('/');
 
-    await expect(page.getByText('Noch keine Vorgänge')).toBeVisible();
+    await expect(page.getByText('Nichts offen')).toBeVisible();
   });
 
   test('shows an error message when the API is unreachable', async ({ page }) => {
