@@ -58,6 +58,23 @@
         <label for="new-case-text">{{ t('cases.newText') }}</label>
       </p-floatlabel>
 
+      <!-- Whoever took the call often knows who is to handle it, and often it is them. Nobody
+           by default: taking a call is not the same as claiming the work. -->
+      <p-floatlabel variant="on">
+        <p-select
+          inputId="new-case-assignee"
+          appendTo="body"
+          class="w-full"
+          [options]="assigneeOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="assigneeId()"
+          (ngModelChange)="assigneeId.set($event)"
+          name="assigneeId"
+        />
+        <label for="new-case-assignee">{{ t('cases.assignee') }}</label>
+      </p-floatlabel>
+
       <!-- Both may be left alone, and then the case goes through the triage like any other. -->
       <div class="flex flex-col gap-4 sm:flex-row">
         <p-floatlabel variant="on" class="flex-1">

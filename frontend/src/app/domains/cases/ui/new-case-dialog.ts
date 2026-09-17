@@ -9,7 +9,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
 
-import { CaseTier, MANUAL_CHANNELS, ManualChannel, NewCase } from '../model/case';
+import { AssignableUser, CaseTier, MANUAL_CHANNELS, ManualChannel, NewCase } from '../model/case';
 import { TIER_LABEL_KEY } from './tier-tag';
 
 /** A category to file the case under straight away, as the page hands them over. */
@@ -22,14 +22,17 @@ export type CategoryChoice = { id: string; name: string };
  */
 const NO_CATEGORY = 'none';
 const FROM_TRIAGE = 'triage';
+const NOBODY = 'nobody';
 
 /**
  * Writing down what did not come through the mailbox: a call taken, a fax off the machine. The
  * contact is free text on purpose — a caller is a person with a number, not an address, and the
  * case says so through its channel, which is what keeps a reply from being posted to it.
  *
- * <p>Category and tier are offered and may be left alone. Whoever already knows what the call was
- * about says so and saves the model the trouble; whoever does not lets the triage do its work.
+ * <p>Category, tier and who is to handle it are offered and may be left alone. Whoever already
+ * knows what the call was about says so and saves the model the trouble; whoever does not lets the
+ * triage do its work. Nobody is the default for the handler: taking a call is not the same as
+ * claiming the work, and one's own name is one click away in the list.
  */
 @Component({
   selector: 'app-new-case-dialog',
@@ -43,6 +46,9 @@ export class NewCaseDialog {
   readonly visible = model.required<boolean>();
 
   readonly categories = input<CategoryChoice[]>([]);
+
+  /** The colleagues the case can be handed to, as the inbox already reads them. */
+  readonly assignableUsers = input<AssignableUser[]>([]);
 
   /** While the case is on its way, so a second press cannot write it twice. */
   readonly busy = input(false);
@@ -58,6 +64,7 @@ export class NewCaseDialog {
   protected readonly text = signal('');
   protected readonly categoryId = signal<string>(NO_CATEGORY);
   protected readonly tier = signal<CaseTier | typeof FROM_TRIAGE>(FROM_TRIAGE);
+  protected readonly assigneeId = signal<string>(NOBODY);
 
   protected readonly channelOptions = computed(() => {
     this.translation();
@@ -84,6 +91,14 @@ export class NewCaseDialog {
     ];
   });
 
+  protected readonly assigneeOptions = computed(() => {
+    this.translation();
+    return [
+      { label: this.transloco.translate('cases.assigneeNobody'), value: NOBODY },
+      ...this.assignableUsers().map((user) => ({ label: user.name, value: user.id })),
+    ];
+  });
+
   /** Who it was and what was said; the rest the case can do without. */
   protected readonly canCreate = computed(
     () => this.contact().trim().length > 0 && this.subject().trim().length > 0 && this.text().trim().length > 0 && !this.busy(),
@@ -100,6 +115,7 @@ export class NewCaseDialog {
       text: this.text().trim(),
       categoryId: this.categoryId() === NO_CATEGORY ? null : this.categoryId(),
       tier: this.tier() === FROM_TRIAGE ? null : (this.tier() as CaseTier),
+      assigneeId: this.assigneeId() === NOBODY ? null : this.assigneeId(),
     });
   }
 
@@ -114,5 +130,6 @@ export class NewCaseDialog {
     this.text.set('');
     this.categoryId.set(NO_CATEGORY);
     this.tier.set(FROM_TRIAGE);
+    this.assigneeId.set(NOBODY);
   }
 }

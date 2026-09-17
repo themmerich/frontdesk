@@ -166,6 +166,12 @@ class CaseController {
 	 * <p>What was said becomes the first message of the conversation, exactly as an arriving mail
 	 * does. Left without a tier, the case goes through the triage like any other — the run picks
 	 * up whatever has none, and a typed note is a request the model can read as well as a mail.
+	 *
+	 * <p>Handing the case to somebody at once writes an ASSIGNED event of its own beside the one
+	 * for the writing down. Two entries for two things that happened, and the bell reads the
+	 * second: without it, taking a call for a colleague would tell them nothing, while doing the
+	 * same thing a click later would — the same intent with two outcomes, and the quiet one in
+	 * the more convenient path.
 	 */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
@@ -181,6 +187,8 @@ class CaseController {
 		if (request.toTier() != null) {
 			aCase.changeTier(request.toTier());
 		}
+		AppUser assignee = request.assigneeId() == null ? null : ownUser(request.assigneeId(), tenant.getId());
+		aCase.assignTo(assignee);
 		Case saved = caseRepository.save(aCase);
 		// Nothing was received and nothing transmitted, so there is no message id and no size.
 		caseMessageRepository.save(CaseMessage.incoming(saved, 0, null, request.contact(), null, request.subject(),
@@ -188,6 +196,12 @@ class CaseController {
 		caseEvents.record(saved, CaseEventType.CREATED_MANUALLY, person,
 				CaseEvents.details("channel", saved.getChannel().name().toLowerCase(Locale.ROOT), "sender",
 						request.contact()));
+		if (assignee != null) {
+			// The same entry the picker writes, so the bell has nothing to learn about this way in.
+			// Assigning oneself raises no notification either way: the actor is the assignee.
+			caseEvents.record(saved, CaseEventType.ASSIGNED, person,
+					CaseEvents.details("assigneeName", CaseEvents.nameOf(assignee)));
+		}
 		return caseDetails.of(saved);
 	}
 
