@@ -130,6 +130,7 @@
     "assignee": "Zuständig",
     "assigneeAll": "Alle Zuständigen",
     "assigneeNobody": "Niemand",
+    "assigneeSearch": "Person suchen",
     "noteCount": "{{count}} interne Notizen",
     "mine": "Meine Vorgänge",
     "mineHint": "Zeigt nur die Vorgänge, die Ihnen zugewiesen sind.",

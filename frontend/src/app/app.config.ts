@@ -50,6 +50,8 @@ export const appConfig: ApplicationConfig = {
         equals: 'Gleich',
         notEquals: 'Ungleich',
         noFilter: 'Kein Filter',
+        // What a filter box says when nothing matches; used by the assignee selects.
+        emptyFilterMessage: 'Keine Treffer',
         dateIs: 'Datum ist',
         dateIsNot: 'Datum ist nicht',
         dateBefore: 'Datum vor',
