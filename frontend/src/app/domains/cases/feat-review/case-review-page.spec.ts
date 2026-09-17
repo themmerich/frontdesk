@@ -32,6 +32,7 @@ const translations = {
 function aCase(overrides: Partial<Case> = {}): Case {
   return {
     id: '1',
+    channel: 'mail',
     sender: 'news@example.com',
     recipient: 'info@example.com',
     subject: 'Weekly digest',

@@ -110,6 +110,12 @@ public class ReplySender {
 		if (mailCase.getDeletedAt() != null) {
 			throw new ReplyRefusedException("a case in the trash is not answered");
 		}
+		// A case somebody wrote down has a person in its sender, not a mailbox. Without this the
+		// address below would be whatever was typed there — a name, a telephone number — and the
+		// answer would go to it.
+		if (!mailCase.canBeAnsweredByMail()) {
+			throw new ReplyRefusedException("a case that did not come in by mail has no address to answer to");
+		}
 		if (mailCase.getDraftText() == null || mailCase.getDraftText().isBlank()) {
 			throw new ReplyRefusedException("there is no reply to send");
 		}

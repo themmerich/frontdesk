@@ -13,7 +13,7 @@ import java.util.UUID;
  * case; the tier travels lowercase, like every other enum on the wire. The conversation comes
  * along as its length and its last move; the messages themselves are the detail's.
  */
-public record CaseResponse(UUID id, String sender, String recipient, String subject, Instant receivedAt,
+public record CaseResponse(UUID id, String channel, String sender, String recipient, String subject, Instant receivedAt,
 		boolean hasAttachments, long sizeBytes, String summary, UUID categoryId, String categoryName,
 		String categoryColor, String tier, BigDecimal confidence, Instant handledAt, Instant deletedAt,
 		boolean hasDraft, Instant lastMessageAt, long messageCount, UUID assigneeId, String assigneeName,
@@ -22,7 +22,7 @@ public record CaseResponse(UUID id, String sender, String recipient, String subj
 	static CaseResponse from(Case aCase, long messageCount, long noteCount) {
 		CaseCategory category = aCase.getCategory();
 		AppUser assignee = aCase.getAssignee();
-		return new CaseResponse(aCase.getId(), aCase.getSender(), aCase.getRecipient(), aCase.getSubject(),
+		return new CaseResponse(aCase.getId(), aCase.getChannel().name().toLowerCase(Locale.ROOT), aCase.getSender(), aCase.getRecipient(), aCase.getSubject(),
 				aCase.getReceivedAt(), aCase.isHasAttachments(), aCase.getSizeBytes(), aCase.getSummary(),
 				// The inbox lets a person file a case from the row it stands in, and a picker
 				// needs a key rather than a name.

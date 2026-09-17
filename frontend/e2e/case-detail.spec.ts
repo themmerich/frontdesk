@@ -7,6 +7,7 @@ const mockUser = { username: 'admin', displayName: 'Anna Admin', role: 'admin', 
 const listed = [
   {
     id: '1',
+    channel: 'mail',
     sender: 'kunde@example.com',
     recipient: 'rechnung@musterfirma.de',
     subject: 'Rechnung 2026-081',
@@ -21,6 +22,7 @@ const listed = [
   },
   {
     id: '2',
+    channel: 'mail',
     sender: 'ben@example.com',
     recipient: 'info@musterfirma.de',
     subject: 'Lieferung 4711',

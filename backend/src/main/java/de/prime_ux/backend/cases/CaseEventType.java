@@ -7,6 +7,12 @@ package de.prime_ux.backend.cases;
 public enum CaseEventType {
 	/** The mail became a case. */
 	INGESTED,
+	/**
+	 * Somebody wrote a case down: a call taken, a fax off the machine. Its own type rather than
+	 * INGESTED, which means the mailbox brought it — and unlike the mailbox, a person has a name
+	 * worth recording.
+	 */
+	CREATED_MANUALLY,
 	/** The customer wrote again; the mail joined the case's conversation. */
 	FOLLOW_UP_RECEIVED,
 	/** The triage run judged the case; the model is the actor, so there is none. */

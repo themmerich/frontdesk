@@ -28,6 +28,7 @@ function aCase(overrides: Partial<Case> = {}): Case {
   lastReceivedAt -= 60_000;
   return {
     id: '1',
+    channel: 'mail',
     sender: 'anna@example.com',
     recipient: 'info@example.com',
     subject: 'Delivery status',

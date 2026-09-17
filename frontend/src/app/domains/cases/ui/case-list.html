@@ -101,6 +101,9 @@
             [pTooltip]="t('cases.mineHint')"
             (onClick)="onToggleMine()"
           />
+          <!-- Whatever the page wants to offer here besides the table's own doing — writing a
+               case down, say, which is the page's business and not the table's. -->
+          <ng-content select="[caseListActions]" />
           @if (showReview()) {
             <!-- The inbox in groups, for working it through rather than reading it. -->
             <p-button
@@ -368,10 +371,29 @@
                   }
                 }
                 @case ('sizeBytes') {
-                  {{ row.sizeBytes | fileSize }}
+                  @if (row.channel === 'mail') {
+                    {{ row.sizeBytes | fileSize }}
+                  } @else {
+                    <!-- Nothing was transmitted; a nought would read as a measurement. -->
+                    <span class="text-surface-400 dark:text-surface-500">–</span>
+                  }
                 }
                 @case ('lastMessageAt') {
                   {{ row.lastMessageAt | date: 'short' }}
+                }
+                @case ('sender') {
+                  @if (row.channel !== 'mail') {
+                    <!-- Says what the name beside it is: a caller, not a mailbox. -->
+                    <i
+                      class="pi mr-1.5 text-xs! text-surface-500 dark:text-surface-400"
+                      [class.pi-phone]="row.channel === 'phone'"
+                      [class.pi-print]="row.channel === 'fax'"
+                      [class.pi-pencil]="row.channel === 'other'"
+                      role="img"
+                      [attr.aria-label]="t('cases.channel.' + row.channel)"
+                    ></i>
+                  }
+                  {{ row.sender }}
                 }
                 @case ('subject') {
                   {{ row.subject }}

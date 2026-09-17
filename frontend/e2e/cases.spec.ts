@@ -6,6 +6,7 @@ import { expect, test } from '@playwright/test';
 const mockCases = [
   {
     id: '1',
+    channel: 'mail',
     sender: 'anna@example.com',
     recipient: 'info@example.com',
     subject: 'Delivery status',
@@ -22,6 +23,7 @@ const mockCases = [
   },
   {
     id: '2',
+    channel: 'mail',
     sender: 'ben@example.com',
     recipient: 'rechnung@musterfirma.de',
     subject: 'Invoice copy',
@@ -1067,6 +1069,64 @@ test.describe('Cases page', () => {
     await expect(page.getByRole('row', { name: /Doch nicht weg/ })).toBeVisible();
     await page.getByRole('link', { name: 'Posteingang', exact: true }).click();
     await expect(page.getByRole('row', { name: /Doch nicht weg/ })).toHaveCount(0);
+  });
+
+  test('writes down a call as a case, and says what it came in by', async ({ page }) => {
+    let written: Record<string, unknown> | undefined;
+    const call = {
+      ...mockCases[0],
+      id: '3',
+      channel: 'phone',
+      sender: 'Herr Meier, 0170 1234567',
+      subject: 'Frage zur Rechnung',
+      sizeBytes: 0,
+      categoryName: null,
+      categoryColor: null,
+      tier: null,
+    };
+    await page.route('**/api/cases', (route) => {
+      if (route.request().method() === 'POST') {
+        written = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ status: 201, json: call });
+      }
+      // The list is read again once the case is written, and then it is in it.
+      return route.fulfill({ json: written ? [...mockCases, call] : mockCases });
+    });
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Vorgang anlegen' }).click();
+
+    await page.getByLabel('Kontakt').fill('Herr Meier, 0170 1234567');
+    await page.getByLabel('Betreff').fill('Frage zur Rechnung');
+    await page.getByLabel('Was besprochen wurde').fill('Ruft wegen der doppelten Position an.');
+    await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
+
+    await expect(page.getByText('Vorgang angelegt.')).toBeVisible();
+    // Phone is what the dialog opens on, and nothing was chosen for either of the two.
+    expect(written).toEqual({
+      channel: 'phone',
+      contact: 'Herr Meier, 0170 1234567',
+      subject: 'Frage zur Rechnung',
+      text: 'Ruft wegen der doppelten Position an.',
+      categoryId: null,
+      tier: null,
+    });
+
+    // In the inbox, marked by where it came from, and with a dash where a mail has its size:
+    // nothing was transmitted, so a nought would read as a measurement.
+    const row = page.getByRole('row', { name: /Frage zur Rechnung/ });
+    await expect(row).toBeVisible();
+    await expect(row.locator('i.pi-phone')).toBeVisible();
+    await expect(row).not.toContainText('0 B');
+  });
+
+  test('offers no way to write a case down where cases are not worked', async ({ page }) => {
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/archive');
+
+    // The archive and the trash are what has been, not what comes in.
+    await expect(page.getByRole('button', { name: 'Vorgang anlegen' })).toHaveCount(0);
   });
 
   test('shows an empty state when there are no cases', async ({ page }) => {

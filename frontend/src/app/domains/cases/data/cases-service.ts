@@ -3,7 +3,7 @@ import { HttpClient, httpResource } from '@angular/common/http';
 import { computed, DestroyRef, inject, Service } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { Case, CaseTier } from '../model/case';
+import { Case, CaseTier, NewCase } from '../model/case';
 
 /** The wire shape: the moments are ISO strings until they are parsed into Dates. */
 type CaseResponse = Omit<Case, 'receivedAt' | 'lastMessageAt' | 'messageCount' | 'handledAt' | 'deletedAt'> & {
@@ -97,6 +97,15 @@ export class CasesService {
    * selection — a row action is a selection of one, and half a deletion is worse than none. The
    * list reloads afterwards, so it shows what is where rather than what the client believes.
    */
+  /**
+   * A case written down by hand, for a call taken or a fax off the machine. The list is read
+   * again afterwards: the new case belongs in the inbox at once, not at the next poll.
+   */
+  async create(request: NewCase): Promise<void> {
+    await firstValueFrom(this.http.post<void>('/api/cases', request));
+    this.cases.reload();
+  }
+
   async remove(ids: string[]): Promise<void> {
     await firstValueFrom(this.http.delete<void>('/api/cases', { body: { ids } }));
     this.cases.reload();

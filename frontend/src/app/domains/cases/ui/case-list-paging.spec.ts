@@ -17,6 +17,7 @@ const translations = {
 function manyCases(count: number): Case[] {
   return Array.from({ length: count }, (_, index) => ({
     id: String(index),
+    channel: 'mail',
     sender: 'anna@example.com',
     recipient: 'info@example.com',
     subject: `Vorgang ${index}`,

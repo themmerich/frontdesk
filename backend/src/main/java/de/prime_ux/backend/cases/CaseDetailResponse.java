@@ -14,7 +14,7 @@ import java.util.UUID;
  * reload, and the list never shows one. The messages come whole, oldest first, each with what
  * came attached to it; so does the trail.
  */
-public record CaseDetailResponse(UUID id, String sender, String recipient, String subject, Instant receivedAt,
+public record CaseDetailResponse(UUID id, String channel, String sender, String recipient, String subject, Instant receivedAt,
 		boolean hasAttachments, long sizeBytes, String summary, UUID categoryId, String categoryName,
 		String categoryColor, String tier, BigDecimal confidence, Instant handledAt, Instant deletedAt,
 		String draftText, Instant draftGeneratedAt, Instant draftUpdatedAt, Instant lastMessageAt,
@@ -23,7 +23,7 @@ public record CaseDetailResponse(UUID id, String sender, String recipient, Strin
 	public static CaseDetailResponse from(Case aCase, List<MessageResponse> messages, List<CaseEventResponse> events) {
 		CaseCategory category = aCase.getCategory();
 		AppUser assignee = aCase.getAssignee();
-		return new CaseDetailResponse(aCase.getId(), aCase.getSender(), aCase.getRecipient(), aCase.getSubject(),
+		return new CaseDetailResponse(aCase.getId(), aCase.getChannel().name().toLowerCase(Locale.ROOT), aCase.getSender(), aCase.getRecipient(), aCase.getSubject(),
 				aCase.getReceivedAt(), aCase.isHasAttachments(), aCase.getSizeBytes(), aCase.getSummary(),
 				category == null ? null : category.getId(), category == null ? null : category.getName(),
 				category == null || category.getColor() == null ? null

@@ -156,7 +156,25 @@
     "reviewShowGroup": "Show {{category}}",
     "reviewEmpty": "Nothing left to review.",
     "reviewNoMatch": "No group matches the filter.",
-    "reviewClose": "Close"
+    "reviewClose": "Close",
+    "newCase": "New case",
+    "newTitle": "New case",
+    "newChannel": "Came in by",
+    "newContact": "Contact",
+    "newSubject": "Subject",
+    "newText": "What was said",
+    "newTierFromTriage": "Let the triage decide",
+    "newSave": "Create",
+    "newCancel": "Cancel",
+    "newCreated": "Case created.",
+    "newError": "The case could not be created.",
+    "noReplyChannel": "This case did not come in by mail and has no address a reply could go to.",
+    "channel": {
+      "mail": "Mail",
+      "phone": "Phone",
+      "fax": "Fax",
+      "other": "Other"
+    }
   },
   "caseReview": {
     "backToReview": "Back to the review",
