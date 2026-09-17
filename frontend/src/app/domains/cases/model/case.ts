@@ -1,11 +1,38 @@
 /**
- * A case ("Vorgang") — one ingested mail on its way through the pipeline.
+ * A case ("Vorgang") — one matter on its way through the pipeline, brought in by the mailbox or
+ * written down by hand.
  * Mirrors the backend's CaseResponse, except that receivedAt arrives as an ISO
  * string and is parsed into a Date by the CasesService — the table's date
  * filter compares real Date objects.
  */
+/**
+ * How a case reached the house. Everything but `mail` was written down by hand and carries no
+ * address to answer to — what stands in its sender is a person, not a mailbox.
+ */
+export type CaseChannel = 'mail' | 'phone' | 'fax' | 'other';
+
+/** The channels a case can be written down under; mail comes from the mailbox, never from a form. */
+export const MANUAL_CHANNELS = ['phone', 'fax', 'other'] as const satisfies readonly CaseChannel[];
+
+export type ManualChannel = (typeof MANUAL_CHANNELS)[number];
+
+/**
+ * What the form hands over to write a case down. Lives here rather than with the service because
+ * the dialog is a ui component, and ui may see the model and nothing else.
+ */
+export type NewCase = {
+  channel: ManualChannel;
+  contact: string;
+  subject: string;
+  text: string;
+  categoryId: string | null;
+  tier: CaseTier | null;
+};
+
 export type Case = {
   id: string;
+  channel: CaseChannel;
+  /** Who it came from: an address for a mail, whatever the person typed for anything else. */
   sender: string;
   /** The tenant address the mail was sent to; null for mails ingested before it was recorded. */
   recipient: string | null;

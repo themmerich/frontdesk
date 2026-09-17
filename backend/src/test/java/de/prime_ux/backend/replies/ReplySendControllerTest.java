@@ -15,6 +15,7 @@ import de.prime_ux.backend.cases.Case;
 import de.prime_ux.backend.cases.CaseEvent;
 import de.prime_ux.backend.cases.CaseEventRepository;
 import de.prime_ux.backend.cases.CaseEventType;
+import de.prime_ux.backend.cases.CaseChannel;
 import de.prime_ux.backend.cases.CaseMessage;
 import de.prime_ux.backend.cases.CaseMessageRepository;
 import de.prime_ux.backend.cases.CaseNote;
@@ -139,6 +140,31 @@ class ReplySendControllerTest {
 
 	private List<CaseMessage> conversationOf(Case aCase) {
 		return caseMessageRepository.findAllByMailCaseIdOrderByPositionAsc(aCase.getId());
+	}
+
+	@Test
+	@AsUser("anna")
+	void neverPostsAnAnswerToSomethingThatIsNotAnAddress() throws Exception {
+		mailboxOnPort(greenMail.getSmtp().getPort());
+		// A call written down by hand: its sender is a person, with a telephone number where a
+		// mailbox would stand. Without the channel to go by, the reply would be posted to it.
+		Case aCase = Case.manual(tenant, CaseChannel.PHONE, "Herr Meier, 0170 1234567",
+				"Frage zur Rechnung", Instant.parse("2026-08-01T10:00:00Z"));
+		aCase.applyTriage(null, CaseTier.DRAFT, new BigDecimal("0.8"), "Kunde fragt nach.");
+		aCase.applyDraft("Guten Tag, wie besprochen. Musterfirma GmbH");
+		Case saved = caseRepository.save(aCase);
+		caseMessageRepository.save(CaseMessage.incoming(saved, 0, null, "Herr Meier, 0170 1234567", null,
+				"Frage zur Rechnung", "Ruft wegen der doppelten Position an.", null, saved.getReceivedAt(), 0, false));
+
+		// A refusal, the way every other one is answered: the request is fine, the case is not.
+		mockMvc.perform(post("/api/cases/{id}/send", saved.getId()).with(csrf())).andExpect(status().isConflict());
+
+		// Nothing left the house, and the case is untouched: the draft still stands and the
+		// conversation holds nothing but what was written down.
+		assertThat(greenMail.waitForIncomingEmail(1000, 1)).isFalse();
+		assertThat(reload(saved).getDraftText()).isNotNull();
+		assertThat(reload(saved).getHandledAt()).isNull();
+		assertThat(conversationOf(saved)).hasSize(1);
 	}
 
 	@Test

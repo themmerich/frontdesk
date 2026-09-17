@@ -2,6 +2,7 @@ package de.prime_ux.backend.cases;
 
 import de.prime_ux.backend.cases.CaseMessageRepository.MessageCountPerCase;
 import de.prime_ux.backend.cases.CaseNoteRepository.NoteCountPerCase;
+import de.prime_ux.backend.tenants.Tenant;
 import de.prime_ux.backend.triage.CaseCategory;
 import de.prime_ux.backend.triage.CaseCategoryRepository;
 import de.prime_ux.backend.users.AppUser;
@@ -28,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -154,6 +156,39 @@ class CaseController {
 
 	private static boolean opensInTheBrowser(MediaType type) {
 		return "image".equals(type.getType()) || MediaType.APPLICATION_PDF.equalsTypeAndSubtype(type);
+	}
+
+	/**
+	 * A case written down by hand, for a call taken or a fax off the machine. Open to everyone who
+	 * works in the inbox, for the same reason taking a case is: answering the telephone is not an
+	 * administrator's job.
+	 *
+	 * <p>What was said becomes the first message of the conversation, exactly as an arriving mail
+	 * does. Left without a tier, the case goes through the triage like any other — the run picks
+	 * up whatever has none, and a typed note is a request the model can read as well as a mail.
+	 */
+	@PostMapping
+	@ResponseStatus(HttpStatus.CREATED)
+	@Transactional
+	CaseDetailResponse create(@Valid @RequestBody CreateCaseRequest request) {
+		AppUser person = currentSession.user();
+		Tenant tenant = currentSession.tenant();
+		Case aCase = Case.manual(tenant, request.toChannel(), request.contact(), request.subject(),
+				request.receivedAtOrNow());
+		if (request.categoryId() != null) {
+			aCase.changeCategory(ownCategory(request.categoryId(), tenant.getId()));
+		}
+		if (request.toTier() != null) {
+			aCase.changeTier(request.toTier());
+		}
+		Case saved = caseRepository.save(aCase);
+		// Nothing was received and nothing transmitted, so there is no message id and no size.
+		caseMessageRepository.save(CaseMessage.incoming(saved, 0, null, request.contact(), null, request.subject(),
+				request.text(), null, saved.getReceivedAt(), 0, false));
+		caseEvents.record(saved, CaseEventType.CREATED_MANUALLY, person,
+				CaseEvents.details("channel", saved.getChannel().name().toLowerCase(Locale.ROOT), "sender",
+						request.contact()));
+		return caseDetails.of(saved);
 	}
 
 	/**

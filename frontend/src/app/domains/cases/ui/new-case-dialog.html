@@ -1,0 +1,99 @@
+<ng-container *transloco="let t">
+  <p-dialog [header]="t('cases.newTitle')" [modal]="true" [(visible)]="visible" [style]="{ width: '32rem' }">
+    <form novalidate class="flex flex-col gap-4 pt-2" (submit)="$event.preventDefault(); onCreate()">
+      <!-- Said first, because it decides the rest: a case that did not come in by mail has no
+           address, and neither the drafting run nor the send button will touch it. -->
+      <p-floatlabel variant="on">
+        <p-select
+          inputId="new-case-channel"
+          appendTo="body"
+          class="w-full"
+          [options]="channelOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="channel()"
+          (ngModelChange)="channel.set($event)"
+          name="channel"
+        />
+        <label for="new-case-channel">{{ t('cases.newChannel') }}</label>
+      </p-floatlabel>
+
+      <!-- Free text, not an address: a caller is a person with a number. -->
+      <p-floatlabel variant="on">
+        <input
+          pInputText
+          id="new-case-contact"
+          type="text"
+          class="w-full"
+          [ngModel]="contact()"
+          (ngModelChange)="contact.set($event)"
+          name="contact"
+        />
+        <label for="new-case-contact">{{ t('cases.newContact') }}</label>
+      </p-floatlabel>
+
+      <p-floatlabel variant="on">
+        <input
+          pInputText
+          id="new-case-subject"
+          type="text"
+          class="w-full"
+          [ngModel]="subject()"
+          (ngModelChange)="subject.set($event)"
+          name="subject"
+        />
+        <label for="new-case-subject">{{ t('cases.newSubject') }}</label>
+      </p-floatlabel>
+
+      <p-floatlabel variant="on">
+        <textarea
+          pTextarea
+          id="new-case-text"
+          rows="6"
+          class="w-full"
+          [ngModel]="text()"
+          (ngModelChange)="text.set($event)"
+          name="text"
+        ></textarea>
+        <label for="new-case-text">{{ t('cases.newText') }}</label>
+      </p-floatlabel>
+
+      <!-- Both may be left alone, and then the case goes through the triage like any other. -->
+      <div class="flex flex-col gap-4 sm:flex-row">
+        <p-floatlabel variant="on" class="flex-1">
+          <p-select
+            inputId="new-case-category"
+            appendTo="body"
+            class="w-full"
+            [options]="categoryOptions()"
+            optionLabel="label"
+            optionValue="value"
+            [ngModel]="categoryId()"
+            (ngModelChange)="categoryId.set($event)"
+            name="categoryId"
+          />
+          <label for="new-case-category">{{ t('caseDetail.category') }}</label>
+        </p-floatlabel>
+        <p-floatlabel variant="on" class="flex-1">
+          <p-select
+            inputId="new-case-tier"
+            appendTo="body"
+            class="w-full"
+            [options]="tierOptions()"
+            optionLabel="label"
+            optionValue="value"
+            [ngModel]="tier()"
+            (ngModelChange)="tier.set($event)"
+            name="tier"
+          />
+          <label for="new-case-tier">{{ t('caseDetail.tier') }}</label>
+        </p-floatlabel>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <p-button type="button" severity="secondary" [text]="true" [label]="t('cases.newCancel')" (onClick)="visible.set(false)" />
+        <p-button type="submit" [label]="t('cases.newSave')" [disabled]="!canCreate()" />
+      </div>
+    </form>
+  </p-dialog>
+</ng-container>

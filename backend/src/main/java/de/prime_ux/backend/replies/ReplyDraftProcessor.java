@@ -3,6 +3,7 @@ package de.prime_ux.backend.replies;
 import de.prime_ux.backend.branches.Branch;
 import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseChannel;
 import de.prime_ux.backend.cases.CaseEventType;
 import de.prime_ux.backend.cases.CaseEvents;
 import de.prime_ux.backend.cases.CaseMessageRepository;
@@ -68,9 +69,11 @@ public class ReplyDraftProcessor {
 	 */
 	@Transactional
 	public int draftOnce(Tenant tenant, int batchSize) {
+		// Only what came in by mail: the model would otherwise be paid for a reply the send button
+		// refuses, and a draft that cannot go out is worse than none — it looks ready.
 		List<Case> waiting = caseRepository
-				.findByTenantIdAndTierInAndDraftTextIsNullAndDeletedAtIsNullAndHandledAtIsNullOrderByReceivedAtAsc(
-						tenant.getId(), DRAFTED_TIERS, Limit.of(batchSize));
+				.findByTenantIdAndChannelAndTierInAndDraftTextIsNullAndDeletedAtIsNullAndHandledAtIsNullOrderByReceivedAtAsc(
+						tenant.getId(), CaseChannel.MAIL, DRAFTED_TIERS, Limit.of(batchSize));
 		if (waiting.isEmpty()) {
 			return 0;
 		}

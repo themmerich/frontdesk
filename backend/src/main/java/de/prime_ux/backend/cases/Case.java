@@ -44,6 +44,14 @@ public class Case {
 	@Column(name = "message_id")
 	private String messageId;
 
+	/**
+	 * How the case reached the house. Everything the mailbox brings is MAIL; the rest somebody
+	 * wrote down by hand, and then the sender below is a person rather than an address.
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private CaseChannel channel;
+
 	@Column(nullable = false)
 	private String sender;
 
@@ -143,6 +151,31 @@ public class Case {
 		this.ingestedAt = Instant.now();
 		this.hasAttachments = hasAttachments;
 		this.sizeBytes = sizeBytes;
+		this.channel = CaseChannel.MAIL;
+	}
+
+	/**
+	 * A case somebody wrote down: a call taken, a fax off the machine. What was said becomes the
+	 * first message of the conversation, exactly as an arriving mail does — the case is a matter
+	 * either way, and only the way in differs.
+	 *
+	 * <p>There is no message id, because nothing was received, and no size, because nothing was
+	 * transmitted. The sender carries whoever it was, in whatever words the person typed.
+	 */
+	public static Case manual(Tenant tenant, CaseChannel channel, String contact, String subject,
+			Instant receivedAt) {
+		Case aCase = new Case(tenant, null, contact, null, subject, receivedAt, false, 0);
+		aCase.channel = channel;
+		return aCase;
+	}
+
+	/**
+	 * Whether a reply to this case can go out by mail. A case taken down by hand has a person in
+	 * its sender, not a mailbox, so both the drafting run and the send path leave it alone rather
+	 * than posting an answer to a telephone number.
+	 */
+	public boolean canBeAnsweredByMail() {
+		return this.channel.canBeAnsweredByMail();
 	}
 
 	/**

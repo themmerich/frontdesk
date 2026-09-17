@@ -35,7 +35,29 @@
         (assignmentChanged)="onAssignmentChanged($event)"
         (summariesRequested)="onSummariesRequested($event)"
         [(reviewOpen)]="reviewOpen"
-      />
+      >
+        @if (inInbox()) {
+          <!-- What did not come through the mailbox: a call taken, a fax off the machine. -->
+          <p-button
+            caseListActions
+            icon="pi pi-plus"
+            severity="secondary"
+            [outlined]="true"
+            [label]="t('cases.newCase')"
+            (onClick)="newCaseOpen.set(true)"
+          />
+        }
+      </app-case-list>
+      <!-- Only where cases are worked: the archive and the trash are what has been, not what
+           comes in. -->
+      @if (inInbox()) {
+        <app-new-case-dialog
+          [(visible)]="newCaseOpen"
+          [busy]="isCreating()"
+          [categories]="categoriesService.categories.error() ? [] : categoriesService.categories.value()"
+          (created)="onNewCase($event)"
+        />
+      }
     }
   </main>
 </ng-container>

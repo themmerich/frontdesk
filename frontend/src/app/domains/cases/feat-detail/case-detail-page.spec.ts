@@ -64,6 +64,7 @@ const translations = {
 
 const aCase: CaseDetail = {
   id: 'b',
+  channel: 'mail',
   sender: 'kunde@example.com',
   recipient: 'rechnung@musterfirma.de',
   subject: 'Rechnung 2026-081',

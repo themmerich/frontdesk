@@ -4,6 +4,7 @@ import { needsNoAnswer, reviewGroups } from './case-review';
 function aCase(overrides: Partial<Case> = {}): Case {
   return {
     id: '1',
+    channel: 'mail',
     sender: 'anna@example.com',
     recipient: 'info@example.com',
     subject: 'Delivery status',

@@ -163,7 +163,14 @@ export class CaseDetailPage {
   protected readonly isTrashed = computed(() => (this.detailService.detail.value()?.deletedAt ?? null) !== null);
 
   /** Something in the box and a case that is not thrown away: that can go out, however often. */
-  protected readonly canSend = computed(() => !this.isTrashed() && !this.isDraftBlank());
+  /**
+   * Whether a reply can go out at all. A case somebody wrote down has a person in its sender, not
+   * a mailbox: the backend refuses it, and the button says so beforehand rather than letting
+   * somebody press it and read a failure.
+   */
+  protected readonly canBeAnsweredByMail = computed(() => (this.detailService.detail.value()?.channel ?? 'mail') === 'mail');
+
+  protected readonly canSend = computed(() => !this.isTrashed() && !this.isDraftBlank() && this.canBeAnsweredByMail());
 
   /**
    * Whether the mail and its reply stand beside each other or one under the other. Tailwind's

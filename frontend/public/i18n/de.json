@@ -156,7 +156,25 @@
     "reviewShowGroup": "{{category}} anzeigen",
     "reviewEmpty": "Nichts mehr durchzusehen.",
     "reviewNoMatch": "Keine Gruppe passt zum Filter.",
-    "reviewClose": "Schließen"
+    "reviewClose": "Schließen",
+    "newCase": "Vorgang anlegen",
+    "newTitle": "Vorgang anlegen",
+    "newChannel": "Eingang",
+    "newContact": "Kontakt",
+    "newSubject": "Betreff",
+    "newText": "Was besprochen wurde",
+    "newTierFromTriage": "Von der KI einordnen lassen",
+    "newSave": "Anlegen",
+    "newCancel": "Abbrechen",
+    "newCreated": "Vorgang angelegt.",
+    "newError": "Der Vorgang konnte nicht angelegt werden.",
+    "noReplyChannel": "Dieser Vorgang kam nicht per E-Mail herein und hat keine Adresse, an die eine Antwort gehen könnte.",
+    "channel": {
+      "mail": "E-Mail",
+      "phone": "Telefon",
+      "fax": "Fax",
+      "other": "Sonstiges"
+    }
   },
   "caseReview": {
     "backToReview": "Zurück zur Durchsicht",

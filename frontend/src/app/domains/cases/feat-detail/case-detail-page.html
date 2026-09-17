@@ -308,6 +308,7 @@
             [disabled]="!canSend()"
             [loading]="isSending()"
             (onClick)="onSend(aCase)"
+            [pTooltip]="canBeAnsweredByMail() ? '' : t('cases.noReplyChannel')"
           />
         }
       </div>

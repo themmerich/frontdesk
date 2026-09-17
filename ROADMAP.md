@@ -90,7 +90,11 @@ Gaps in what exists, each small enough for one PR.
       Deliberately not the three originally listed: new cases and waiting drafts are everybody's
       and the list already shows them, and a failed triage leaves no trace to notify from until
       "Robustness" gives it one.
-- [ ] **Manual cases** — create a case by hand, for a call or a fax.
+- [x] **Manual cases** — a case written down by hand, for a call taken or a fax off the machine.
+      The channel is a field on the case now, and it decides what may happen to it: a case that
+      did not come in by mail has a person in its sender rather than a mailbox, so the drafting
+      run passes it over and the send path refuses it. Left without a tier it goes through the
+      triage like any other — a typed note is a request the model can read as well as a mail.
 - [ ] **Re-triage** — run the triage again for one case or a selection, e.g. after the
       categories changed.
 - [ ] **Keyboard shortcuts** — next, previous, handled, delete in the inbox and on the detail

@@ -1,7 +1,8 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal, viewChild } from '@angular/core';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import { ButtonModule } from 'primeng/button';
 
 import { AuthStore } from '../../../shared/data/auth-store';
 import { AssignableUsersService } from '../data/assignable-users-service';
@@ -9,13 +10,14 @@ import { CaseCategoriesService } from '../data/case-categories-service';
 import { CaseColumnsService } from '../data/case-columns-service';
 import { CaseOrderStore } from '../data/case-order-store';
 import { CasesService } from '../data/cases-service';
-import { Case, CasePile, CaseTier } from '../model/case';
+import { Case, CasePile, CaseTier, NewCase } from '../model/case';
 import { ReviewGroup } from '../model/case-review';
 import { CaseList } from '../ui/case-list';
+import { NewCaseDialog } from '../ui/new-case-dialog';
 
 @Component({
   selector: 'app-cases-page',
-  imports: [TranslocoDirective, CaseList],
+  imports: [TranslocoDirective, ButtonModule, CaseList, NewCaseDialog],
   templateUrl: './cases-page.html',
 })
 export class CasesPage {
@@ -44,6 +46,11 @@ export class CasesPage {
 
   /** Whether the review stands open in front of the table. */
   protected readonly reviewOpen = signal(false);
+
+  /** The dialog for writing a case down, and whether one is on its way. */
+  protected readonly newCaseOpen = signal(false);
+  protected readonly isCreating = signal(false);
+  private readonly newCaseDialog = viewChild(NewCaseDialog);
 
   protected readonly cases = computed(() => {
     switch (this.pile()) {
@@ -118,6 +125,24 @@ export class CasesPage {
   protected readonly currentUserName = computed(() => this.authStore.currentUser()?.displayName ?? null);
 
   /** Somebody takes a case, hands it to a colleague, or puts it down. */
+  /**
+   * A case written down by hand. The form is emptied only once the case is written: a failed
+   * request must not cost somebody the call they just typed up.
+   */
+  protected async onNewCase(request: NewCase): Promise<void> {
+    this.isCreating.set(true);
+    try {
+      await this.casesService.create(request);
+      this.newCaseOpen.set(false);
+      this.newCaseDialog()?.reset();
+      this.messageService.add({ severity: 'success', summary: this.transloco.translate('cases.newCreated') });
+    } catch {
+      this.messageService.add({ severity: 'error', summary: this.transloco.translate('cases.newError') });
+    } finally {
+      this.isCreating.set(false);
+    }
+  }
+
   protected async onAssignmentChanged(change: { id: string; userId: string | null }): Promise<void> {
     try {
       await this.casesService.assign(change.id, change.userId);

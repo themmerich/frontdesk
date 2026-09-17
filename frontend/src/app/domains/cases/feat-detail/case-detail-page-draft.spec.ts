@@ -38,6 +38,7 @@ const translations = {
 
 const aCase: CaseDetail = {
   id: 'b',
+  channel: 'mail',
   sender: 'kunde@example.com',
   recipient: 'info@musterfirma.de',
   subject: 'Lieferung 4711',

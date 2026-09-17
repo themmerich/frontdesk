@@ -6,6 +6,7 @@ import de.prime_ux.backend.TestcontainersConfiguration;
 import de.prime_ux.backend.branches.Branch;
 import de.prime_ux.backend.branches.BranchRepository;
 import de.prime_ux.backend.cases.Case;
+import de.prime_ux.backend.cases.CaseChannel;
 import de.prime_ux.backend.cases.CaseMessage;
 import de.prime_ux.backend.cases.CaseRepository;
 import de.prime_ux.backend.mailsettings.TenantMailSettingsRepository;
@@ -176,6 +177,45 @@ class ReplyDraftProcessorTest {
 
 		assertThat(drafted).isEqualTo(1);
 		assertThat(stubReplyDraftService.draftedSubjects).containsExactly("Entwurf");
+	}
+
+	@Test
+	void leavesAloneWhatCannotBeAnsweredByMail() {
+		// A call written down by hand. Its sender is a person, not a mailbox: the send button
+		// refuses it, so a draft would be paid for and then be in the way, looking ready.
+		Case call = Case.manual(tenant, CaseChannel.PHONE, "Herr Meier, 0170 1234567", "Anruf",
+				Instant.parse("2026-08-01T09:00:00Z"));
+		call.applyTriage(null, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Kunde fragt nach.");
+		caseRepository.save(call);
+		// Older than the call would put it first in the queue; it is not the order that saves it.
+		triaged("Per Mail", CaseTier.AUTOMATIC, Instant.parse("2026-08-01T10:00:00Z"));
+
+		int drafted = replyDraftProcessor.draftOnce(tenant, 10);
+
+		assertThat(drafted).isEqualTo(1);
+		assertThat(stubReplyDraftService.draftedSubjects).containsExactly("Per Mail");
+		assertThat(reload(call).hasDraft()).isFalse();
+	}
+
+	/**
+	 * The channel belongs in the query, not in a filter on its result: a batch full of calls would
+	 * otherwise come back, be thrown away, and hold up the mail behind it, run after run.
+	 */
+	@Test
+	void doesNotLetCallsFillTheBatchAndHoldUpTheMailBehindThem() {
+		for (int i = 0; i < 3; i++) {
+			Case call = Case.manual(tenant, CaseChannel.PHONE, "Anrufer " + i, "Anruf " + i,
+					Instant.parse("2026-08-01T08:00:00Z").plusSeconds(i));
+			call.applyTriage(null, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Kunde fragt nach.");
+			caseRepository.save(call);
+		}
+		triaged("Hinter den Anrufen", CaseTier.AUTOMATIC, Instant.parse("2026-08-01T10:00:00Z"));
+
+		// A batch of three: the three calls are older, so they would take all of it.
+		int drafted = replyDraftProcessor.draftOnce(tenant, 3);
+
+		assertThat(drafted).isEqualTo(1);
+		assertThat(stubReplyDraftService.draftedSubjects).containsExactly("Hinter den Anrufen");
 	}
 
 	@Test

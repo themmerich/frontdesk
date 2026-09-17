@@ -34,6 +34,8 @@ describe('CasesService', () => {
     const response = [
       {
         id: '1',
+        // Widened to string without it, and the expectation below is typed as a Case.
+        channel: 'mail' as const,
         sender: 'anna@example.com',
         recipient: 'info@example.com',
         subject: 'Delivery status',
