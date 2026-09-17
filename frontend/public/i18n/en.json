@@ -2,7 +2,7 @@
   "shell": {
     "cases": "Cases",
     "dashboard": "Dashboard",
-    "inbox": "Inbox",
+    "inbox": "Open",
     "archive": "Archive",
     "trash": "Trash",
     "administration": "Administration",
@@ -64,7 +64,7 @@
     }
   },
   "cases": {
-    "title": "Cases",
+    "title": "Open",
     "sender": "From",
     "recipient": "To",
     "subject": "Subject",
@@ -96,7 +96,7 @@
     "markHandledError": "The case could not be moved to the archive.",
     "reopen": "Reopen",
     "reopenRow": "Reopen “{{subject}}”",
-    "reopened": "The case is back in the inbox.",
+    "reopened": "The case is open again.",
     "reopenError": "The case could not be reopened.",
     "deleteSelected": "Delete selection",
     "deleteHeader": "Confirm deletion",
@@ -119,7 +119,7 @@
     "restored": "Case restored.",
     "restoreError": "The case could not be restored.",
     "deleteError": "Deleting failed.",
-    "empty": "No cases yet — as soon as a mail arrives, it shows up here.",
+    "empty": "Nothing open — as soon as a mail arrives or a call is written down, it shows up here.",
     "archiveTitle": "Archive",
     "emptyArchive": "Nothing done yet — cases you tick off collect here.",
     "trashTitle": "Trash",
@@ -149,7 +149,7 @@
     "tierInfo": "Info",
     "tierIgnore": "Ignore",
     "review": "Review",
-    "reviewHint": "Go through the inbox by category and tier",
+    "reviewHint": "Go through the open cases by category and tier",
     "reviewTitle": "Review",
     "reviewCaption": "Cases by category and tier",
     "reviewCount": "Count",
@@ -196,7 +196,7 @@
     "empty": "Nothing left to do here."
   },
   "caseDetail": {
-    "backToInbox": "Inbox",
+    "backToInbox": "Open",
     "position": "Case {{position}} of {{total}}",
     "previous": "Previous case",
     "next": "Next case",

@@ -543,7 +543,7 @@ test.describe('Case detail', () => {
 
     // And out of the inbox, into the archive.
     // The back link on the page; the sidebar carries the same word.
-    await page.getByRole('main').getByRole('link', { name: 'Posteingang' }).click();
+    await page.getByRole('main').getByRole('link', { name: 'Offen' }).click();
     await expect(page.getByRole('row', { name: /Rechnung 2026-081/ })).toHaveCount(0);
     await page.getByRole('link', { name: 'Archiv' }).click();
     await expect(page.getByRole('row', { name: /Rechnung 2026-081/ })).toBeVisible();

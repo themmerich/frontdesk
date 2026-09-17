@@ -31,11 +31,11 @@ const translations = {
     markedHandled: 'Case moved to the archive.',
     markHandledError: 'The case could not be moved to the archive.',
     reopen: 'Reopen',
-    reopened: 'The case is back in the inbox.',
+    reopened: 'The case is open again.',
     reopenError: 'The case could not be reopened.',
   },
   caseDetail: {
-    backToInbox: 'Inbox',
+    backToInbox: 'Open',
     position: 'Case {{position}} of {{total}}',
     previous: 'Previous case',
     next: 'Next case',
@@ -432,7 +432,7 @@ describe('CaseDetailPage', () => {
     await fixture.whenStable();
 
     expect(handled).toEqual([{ id: 'b', handled: false }]);
-    expect(toasts.map((toast) => toast.summary)).toEqual(['The case is back in the inbox.']);
+    expect(toasts.map((toast) => toast.summary)).toEqual(['The case is open again.']);
   });
 
   it('offers neither for a case in the trash, which is put back or deleted there', () => {

@@ -41,7 +41,7 @@ const translations = {
     deleteRow: 'Delete case',
     edit: 'Edit',
     deleteSelected: 'Delete selection',
-    empty: 'No cases yet',
+    empty: 'Nothing open',
   },
 };
 
@@ -349,7 +349,7 @@ describe('CaseList', () => {
   it('shows the empty message when there are no cases', () => {
     const fixture = createFixture([]);
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('No cases yet');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Nothing open');
   });
 
   it('renders the toolbar with column toggler, global search, review, reset, export, and delete', () => {

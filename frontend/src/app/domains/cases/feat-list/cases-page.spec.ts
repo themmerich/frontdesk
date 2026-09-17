@@ -18,7 +18,7 @@ const translations = {
     unassigned: 'Assignment cleared.',
     assignError: 'The assignment could not be saved.',
     classificationError: 'The classification could not be saved.',
-    title: 'Cases',
+    title: 'Open',
     archiveTitle: 'Archive',
     reopen: 'Reopen',
     trashTitle: 'Trash',
@@ -36,7 +36,7 @@ const translations = {
     purgedOne: 'Case deleted for good.',
     purgedMany: '{{count}} cases deleted for good.',
     reopenRow: 'Reopen {{subject}}',
-    reopened: 'The case is back in the inbox.',
+    reopened: 'The case is open again.',
     reopenError: 'The case could not be reopened.',
     emptyArchive: 'Nothing done yet',
     review: 'Review',
@@ -45,7 +45,7 @@ const translations = {
     recipient: 'To',
     subject: 'Subject',
     receivedAt: 'Received',
-    empty: 'No cases yet',
+    empty: 'Nothing open',
     loadError: 'Could not load cases.',
     deleteHeader: 'Confirm deletion',
     deleteOne: 'Really delete {{subject}}?',
@@ -208,7 +208,7 @@ describe('CasesPage', () => {
     fixture.detectChanges();
 
     const text = (fixture.nativeElement as HTMLElement).textContent;
-    expect(text).toContain('Cases');
+    expect(text).toContain('Open');
     expect(text).toContain('anna@example.com');
   });
 
@@ -292,7 +292,7 @@ describe('CasesPage', () => {
 
     expect(reopened).toEqual([{ id: '2', handled: false }]);
     // The row leaves the page it was clicked on, so it says where it went.
-    expect(toasts.map((toast) => [toast.severity, toast.summary])).toEqual([['success', 'The case is back in the inbox.']]);
+    expect(toasts.map((toast) => [toast.severity, toast.summary])).toEqual([['success', 'The case is open again.']]);
   });
 
   it('says so when the case could not be reopened', async () => {

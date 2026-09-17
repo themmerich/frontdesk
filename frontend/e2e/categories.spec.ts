@@ -299,7 +299,7 @@ test.describe('Case categories', () => {
 
     await page.goto('/categories');
 
-    await expect(page.getByRole('heading', { name: 'Vorgänge' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Offen' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Kategorien' })).toHaveCount(0);
   });
 });

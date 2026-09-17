@@ -10,7 +10,7 @@ import { Sidebar } from './sidebar';
 const translations = {
   shell: {
     cases: 'Cases',
-    inbox: 'Inbox',
+    inbox: 'Open',
     archive: 'Archive',
     trash: 'Trash',
     administration: 'Administration',
@@ -101,7 +101,7 @@ describe('Sidebar', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent;
     expect(text).toContain('frontdesk');
     expect(text).toContain('Cases');
-    expect(text).toContain('Inbox');
+    expect(text).toContain('Open');
   });
 
   it('signs out through the store and leaves for the login page', async () => {
@@ -137,7 +137,7 @@ describe('Sidebar', () => {
     fixture.detectChanges();
 
     const inboxLink = (fixture.nativeElement as HTMLElement).querySelector('a[href="/"]');
-    expect(inboxLink?.textContent).toContain('Inbox');
+    expect(inboxLink?.textContent).toContain('Open');
   });
 
   it('shows the signed-in user with their tenant', () => {
