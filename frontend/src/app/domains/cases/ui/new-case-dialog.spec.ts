@@ -17,6 +17,7 @@ const translations = {
     newSubject: 'Subject',
     newText: 'What was said',
     newTierFromTriage: 'Let the triage decide',
+    assigneeNobody: 'Nobody',
     newSave: 'Create',
     newCancel: 'Cancel',
     channel: { mail: 'Mail', phone: 'Phone', fax: 'Fax', other: 'Other' },
@@ -48,6 +49,10 @@ describe('NewCaseDialog', () => {
     const fixture = TestBed.createComponent(NewCaseDialog);
     fixture.componentRef.setInput('visible', true);
     fixture.componentRef.setInput('categories', [{ id: 'c1', name: 'Rechnung' }]);
+    fixture.componentRef.setInput('assignableUsers', [
+      { id: 'u1', name: 'Anna Muster' },
+      { id: 'u2', name: 'Ben Beispiel' },
+    ]);
     fixture.detectChanges();
     return fixture;
   }
@@ -74,8 +79,10 @@ describe('NewCaseDialog', () => {
     // middle of the box — on top of the very option that says the field is deliberately empty.
     expect(dialog['categoryOptions']()[0].value).toBeTruthy();
     expect(dialog['tierOptions']()[0].value).toBeTruthy();
+    expect(dialog['assigneeOptions']()[0].value).toBeTruthy();
     expect(dialog['categoryId']()).toBeTruthy();
     expect(dialog['tier']()).toBeTruthy();
+    expect(dialog['assigneeId']()).toBeTruthy();
   });
 
   it('hands over what was typed, with nothing chosen left as nothing', async () => {
@@ -94,11 +101,30 @@ describe('NewCaseDialog', () => {
         contact: 'Herr Meier, 0170 1234567',
         subject: 'Frage zur Rechnung',
         text: 'Ruft wegen der Position an.',
-        // Neither chosen, so the triage says what the case is about, as it does for a mail.
+        // Nothing chosen, so the triage says what the case is about, as it does for a mail, and
+        // the case belongs to nobody — taking a call is not the same as claiming the work.
         categoryId: null,
         tier: null,
+        assigneeId: null,
       },
     ]);
+  });
+
+  it('hands the case to whoever took the call names, colleague or themselves', async () => {
+    const fixture = createFixture();
+    const created: NewCase[] = [];
+    fixture.componentInstance.created.subscribe((request) => created.push(request));
+    const dialog = fixture.componentInstance;
+
+    // Nobody in front, then the colleagues the inbox is spread across.
+    expect(dialog['assigneeOptions']().map((option) => option.label)).toEqual(['Nobody', 'Anna Muster', 'Ben Beispiel']);
+
+    fillIn(fixture, 'Herr Meier', 'Frage', 'Ruft an.');
+    dialog['assigneeId'].set('u2');
+    await fixture.whenStable();
+    dialog['onCreate']();
+
+    expect(created[0].assigneeId).toBe('u2');
   });
 
   it('will not write a case without who it was, what it was about, and what was said', async () => {
@@ -141,5 +167,6 @@ describe('NewCaseDialog', () => {
     dialog.reset();
     expect(dialog['contact']()).toBe('');
     expect(dialog['channel']()).toBe('phone');
+    expect(dialog['assigneeOptions']()[0].value).toBe(dialog['assigneeId']());
   });
 });

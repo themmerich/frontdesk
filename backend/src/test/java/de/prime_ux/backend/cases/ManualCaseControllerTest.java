@@ -19,6 +19,7 @@ import de.prime_ux.backend.triage.CaseTier;
 import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.users.AppUserRepository;
 import de.prime_ux.backend.users.UserRole;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -70,6 +71,8 @@ class ManualCaseControllerTest {
 	private BranchRepository branchRepository;
 
 	private Tenant tenant;
+	private AppUser anna;
+	private AppUser ben;
 
 	@BeforeEach
 	void cleanDatabaseAndCreateTenant() {
@@ -81,7 +84,25 @@ class ManualCaseControllerTest {
 		branchRepository.deleteAll();
 		tenantRepository.deleteAll();
 		tenant = tenantRepository.save(new Tenant("Musterfirma GmbH", "musterfirma"));
-		appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster", "{noop}irrelevant", UserRole.USER));
+		anna = appUserRepository.save(new AppUser(tenant, "anna", "Anna", "Muster", "{noop}irrelevant", UserRole.USER));
+		ben = appUserRepository.save(new AppUser(tenant, "ben", "Ben", "Beispiel", "{noop}irrelevant", UserRole.USER));
+	}
+
+	/** What the trail holds for a case, oldest first. */
+	private List<CaseEvent> trailOf(Case aCase) {
+		return caseEventRepository.findAllByMailCaseIdOrderByOccurredAtAsc(aCase.getId());
+	}
+
+	private String callAssignedTo(AppUser assignee) {
+		return """
+				{
+				  "channel": "phone",
+				  "contact": "Herr Meier, 0170 1234567",
+				  "subject": "Frage zur Rechnung",
+				  "text": "Ruft an.",
+				  "assigneeId": "%s"
+				}
+				""".formatted(assignee.getId());
 	}
 
 	private String callJson() {
@@ -129,7 +150,7 @@ class ManualCaseControllerTest {
 				.andExpect(status().isCreated());
 
 		Case written = caseRepository.findAll().getFirst();
-		List<CaseEvent> trail = caseEventRepository.findAllByMailCaseIdOrderByOccurredAtAsc(written.getId());
+		List<CaseEvent> trail = trailOf(written);
 		assertThat(trail).hasSize(1);
 		// Its own type, and with a name: unlike the mailbox, a person did this.
 		assertThat(trail.getFirst().getType()).isEqualTo(CaseEventType.CREATED_MANUALLY);
@@ -154,6 +175,51 @@ class ManualCaseControllerTest {
 				.andExpect(jsonPath("$.channel").value("fax"))
 				.andExpect(jsonPath("$.categoryName").value("Rechnung"))
 				.andExpect(jsonPath("$.tier").value("manual"));
+	}
+
+	@Test
+	@AsUser("anna")
+	void tellsAColleagueAboutTheCallTakenForThem() throws Exception {
+		mockMvc.perform(post("/api/cases").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+				.content(callAssignedTo(ben))).andExpect(status().isCreated())
+				.andExpect(jsonPath("$.assigneeName").value("Ben Beispiel"));
+
+		Case written = caseRepository.findAll().getFirst();
+		// Two things happened, so the trail holds two. The second is what the bell reads: without
+		// it, taking a call for a colleague would tell them nothing, while handing the case over a
+		// click later would.
+		assertThat(trailOf(written)).extracting(CaseEvent::getType)
+				.containsExactly(CaseEventType.CREATED_MANUALLY, CaseEventType.ASSIGNED);
+		assertThat(caseEventRepository.unseenFor(tenant.getId(), ben.getId(), Instant.parse("2020-01-01T00:00:00Z")))
+				.extracting(CaseEventRepository.UnseenEvent::getSubject).containsExactly("Frage zur Rechnung");
+	}
+
+	@Test
+	@AsUser("anna")
+	void saysNothingWhenSomebodyTakesTheCallForThemselves() throws Exception {
+		mockMvc.perform(post("/api/cases").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+				.content(callAssignedTo(anna))).andExpect(status().isCreated())
+				.andExpect(jsonPath("$.assigneeName").value("Anna Muster"));
+
+		// The entry is written like any other; the bell passes it over because the actor is the
+		// assignee, and nobody needs telling what they just did themselves.
+		Case written = caseRepository.findAll().getFirst();
+		assertThat(trailOf(written)).extracting(CaseEvent::getType)
+				.containsExactly(CaseEventType.CREATED_MANUALLY, CaseEventType.ASSIGNED);
+		assertThat(caseEventRepository.unseenFor(tenant.getId(), anna.getId(), Instant.parse("2020-01-01T00:00:00Z")))
+				.isEmpty();
+	}
+
+	@Test
+	@AsUser("anna")
+	void leavesTheCaseToNobodyWhenNobodyWasNamed() throws Exception {
+		mockMvc.perform(post("/api/cases").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(callJson()))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.assigneeName").doesNotExist());
+
+		// Only the writing down happened, so only that stands in the trail.
+		assertThat(trailOf(caseRepository.findAll().getFirst())).extracting(CaseEvent::getType)
+				.containsExactly(CaseEventType.CREATED_MANUALLY);
 	}
 
 	@Test

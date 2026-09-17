@@ -55,6 +55,7 @@
           [(visible)]="newCaseOpen"
           [busy]="isCreating()"
           [categories]="categoriesService.categories.error() ? [] : categoriesService.categories.value()"
+          [assignableUsers]="assignableUsersService.users.error() ? [] : assignableUsersService.users.value()"
           (created)="onNewCase($event)"
         />
       }

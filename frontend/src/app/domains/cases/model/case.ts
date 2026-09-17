@@ -27,6 +27,8 @@ export type NewCase = {
   text: string;
   categoryId: string | null;
   tier: CaseTier | null;
+  /** Who is to handle it, if whoever took the call already knows. */
+  assigneeId: string | null;
 };
 
 export type Case = {

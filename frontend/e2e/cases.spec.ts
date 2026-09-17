@@ -1110,6 +1110,8 @@ test.describe('Cases page', () => {
       text: 'Ruft wegen der doppelten Position an.',
       categoryId: null,
       tier: null,
+      // Taking a call is not the same as claiming the work: nobody unless somebody is named.
+      assigneeId: null,
     });
 
     // In the inbox, marked by where it came from, and with a dash where a mail has its size:
@@ -1118,6 +1120,31 @@ test.describe('Cases page', () => {
     await expect(row).toBeVisible();
     await expect(row.locator('i.pi-phone')).toBeVisible();
     await expect(row).not.toContainText('0 B');
+  });
+
+  test('hands a call to the colleague it was taken for', async ({ page }) => {
+    let written: Record<string, unknown> | undefined;
+    await page.route('**/api/cases', (route) => {
+      if (route.request().method() === 'POST') {
+        written = route.request().postDataJSON() as Record<string, unknown>;
+        return route.fulfill({ status: 201, json: mockCases[0] });
+      }
+      return route.fulfill({ json: mockCases });
+    });
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Vorgang anlegen' }).click();
+    await page.getByLabel('Kontakt').fill('Herr Meier');
+    await page.getByLabel('Betreff').fill('Frage');
+    await page.getByLabel('Was besprochen wurde').fill('Ruft an.');
+
+    // The colleagues the inbox is spread across, with nobody in front.
+    await page.locator('p-select[inputid="new-case-assignee"]').click();
+    await page.locator('.p-select-overlay li', { hasText: 'Ben Beispiel' }).first().click();
+    await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
+
+    await expect(page.getByText('Vorgang angelegt.')).toBeVisible();
+    expect(written?.['assigneeId']).toBe('u2');
   });
 
   test('offers no way to write a case down where cases are not worked', async ({ page }) => {

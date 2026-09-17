@@ -19,12 +19,13 @@ import java.util.UUID;
  * reply be posted to a telephone number.
  *
  * <p>Category and tier may be left out, and then the case is judged by the triage like any other.
- * Whoever already knows what the call was about can say so and save the model the trouble.
+ * Whoever already knows what the call was about can say so and save the model the trouble. The
+ * same goes for who is to handle it: whoever took the call usually knows, and often it is them.
  */
 record CreateCaseRequest(@NotBlank @Pattern(regexp = "(?i)phone|fax|other") String channel,
 		@NotBlank @Size(max = 500) String contact, @NotBlank @Size(max = 1000) String subject,
 		@NotBlank String text, Instant receivedAt, UUID categoryId,
-		@Pattern(regexp = "(?i)automatic|draft|manual|info|ignore") String tier) {
+		@Pattern(regexp = "(?i)automatic|draft|manual|info|ignore") String tier, UUID assigneeId) {
 
 	CaseChannel toChannel() {
 		return CaseChannel.valueOf(channel.toUpperCase(Locale.ROOT));
