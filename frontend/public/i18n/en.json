@@ -130,6 +130,7 @@
     "assignee": "Assigned to",
     "assigneeAll": "Everybody",
     "assigneeNobody": "Nobody",
+    "assigneeSearch": "Search for a person",
     "noteCount": "{{count}} internal notes",
     "mine": "My cases",
     "mineHint": "Shows only the cases assigned to you.",

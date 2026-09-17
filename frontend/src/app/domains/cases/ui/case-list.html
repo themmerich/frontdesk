@@ -301,6 +301,10 @@
                       optionValue="value"
                       [ngModel]="row.assigneeId"
                       [ariaLabel]="t('cases.assignee')"
+                      [filter]="true"
+                      [resetFilterOnHide]="true"
+                      [filterPlaceholder]="t('cases.assigneeSearch')"
+                      [ariaFilterLabel]="t('cases.assigneeSearch')"
                       (onChange)="onPickAssignee(row, $event.value)"
                     />
                   } @else if (col.field === 'categoryName') {

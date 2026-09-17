@@ -105,6 +105,36 @@ test.describe('Cases page', () => {
     await expect(rows).toHaveCount(2);
   });
 
+  test('offers a filter in the assignee picker, so a long list of colleagues stays usable', async ({ page }) => {
+    // More colleagues than anyone reads at a glance, which is what the filter is for.
+    await page.route('**/api/users/assignable', (route) =>
+      route.fulfill({
+        json: [
+          { id: 'u1', name: 'Anna Admin' },
+          { id: 'u2', name: 'Ben Beispiel' },
+          { id: 'u3', name: 'Carla Christ' },
+          { id: 'u4', name: 'Katrin Kern' },
+        ],
+      }),
+    );
+    await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
+
+    await page.goto('/');
+    const row = page.getByRole('row', { name: /Delivery status/ });
+    // The cell turns into the picker on a click, the picker opens on the next one.
+    await row.getByRole('cell', { name: 'Anna Admin' }).click();
+    await row.locator('p-select').click();
+
+    // Nobody in front, then the colleagues; the box above them narrows the list.
+    await expect(page.getByRole('option')).toHaveText(['Niemand', 'Anna Admin', 'Ben Beispiel', 'Carla Christ', 'Katrin Kern']);
+    await page.getByPlaceholder('Person suchen').fill('kern');
+    await expect(page.getByRole('option')).toHaveText(['Katrin Kern']);
+
+    // And where nothing matches, the overlay says so in the language of the rest.
+    await page.getByPlaceholder('Person suchen').fill('zzz');
+    await expect(page.locator('.p-select-overlay')).toContainText('Keine Treffer');
+  });
+
   test('lists the cases returned by the API', async ({ page }) => {
     await page.route('**/api/cases', (route) => route.fulfill({ json: mockCases }));
 

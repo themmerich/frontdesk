@@ -113,6 +113,10 @@
           [ngModel]="assigneeId()"
           (ngModelChange)="assigneeId.set($event)"
           name="assigneeId"
+          [filter]="true"
+          [resetFilterOnHide]="true"
+          [filterPlaceholder]="t('cases.assigneeSearch')"
+          [ariaFilterLabel]="t('cases.assigneeSearch')"
         />
         <label for="new-case-assignee">{{ t('cases.assignee') }}</label>
       </p-floatlabel>

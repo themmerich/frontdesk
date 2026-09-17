@@ -88,6 +88,10 @@
               optionValue="value"
               [ngModel]="aCase.assigneeId ?? nobody"
               [disabled]="isSaving()"
+              [filter]="true"
+              [resetFilterOnHide]="true"
+              [filterPlaceholder]="t('cases.assigneeSearch')"
+              [ariaFilterLabel]="t('cases.assigneeSearch')"
               (onChange)="onPickAssignee($event.value)"
             />
             <label for="assignee">{{ t('cases.assignee') }}</label>
