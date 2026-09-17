@@ -174,6 +174,9 @@ class CaseControllerTest {
 				.andExpect(jsonPath("$.months.length()").value(12))
 				// The ladder plus the untriaged behind it, whatever the cases carry.
 				.andExpect(jsonPath("$.byTier.length()").value(6))
+				// All four channels, whether or not anything came in over them.
+				.andExpect(jsonPath("$.byChannel.length()").value(4))
+				.andExpect(jsonPath("$.byChannel[0].channel").value("mail"))
 				.andExpect(jsonPath("$.windows.today").exists())
 				.andExpect(jsonPath("$.windows.week").exists())
 				.andExpect(jsonPath("$.windows.month").exists());
@@ -197,8 +200,8 @@ class CaseControllerTest {
 				.andExpect(jsonPath("$.days[29].period").value(today))
 				// Three, not four: the trash is out of the chart as it is out of the tiles.
 				.andExpect(jsonPath("$.days[29].count").value(3))
-				.andExpect(jsonPath("$.days[29].byCategory['" + category.getId() + "']").value(2))
-				.andExpect(jsonPath("$.days[29].byCategory.none").value(1))
+				.andExpect(jsonPath("$.days[29].counts['" + category.getId() + "'].mail").value(2))
+				.andExpect(jsonPath("$.days[29].counts.none.mail").value(1))
 				.andExpect(jsonPath("$.windows.today.count").value(3))
 				.andExpect(jsonPath("$.byCategory.length()").value(2))
 				.andExpect(jsonPath("$.byCategory[0].name").value("Statusanfrage"))

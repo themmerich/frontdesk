@@ -45,7 +45,8 @@
    variable by itself, so the page reads these values and hands them to the
    chart — which is why they are plain colours here and not `light-dark()`.
    The tier colours match the tags in the inbox: green, amber and red for the
-   three that need an answer, blue and grey for the two that need none. */
+   three that need an answer, blue and grey for the two that need none. The
+   channel colours are one per way into the house, grey for the rest. */
 :root {
   --app-tier-automatic: #15803d;
   --app-tier-draft: #b45309;
@@ -53,6 +54,10 @@
   --app-tier-info: #1d4ed8;
   --app-tier-ignore: #64748b;
   --app-tier-none: #94a3b8;
+  --app-channel-mail: #1d4ed8;
+  --app-channel-phone: #15803d;
+  --app-channel-fax: #6d28d9;
+  --app-channel-other: #64748b;
   --app-chart-line: #10b981;
   --app-chart-text: #64748b;
   --app-chart-grid: #e2e8f0;
@@ -65,6 +70,10 @@
   --app-tier-info: #93c5fd;
   --app-tier-ignore: #cbd5e1;
   --app-tier-none: #64748b;
+  --app-channel-mail: #93c5fd;
+  --app-channel-phone: #86efac;
+  --app-channel-fax: #c4b5fd;
+  --app-channel-other: #cbd5e1;
   --app-chart-line: #34d399;
   --app-chart-text: #94a3b8;
   --app-chart-grid: #334155;

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import de.prime_ux.backend.cases.CaseRepository.CaseTotals;
 import de.prime_ux.backend.cases.CaseRepository.CategoryCount;
+import de.prime_ux.backend.cases.CaseRepository.ChannelCount;
 import de.prime_ux.backend.cases.CaseRepository.PeriodCount;
 import de.prime_ux.backend.cases.CaseRepository.TierCount;
 import de.prime_ux.backend.cases.CaseRepository.WindowCount;
@@ -97,9 +98,37 @@ class CaseStatisticsReportTest {
 		CaseStatisticsResponse.Bucket today = response.days().getLast();
 		assertThat(today.period()).isEqualTo("2026-09-15");
 		assertThat(today.count()).isEqualTo(7);
-		assertThat(today.byCategory()).containsOnly(Map.entry(lieferung.toString(), 4L),
-				Map.entry(rechnung.toString(), 2L), Map.entry("none", 1L));
+		assertThat(today.counts()).containsOnly(Map.entry(lieferung.toString(), Map.of("mail", 4L)),
+				Map.entry(rechnung.toString(), Map.of("mail", 2L)), Map.entry("none", Map.of("mail", 1L)));
 		assertThat(response.days().get(response.days().size() - 2).count()).isEqualTo(5);
+	}
+
+	@Test
+	void splitsABucketByChannelWithinEachCategorySoEitherNarrowingReads() {
+		UUID lieferung = UUID.randomUUID();
+		CaseStatisticsResponse response = build(List.of(), List.of(), List.of(),
+				List.of(row("2026-09-15", lieferung.toString(), "MAIL", 4),
+						row("2026-09-15", lieferung.toString(), "PHONE", 2),
+						row("2026-09-15", "none", "FAX", 1)),
+				List.of());
+
+		CaseStatisticsResponse.Bucket today = response.days().getLast();
+		// Seven all told, six under the one category, three that came in other than by mail.
+		assertThat(today.count()).isEqualTo(7);
+		assertThat(today.counts().get(lieferung.toString())).containsOnly(Map.entry("mail", 4L),
+				Map.entry("phone", 2L));
+		assertThat(today.counts().get("none")).containsOnly(Map.entry("fax", 1L));
+	}
+
+	@Test
+	void keepsAllFourChannelsWithTheOnesNothingCameInOverAtZero() {
+		CaseStatisticsResponse response = build(List.of(), List.of(),
+				List.of(channel("PHONE", 3), channel("MAIL", 8)), List.of(), List.of(), List.of());
+
+		assertThat(response.byChannel()).extracting(CaseStatisticsResponse.ChannelCount::channel)
+				.containsExactly("mail", "phone", "fax", "other");
+		assertThat(response.byChannel()).extracting(CaseStatisticsResponse.ChannelCount::count)
+				.containsExactly(8L, 3L, 0L, 0L);
 	}
 
 	@Test
@@ -117,7 +146,7 @@ class CaseStatisticsReportTest {
 		// The last Sunday in October is 25 hours long; a fixed day stepped through it lands beside
 		// midnight and would name the same date twice.
 		Instant afterTheChange = ZonedDateTime.of(2026, 10, 27, 9, 0, 0, 0, BERLIN).toInstant();
-		CaseStatisticsResponse response = build(List.of(), List.of(), List.of(), List.of(), List.of(),
+		CaseStatisticsResponse response = build(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
 				afterTheChange);
 
 		assertThat(response.days()).hasSize(30);
@@ -166,17 +195,23 @@ class CaseStatisticsReportTest {
 
 	private CaseStatisticsResponse build(List<CategoryCount> categories, List<TierCount> tiers, List<PeriodCount> hours,
 			List<PeriodCount> days, List<PeriodCount> months) {
-		return build(categories, tiers, hours, days, months, NOW);
+		return build(categories, tiers, List.of(), hours, days, months, NOW);
 	}
 
-	private CaseStatisticsResponse build(List<CategoryCount> categories, List<TierCount> tiers, List<PeriodCount> hours,
-			List<PeriodCount> days, List<PeriodCount> months, Instant now) {
+	private CaseStatisticsResponse build(List<CategoryCount> categories, List<TierCount> tiers,
+			List<ChannelCount> channels, List<PeriodCount> hours, List<PeriodCount> days, List<PeriodCount> months) {
+		return build(categories, tiers, channels, hours, days, months, NOW);
+	}
+
+	private CaseStatisticsResponse build(List<CategoryCount> categories, List<TierCount> tiers,
+			List<ChannelCount> channels, List<PeriodCount> hours, List<PeriodCount> days, List<PeriodCount> months,
+			Instant now) {
 		Map<String, WindowCount> windows = new LinkedHashMap<>();
 		windows.put("today", window(2, 1));
 		windows.put("week", window(11, 9));
 		windows.put("month", window(40, 38));
-		return CaseStatisticsReport.build(totals(42, 7, 5, 30, 3), windows, categories, tiers, hours, days, months,
-				now, BERLIN);
+		return CaseStatisticsReport.build(totals(42, 7, 5, 30, 3), windows, categories, tiers, channels, hours, days,
+				months, now, BERLIN);
 	}
 
 	private static Instant berlin(int year, int month, int day, int hour, int minute) {
@@ -268,7 +303,12 @@ class CaseStatisticsReportTest {
 		};
 	}
 
+	/** A row as the database groups it: one stretch, one category, one channel. */
 	private static PeriodCount row(String period, String category, long count) {
+		return row(period, category, "MAIL", count);
+	}
+
+	private static PeriodCount row(String period, String category, String channel, long count) {
 		return new PeriodCount() {
 
 			@Override
@@ -279,6 +319,26 @@ class CaseStatisticsReportTest {
 			@Override
 			public String getCategory() {
 				return category;
+			}
+
+			@Override
+			public String getChannel() {
+				return channel;
+			}
+
+			@Override
+			public long getCount() {
+				return count;
+			}
+		};
+	}
+
+	private static ChannelCount channel(String channel, long count) {
+		return new ChannelCount() {
+
+			@Override
+			public String getChannel() {
+				return channel;
 			}
 
 			@Override

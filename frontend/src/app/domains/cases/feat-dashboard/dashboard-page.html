@@ -74,7 +74,7 @@
         }
       </div>
 
-      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
         <p-card [header]="t('dashboard.byCategory')">
           <!-- A fixed height rather than an aspect ratio: three charts of the same height read as
                one row, and a canvas without a height of its own grows with every redraw. -->
@@ -84,6 +84,17 @@
             [options]="doughnutOptions()"
             height="20rem"
             [ariaLabel]="t('dashboard.byCategory')"
+          />
+        </p-card>
+        <!-- Which way the post comes in: the mailbox, the telephone, the fax machine, or somebody
+             at the desk. Beside the categories because both split the same cases in two ways. -->
+        <p-card [header]="t('dashboard.byChannel')">
+          <p-chart
+            type="doughnut"
+            [data]="channelData()"
+            [options]="doughnutOptions()"
+            height="20rem"
+            [ariaLabel]="t('dashboard.byChannel')"
           />
         </p-card>
         <p-card [header]="t('dashboard.byTier')">
@@ -105,6 +116,17 @@
               optionValue="value"
               size="small"
               [ariaLabel]="t('dashboard.filterCategory')"
+            />
+            <!-- One way in or all of them. The four never change, so unlike the categories this
+                 list is the same on every visit. -->
+            <p-select
+              inputId="dashboard-arrivals-channel"
+              [options]="channelOptions()"
+              [(ngModel)]="arrivalChannel"
+              optionLabel="label"
+              optionValue="value"
+              size="small"
+              [ariaLabel]="t('dashboard.filterChannel')"
             />
             <!-- The same stretches the tiles count, plus the year: what the chart shows follows
                  what was just read above it. -->

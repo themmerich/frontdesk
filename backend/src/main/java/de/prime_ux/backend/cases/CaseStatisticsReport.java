@@ -2,6 +2,7 @@ package de.prime_ux.backend.cases;
 
 import de.prime_ux.backend.cases.CaseRepository.CategoryCount;
 import de.prime_ux.backend.cases.CaseRepository.CaseTotals;
+import de.prime_ux.backend.cases.CaseRepository.ChannelCount;
 import de.prime_ux.backend.cases.CaseRepository.PeriodCount;
 import de.prime_ux.backend.cases.CaseRepository.TierCount;
 import de.prime_ux.backend.cases.CaseStatisticsResponse.Bucket;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -93,14 +95,14 @@ final class CaseStatisticsReport {
 	 * @param months the month buckets, {@code YYYY-MM}
 	 */
 	static CaseStatisticsResponse build(CaseTotals totals, Map<String, CaseRepository.WindowCount> windows,
-			List<CategoryCount> byCategory, List<TierCount> byTier, List<PeriodCount> hours, List<PeriodCount> days,
-			List<PeriodCount> months, Instant now, ZoneId zone) {
+			List<CategoryCount> byCategory, List<TierCount> byTier, List<ChannelCount> byChannel,
+			List<PeriodCount> hours, List<PeriodCount> days, List<PeriodCount> months, Instant now, ZoneId zone) {
 		Map<String, Window> countedWindows = new LinkedHashMap<>();
 		windows.forEach((name, counted) -> countedWindows.put(name, new Window(counted.getCount(),
 				counted.getPrevious())));
 
 		return new CaseStatisticsResponse(totals(totals), countedWindows, categories(byCategory), tiers(byTier),
-				series(hours, hourPeriods(now, zone)), series(days, dayPeriods(now, zone)),
+				channels(byChannel), series(hours, hourPeriods(now, zone)), series(days, dayPeriods(now, zone)),
 				series(months, monthPeriods(now, zone)));
 	}
 
@@ -140,21 +142,46 @@ final class CaseStatisticsReport {
 		return ladder;
 	}
 
-	/** Every bucket of a series, in order and at zero, then what the database found filled in. */
+	/**
+	 * The four channels in the order the enum names them, gaps at zero. Every case came in over
+	 * one of them, so unlike the tiers there is no row for the absence of an answer.
+	 */
+	private static List<CaseStatisticsResponse.ChannelCount> channels(List<ChannelCount> rows) {
+		Map<String, Long> counted = new LinkedHashMap<>();
+		rows.forEach(row -> counted.put(lowercase(row.getChannel()), row.getCount()));
+		return Arrays.stream(CaseChannel.values())
+				.map(channel -> lowercase(channel.name()))
+				.map(name -> new CaseStatisticsResponse.ChannelCount(name, counted.getOrDefault(name, 0L)))
+				.toList();
+	}
+
+	/**
+	 * Every bucket of a series, in order and at zero, then what the database found filled in. A
+	 * row names a category and a channel, and is counted under both at once: the chart is narrowed
+	 * by either or by both, and a bucket that kept the two apart could not answer the third case.
+	 */
 	private static List<Bucket> series(List<PeriodCount> rows, List<String> periods) {
-		Map<String, Map<String, Long>> byPeriod = new LinkedHashMap<>();
+		Map<String, Map<String, Map<String, Long>>> byPeriod = new LinkedHashMap<>();
 		periods.forEach(period -> byPeriod.put(period, new LinkedHashMap<>()));
 		for (PeriodCount row : rows) {
-			Map<String, Long> categories = byPeriod.get(row.getPeriod());
+			Map<String, Map<String, Long>> categories = byPeriod.get(row.getPeriod());
 			// A row outside every opened bucket is not part of the stretch and is dropped.
 			if (categories != null) {
-				categories.merge(row.getCategory(), row.getCount(), Long::sum);
+				categories.computeIfAbsent(row.getCategory(), category -> new LinkedHashMap<>())
+						.merge(lowercase(row.getChannel()), row.getCount(), Long::sum);
 			}
 		}
 		return byPeriod.entrySet().stream()
-				.map(entry -> new Bucket(entry.getKey(),
-						entry.getValue().values().stream().mapToLong(Long::longValue).sum(), entry.getValue()))
+				.map(entry -> new Bucket(entry.getKey(), total(entry.getValue()), entry.getValue()))
 				.toList();
+	}
+
+	/** What a bucket holds all told, whichever category and channel it came in under. */
+	private static long total(Map<String, Map<String, Long>> counts) {
+		return counts.values().stream()
+				.flatMap(byChannel -> byChannel.values().stream())
+				.mapToLong(Long::longValue)
+				.sum();
 	}
 
 	/**

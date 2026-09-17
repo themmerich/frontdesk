@@ -23,19 +23,24 @@ function isoMonth(monthsAgo: number): string {
   return `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
 }
 
-type Counts = Record<string, number>;
+/** What a bucket caught, keyed by category and then by the channel it came in over. */
+type Counts = Record<string, Record<string, number>>;
 
-function bucket(period: string, byCategory: Counts = {}) {
-  return { period, count: Object.values(byCategory).reduce((sum, count) => sum + count, 0), byCategory };
+function bucket(period: string, counts: Counts = {}) {
+  const count = Object.values(counts)
+    .flatMap((byChannel) => Object.values(byChannel))
+    .reduce((sum, caught) => sum + caught, 0);
+  return { period, count, counts };
 }
 
 /**
- * What the endpoint answers: two cases from today under two categories, one untriaged from
- * yesterday. The same numbers the old list fixture produced, only already added up.
+ * What the endpoint answers: two cases from today under two categories, one of them written down
+ * off the fax machine, one untriaged from yesterday. The same numbers the old list fixture
+ * produced, only already added up.
  */
 function mockStatistics(overrides: Record<string, unknown> = {}) {
-  const today = { c1: 1, c2: 1 };
-  const yesterday = { none: 1 };
+  const today = { c1: { mail: 1 }, c2: { fax: 1 } };
+  const yesterday = { none: { phone: 1 } };
   return {
     totals: { all: 3, untriaged: 1, manual: 1, archived: 0, trashed: 0 },
     windows: { today: { count: 2, previous: 1 }, week: { count: 3, previous: 0 }, month: { count: 3, previous: 0 } },
@@ -52,6 +57,13 @@ function mockStatistics(overrides: Record<string, unknown> = {}) {
       { tier: 'info', count: 0 },
       { tier: 'ignore', count: 0 },
       { tier: null, count: 1 },
+    ],
+    // All four, whatever came in over them: one mail, one fax, one call, nobody at the desk.
+    byChannel: [
+      { channel: 'mail', count: 1 },
+      { channel: 'phone', count: 1 },
+      { channel: 'fax', count: 1 },
+      { channel: 'other', count: 0 },
     ],
     hours: Array.from({ length: 24 }, (_, hour) => bucket(`${isoDay(0)}T${String(hour).padStart(2, '0')}`, hour === 9 ? today : {})),
     days: Array.from({ length: 30 }, (_, index) => {
@@ -118,18 +130,19 @@ test.describe('Dashboard', () => {
     expect(asked).not.toContain('/api/cases');
   });
 
-  test('draws the three charts', async ({ page }) => {
+  test('draws the four charts', async ({ page }) => {
     await page.goto('/dashboard');
 
     await expect(page.getByText('Vorgänge je Kategorie')).toBeVisible();
+    await expect(page.getByText('Vorgänge je Kanal')).toBeVisible();
     await expect(page.getByText('Vorgänge je Stufe')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Eingang' })).toBeVisible();
     // A canvas each, and something actually painted on them.
-    await expect(page.locator('canvas')).toHaveCount(3);
+    await expect(page.locator('canvas')).toHaveCount(4);
     const painted = await page.evaluate(() =>
       Array.from(document.querySelectorAll('canvas')).map((canvas) => canvas.toDataURL().length > 1000),
     );
-    expect(painted).toEqual([true, true, true]);
+    expect(painted).toEqual([true, true, true, true]);
   });
 
   test('measures today and the last stretches against the ones before them', async ({ page }) => {
@@ -227,6 +240,26 @@ test.describe('Dashboard', () => {
 
     // A different picture, and the select says whose it is.
     await expect(filter).toContainText('Reklamation');
+    expect(await chart.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).not.toBe(everything);
+    // The tiles above are about everything still.
+    await expect(page.getByText('Vorgänge gesamt').locator('xpath=following-sibling::p')).toHaveText('3');
+  });
+
+  test('narrows the arrivals chart to one channel', async ({ page }) => {
+    await page.goto('/dashboard');
+    const chart = page.locator('canvas').last();
+    await expect(chart).toBeVisible();
+    const everything = await chart.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
+
+    // All four ways in are on offer, whether or not anything came in over them.
+    const filter = page.locator('p-select[inputid="dashboard-arrivals-channel"]');
+    await expect(filter).toContainText('Alle Kanäle');
+    await filter.click();
+    await expect(page.getByRole('option')).toHaveText(['Alle Kanäle', 'E-Mail', 'Telefon', 'Fax', 'Sonstiges']);
+
+    await page.getByRole('option', { name: 'Fax', exact: true }).click();
+
+    await expect(filter).toContainText('Fax');
     expect(await chart.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).not.toBe(everything);
     // The tiles above are about everything still.
     await expect(page.getByText('Vorgänge gesamt').locator('xpath=following-sibling::p')).toHaveText('3');

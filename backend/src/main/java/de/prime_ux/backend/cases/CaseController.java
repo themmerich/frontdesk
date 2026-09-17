@@ -106,6 +106,7 @@ class CaseController {
 		}
 		return CaseStatisticsReport.build(caseRepository.totals(tenantId), windows,
 				caseRepository.countByCategory(tenantId), caseRepository.countByTier(tenantId),
+				caseRepository.countByChannel(tenantId),
 				caseRepository.countByPeriod(tenantId, CaseStatisticsReport.hoursReach(now, zone), "hour",
 						zone.getId(), "YYYY-MM-DD\"T\"HH24"),
 				caseRepository.countByPeriod(tenantId, CaseStatisticsReport.daysReach(now, zone), "day", zone.getId(),
