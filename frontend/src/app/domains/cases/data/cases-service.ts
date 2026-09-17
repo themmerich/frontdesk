@@ -98,11 +98,22 @@ export class CasesService {
    * list reloads afterwards, so it shows what is where rather than what the client believes.
    */
   /**
-   * A case written down by hand, for a call taken or a fax off the machine. The list is read
-   * again afterwards: the new case belongs in the inbox at once, not at the next poll.
+   * A case written down by hand, for a call taken or a fax off the machine. Files travel in the
+   * same request as the case: one that exists without the fax somebody just scanned in is a case
+   * somebody has to notice and finish by hand.
+   *
+   * <p>The case goes over as a JSON part rather than as form fields, so what the server validates
+   * stays a record. The list is read again afterwards: the new case belongs in the inbox at once,
+   * not at the next poll.
    */
   async create(request: NewCase): Promise<void> {
-    await firstValueFrom(this.http.post<void>('/api/cases', request));
+    const { files, ...aCase } = request;
+    const form = new FormData();
+    form.append('case', new Blob([JSON.stringify(aCase)], { type: 'application/json' }));
+    for (const file of files) {
+      form.append('files', file, file.name);
+    }
+    await firstValueFrom(this.http.post<void>('/api/cases', form));
     this.cases.reload();
   }
 

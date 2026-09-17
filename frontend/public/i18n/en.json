@@ -174,7 +174,10 @@
       "phone": "Phone",
       "fax": "Fax",
       "other": "Other"
-    }
+    },
+    "newAttach": "Attach a file",
+    "newDetach": "Remove {{name}}",
+    "newTooLarge": "An attachment must not be larger than 10 MB."
   },
   "caseReview": {
     "backToReview": "Back to the review",
@@ -244,6 +247,7 @@
     "history": "History",
     "events": {
       "ingested": "Came in",
+      "created_manually": "Written down by hand ({{channel}})",
       "follow_up_received": "Follow-up came in",
       "triaged": "Assessed: {{tier}}, {{confidence}}, {{categoryName}}",
       "classification_corrected": "Classification corrected: {{tier}}, {{categoryName}}",

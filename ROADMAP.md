@@ -95,6 +95,9 @@ Gaps in what exists, each small enough for one PR.
       did not come in by mail has a person in its sender rather than a mailbox, so the drafting
       run passes it over and the send path refuses it. Left without a tier it goes through the
       triage like any other — a typed note is a request the model can read as well as a mail.
+      What was scanned in travels in the same request and hangs on the opening message, where a
+      mail's attachments hang. Bounded at 10 MB a file: the decision that attachments have no
+      size limit is about what the mailbox delivers, and a browser is not the mailbox.
 - [ ] **Re-triage** — run the triage again for one case or a selection, e.g. after the
       categories changed.
 - [ ] **Keyboard shortcuts** — next, previous, handled, delete in the inbox and on the detail

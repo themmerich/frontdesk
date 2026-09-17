@@ -149,7 +149,7 @@ class ReplySendControllerTest {
 		// A call written down by hand: its sender is a person, with a telephone number where a
 		// mailbox would stand. Without the channel to go by, the reply would be posted to it.
 		Case aCase = Case.manual(tenant, CaseChannel.PHONE, "Herr Meier, 0170 1234567",
-				"Frage zur Rechnung", Instant.parse("2026-08-01T10:00:00Z"));
+				"Frage zur Rechnung", Instant.parse("2026-08-01T10:00:00Z"), 0);
 		aCase.applyTriage(null, CaseTier.DRAFT, new BigDecimal("0.8"), "Kunde fragt nach.");
 		aCase.applyDraft("Guten Tag, wie besprochen. Musterfirma GmbH");
 		Case saved = caseRepository.save(aCase);
