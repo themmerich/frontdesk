@@ -174,7 +174,10 @@
       "phone": "Telefon",
       "fax": "Fax",
       "other": "Sonstiges"
-    }
+    },
+    "newAttach": "Anhang wählen",
+    "newDetach": "{{name}} entfernen",
+    "newTooLarge": "Anhänge dürfen höchstens 10 MB groß sein."
   },
   "caseReview": {
     "backToReview": "Zurück zur Durchsicht",
@@ -244,6 +247,7 @@
     "history": "Verlauf",
     "events": {
       "ingested": "Eingegangen",
+      "created_manually": "Von Hand angelegt ({{channel}})",
       "follow_up_received": "Folge-Mail eingegangen",
       "triaged": "Bewertet: {{tier}}, {{confidence}}, {{categoryName}}",
       "classification_corrected": "Einordnung korrigiert: {{tier}}, {{categoryName}}",

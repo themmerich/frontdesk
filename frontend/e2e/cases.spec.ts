@@ -51,6 +51,15 @@ const mockUser = {
   tenant: { slug: 'musterfirma', name: 'Musterfirma GmbH' },
 };
 
+/**
+ * The case travels as a JSON part of a multipart body, so the fields are dug out of it rather
+ * than read off a JSON request.
+ */
+function caseFrom(body: string): Record<string, unknown> {
+  const json = body.slice(body.indexOf('{'), body.lastIndexOf('}') + 1);
+  return JSON.parse(json) as Record<string, unknown>;
+}
+
 test.describe('Cases page', () => {
   test.beforeEach(async ({ page }) => {
     // The bell is on every page and polls; unanswered with a backend behind the dev server
@@ -1086,7 +1095,7 @@ test.describe('Cases page', () => {
     };
     await page.route('**/api/cases', (route) => {
       if (route.request().method() === 'POST') {
-        written = route.request().postDataJSON() as Record<string, unknown>;
+        written = caseFrom(route.request().postData() ?? '');
         return route.fulfill({ status: 201, json: call });
       }
       // The list is read again once the case is written, and then it is in it.
@@ -1102,7 +1111,7 @@ test.describe('Cases page', () => {
     await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 
     await expect(page.getByText('Vorgang angelegt.')).toBeVisible();
-    // Phone is what the dialog opens on, and nothing was chosen for either of the two.
+    // Phone is what the dialog opens on, and nothing was chosen for any of the three.
     expect(written).toEqual({
       channel: 'phone',
       contact: 'Herr Meier, 0170 1234567',
@@ -1114,8 +1123,8 @@ test.describe('Cases page', () => {
       assigneeId: null,
     });
 
-    // In the inbox, marked by where it came from, and with a dash where a mail has its size:
-    // nothing was transmitted, so a nought would read as a measurement.
+    // In the inbox, marked by where it came from, and with a dash where a mail has its size: the
+    // call came with nothing, and a nought would read as a measurement.
     const row = page.getByRole('row', { name: /Frage zur Rechnung/ });
     await expect(row).toBeVisible();
     await expect(row.locator('i.pi-phone')).toBeVisible();
@@ -1124,9 +1133,11 @@ test.describe('Cases page', () => {
 
   test('hands a call to the colleague it was taken for', async ({ page }) => {
     let written: Record<string, unknown> | undefined;
+    let body = '';
     await page.route('**/api/cases', (route) => {
       if (route.request().method() === 'POST') {
-        written = route.request().postDataJSON() as Record<string, unknown>;
+        body = route.request().postData() ?? '';
+        written = caseFrom(body);
         return route.fulfill({ status: 201, json: mockCases[0] });
       }
       return route.fulfill({ json: mockCases });
@@ -1145,6 +1156,52 @@ test.describe('Cases page', () => {
 
     await expect(page.getByText('Vorgang angelegt.')).toBeVisible();
     expect(written?.['assigneeId']).toBe('u2');
+  });
+
+  test('sends the scanned fax along with the case it belongs to', async ({ page }) => {
+    let body = '';
+    await page.route('**/api/cases', (route) => {
+      if (route.request().method() === 'POST') {
+        body = route.request().postData() ?? '';
+        return route.fulfill({ status: 201, json: mockCases[0] });
+      }
+      return route.fulfill({ json: mockCases });
+    });
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Vorgang anlegen' }).click();
+    await page.getByLabel('Kontakt').fill('Musterfirma, Fax 0221 4711');
+    await page.getByLabel('Betreff').fill('Rechnung 2026-081');
+    await page.getByLabel('Was besprochen wurde').fill('Fax mit der Rechnungskopie.');
+
+    // p-fileupload in basic mode hides its input; the file goes to it directly.
+    await page.locator('p-fileupload input[type="file"]').setInputFiles({
+      name: 'Rechnung.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4 nicht wirklich'),
+    });
+    // Picked and listed, so one can see what is about to go and drop it again.
+    await expect(page.getByText('Rechnung.pdf')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
+    await expect(page.getByText('Vorgang angelegt.')).toBeVisible();
+
+    // One request carries both: a case without the fax somebody just scanned in is a case
+    // somebody has to notice and finish by hand.
+    expect(caseFrom(body)['subject']).toBe('Rechnung 2026-081');
+    expect(body).toContain('filename="Rechnung.pdf"');
+    expect(body).toContain('%PDF-1.4 nicht wirklich');
+  });
+
+  test('says how big a written-down case is once something hangs on it', async ({ page }) => {
+    // A call that came with a scanned fax carries its bytes: the column asks how big the case is,
+    // not how it came in.
+    const withFax = { ...mockCases[0], id: '4', channel: 'phone', sender: 'Fax 0221 4711', subject: 'Eingescannt', sizeBytes: 2048 };
+    await page.route('**/api/cases', (route) => route.fulfill({ json: [withFax] }));
+
+    await page.goto('/');
+
+    await expect(page.getByRole('row', { name: /Eingescannt/ })).toContainText('2 KB');
   });
 
   test('offers no way to write a case down where cases are not worked', async ({ page }) => {

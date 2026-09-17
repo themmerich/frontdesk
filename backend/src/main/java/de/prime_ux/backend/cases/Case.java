@@ -159,12 +159,14 @@ public class Case {
 	 * first message of the conversation, exactly as an arriving mail does — the case is a matter
 	 * either way, and only the way in differs.
 	 *
-	 * <p>There is no message id, because nothing was received, and no size, because nothing was
-	 * transmitted. The sender carries whoever it was, in whatever words the person typed.
+	 * <p>There is no message id, because nothing was received. The size is what the case carries —
+	 * the bytes of whatever was scanned in, nought for a call that came with nothing. The column
+	 * asks how big this is, not how much travelled over a wire. The sender carries whoever it was,
+	 * in whatever words the person typed.
 	 */
 	public static Case manual(Tenant tenant, CaseChannel channel, String contact, String subject,
-			Instant receivedAt) {
-		Case aCase = new Case(tenant, null, contact, null, subject, receivedAt, false, 0);
+			Instant receivedAt, long sizeBytes) {
+		Case aCase = new Case(tenant, null, contact, null, subject, receivedAt, sizeBytes > 0, sizeBytes);
 		aCase.channel = channel;
 		return aCase;
 	}

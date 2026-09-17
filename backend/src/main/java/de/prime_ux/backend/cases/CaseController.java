@@ -9,6 +9,7 @@ import de.prime_ux.backend.users.AppUser;
 import de.prime_ux.backend.auth.CurrentSession;
 import de.prime_ux.backend.users.AppUserRepository;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -33,8 +34,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
@@ -167,20 +170,29 @@ class CaseController {
 	 * does. Left without a tier, the case goes through the triage like any other — the run picks
 	 * up whatever has none, and a typed note is a request the model can read as well as a mail.
 	 *
+	 * <p>Files come along in the same request rather than in one of their own: a case that exists
+	 * without the fax somebody just scanned in is a case somebody has to notice and finish by hand.
+	 * They hang on the opening message, where a mail's attachments hang.
+	 *
 	 * <p>Handing the case to somebody at once writes an ASSIGNED event of its own beside the one
 	 * for the writing down. Two entries for two things that happened, and the bell reads the
 	 * second: without it, taking a call for a colleague would tell them nothing, while doing the
 	 * same thing a click later would — the same intent with two outcomes, and the quiet one in
 	 * the more convenient path.
 	 */
-	@PostMapping
+	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
 	@Transactional
-	CaseDetailResponse create(@Valid @RequestBody CreateCaseRequest request) {
+	CaseDetailResponse create(@Valid @RequestPart("case") CreateCaseRequest request,
+			@RequestPart(name = "files", required = false) List<MultipartFile> files) {
 		AppUser person = currentSession.user();
 		Tenant tenant = currentSession.tenant();
+		List<MultipartFile> attachments = files == null ? List.of() : files.stream().filter(file -> !file.isEmpty()).toList();
+		requireWithinLimits(attachments);
+		// What the case carries, which is what the size column asks about.
+		long size = attachments.stream().mapToLong(MultipartFile::getSize).sum();
 		Case aCase = Case.manual(tenant, request.toChannel(), request.contact(), request.subject(),
-				request.receivedAtOrNow());
+				request.receivedAtOrNow(), size);
 		if (request.categoryId() != null) {
 			aCase.changeCategory(ownCategory(request.categoryId(), tenant.getId()));
 		}
@@ -191,8 +203,14 @@ class CaseController {
 		aCase.assignTo(assignee);
 		Case saved = caseRepository.save(aCase);
 		// Nothing was received and nothing transmitted, so there is no message id and no size.
-		caseMessageRepository.save(CaseMessage.incoming(saved, 0, null, request.contact(), null, request.subject(),
-				request.text(), null, saved.getReceivedAt(), 0, false));
+		CaseMessage opening = caseMessageRepository.save(CaseMessage.incoming(saved, 0, null, request.contact(), null,
+				request.subject(), request.text(), null, saved.getReceivedAt(), size, false));
+		int position = 0;
+		for (MultipartFile file : attachments) {
+			// Nothing is inline: a scanned fax is a document, not a picture the text refers to.
+			caseAttachmentRepository.save(new CaseAttachment(opening, position++, fileNameOf(file),
+					contentTypeOf(file), null, false, bytesOf(file)));
+		}
 		caseEvents.record(saved, CaseEventType.CREATED_MANUALLY, person,
 				CaseEvents.details("channel", saved.getChannel().name().toLowerCase(Locale.ROOT), "sender",
 						request.contact()));
@@ -318,10 +336,51 @@ class CaseController {
 	}
 
 	/**
-	 * A colleague of this tenant. Somebody else's user is a bad request rather than a not-found:
-	 * the id came from a picker that only ever offers this tenant's people, so a mismatch is a
-	 * broken client, not a case of guessing at ids.
+	 * What a person may push up in one go. The decision of 12.09. that attachments have no size
+	 * limit is about what the mailbox delivers — that is the mail server's ceiling, already agreed
+	 * with whoever sent it. A browser is not: without a limit anybody could push anything through
+	 * the heap and into the column.
 	 */
+	private static final long MAX_ATTACHMENT_BYTES = 10L * 1024 * 1024;
+
+	private static void requireWithinLimits(List<MultipartFile> files) {
+		for (MultipartFile file : files) {
+			if (file.getSize() > MAX_ATTACHMENT_BYTES) {
+				throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,
+						"an attachment must not be larger than 10 MB");
+			}
+		}
+	}
+
+	/**
+	 * Only the name belongs on the case; some browsers send the whole path the file was picked
+	 * from. Both separators are cut by hand rather than through Path.of(): the server decides what
+	 * a separator is there, so a Windows path handed to a server on Linux would come back whole.
+	 */
+	private static String fileNameOf(MultipartFile file) {
+		String name = file.getOriginalFilename();
+		if (name == null || name.isBlank()) {
+			return "Anhang";
+		}
+		int lastSeparator = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+		String bare = lastSeparator < 0 ? name : name.substring(lastSeparator + 1);
+		return bare.isBlank() ? "Anhang" : bare;
+	}
+
+	/** What the browser says it is, or the fallback every unknown byte stream gets. */
+	private static String contentTypeOf(MultipartFile file) {
+		String contentType = file.getContentType();
+		return contentType == null || contentType.isBlank() ? MediaType.APPLICATION_OCTET_STREAM_VALUE : contentType;
+	}
+
+	private static byte[] bytesOf(MultipartFile file) {
+		try {
+			return file.getBytes();
+		} catch (IOException e) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "the attachment could not be read", e);
+		}
+	}
+
 	private AppUser ownUser(UUID id, UUID tenantId) {
 		return appUserRepository.findById(id)
 				.filter(user -> user.getTenant() != null && user.getTenant().getId().equals(tenantId))

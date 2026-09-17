@@ -2,6 +2,8 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 
+import { FileUploadHandlerEvent } from 'primeng/fileupload';
+
 import { NewCase } from '../model/case';
 import { NewCaseDialog } from './new-case-dialog';
 
@@ -18,6 +20,8 @@ const translations = {
     newText: 'What was said',
     newTierFromTriage: 'Let the triage decide',
     assigneeNobody: 'Nobody',
+    newAttach: 'Attach a file',
+    newDetach: 'Remove {{name}}',
     newSave: 'Create',
     newCancel: 'Cancel',
     channel: { mail: 'Mail', phone: 'Phone', fax: 'Fax', other: 'Other' },
@@ -106,8 +110,32 @@ describe('NewCaseDialog', () => {
         categoryId: null,
         tier: null,
         assigneeId: null,
+        // Nothing was picked, so nothing travels with it.
+        files: [],
       },
     ]);
+  });
+
+  it('gathers the files picked one after another, and lets one go again', async () => {
+    const fixture = createFixture();
+    const created: NewCase[] = [];
+    fixture.componentInstance.created.subscribe((request) => created.push(request));
+    const dialog = fixture.componentInstance;
+    const fax = new File(['egal'], 'Fax.pdf', { type: 'application/pdf' });
+    const scan = new File(['egal'], 'Scan.pdf', { type: 'application/pdf' });
+
+    // A second pick adds to what is there; it does not replace it.
+    dialog['onPickFiles']({ files: [fax] } as unknown as FileUploadHandlerEvent);
+    dialog['onPickFiles']({ files: [scan] } as unknown as FileUploadHandlerEvent);
+    await fixture.whenStable();
+    expect(dialog['files']().map((file) => file.name)).toEqual(['Fax.pdf', 'Scan.pdf']);
+
+    dialog['onDropFile'](fax);
+    fillIn(fixture, 'Herr Meier', 'Frage', 'Ruft an.');
+    await fixture.whenStable();
+    dialog['onCreate']();
+
+    expect(created[0].files.map((file) => file.name)).toEqual(['Scan.pdf']);
   });
 
   it('hands the case to whoever took the call names, colleague or themselves', async () => {
@@ -164,8 +192,13 @@ describe('NewCaseDialog', () => {
     await fixture.whenStable();
     expect(dialog['contact']()).toBe('Herr Meier');
 
+    dialog['onPickFiles']({ files: [new File(['egal'], 'Fax.pdf')] } as unknown as FileUploadHandlerEvent);
+    await fixture.whenStable();
+    expect(dialog['files']()).toHaveLength(1);
+
     dialog.reset();
     expect(dialog['contact']()).toBe('');
+    expect(dialog['files']()).toEqual([]);
     expect(dialog['channel']()).toBe('phone');
     expect(dialog['assigneeOptions']()[0].value).toBe(dialog['assigneeId']());
   });

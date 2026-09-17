@@ -371,10 +371,11 @@
                   }
                 }
                 @case ('sizeBytes') {
-                  @if (row.channel === 'mail') {
+                  @if (row.sizeBytes > 0) {
                     {{ row.sizeBytes | fileSize }}
                   } @else {
-                    <!-- Nothing was transmitted; a nought would read as a measurement. -->
+                    <!-- The column asks how big the case is, not how it came in: a call that came
+                         with nothing carries nothing, and a nought would read as a measurement. -->
                     <span class="text-surface-400 dark:text-surface-500">–</span>
                   }
                 }

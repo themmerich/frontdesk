@@ -184,7 +184,7 @@ class ReplyDraftProcessorTest {
 		// A call written down by hand. Its sender is a person, not a mailbox: the send button
 		// refuses it, so a draft would be paid for and then be in the way, looking ready.
 		Case call = Case.manual(tenant, CaseChannel.PHONE, "Herr Meier, 0170 1234567", "Anruf",
-				Instant.parse("2026-08-01T09:00:00Z"));
+				Instant.parse("2026-08-01T09:00:00Z"), 0);
 		call.applyTriage(null, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Kunde fragt nach.");
 		caseRepository.save(call);
 		// Older than the call would put it first in the queue; it is not the order that saves it.
@@ -205,7 +205,7 @@ class ReplyDraftProcessorTest {
 	void doesNotLetCallsFillTheBatchAndHoldUpTheMailBehindThem() {
 		for (int i = 0; i < 3; i++) {
 			Case call = Case.manual(tenant, CaseChannel.PHONE, "Anrufer " + i, "Anruf " + i,
-					Instant.parse("2026-08-01T08:00:00Z").plusSeconds(i));
+					Instant.parse("2026-08-01T08:00:00Z").plusSeconds(i), 0);
 			call.applyTriage(null, CaseTier.AUTOMATIC, new BigDecimal("0.95"), "Kunde fragt nach.");
 			caseRepository.save(call);
 		}

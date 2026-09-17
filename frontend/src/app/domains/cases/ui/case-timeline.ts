@@ -18,6 +18,8 @@ type TimelineEntry = {
 /** The marker per step; a small closed set, so every one is spelled out. */
 const ICONS: Record<CaseEventType, string> = {
   ingested: 'pi pi-inbox',
+  // The same mark the button that writes one down carries.
+  created_manually: 'pi pi-plus',
   follow_up_received: 'pi pi-inbox',
   triaged: 'pi pi-sparkles',
   classification_corrected: 'pi pi-pencil',
@@ -72,6 +74,12 @@ export class CaseTimeline {
         return this.transloco.translate(
           details['onRequest'] === true ? 'caseDetail.events.draftGeneratedOnRequest' : 'caseDetail.events.draft_generated',
         );
+      case 'created_manually':
+        // The channel is worth a word: it is the whole difference between this and an ingested
+        // mail, and it decides whether an answer can ever go out.
+        return this.transloco.translate('caseDetail.events.created_manually', {
+          channel: this.transloco.translate(`cases.channel.${typeof details['channel'] === 'string' ? details['channel'] : 'other'}`),
+        });
       case 'note_deleted':
         return this.transloco.translate('caseDetail.events.note_deleted', {
           writtenAt: typeof details['writtenAt'] === 'string' ? new Date(details['writtenAt']).toLocaleString(this.locale) : '',

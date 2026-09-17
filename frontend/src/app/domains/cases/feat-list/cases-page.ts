@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, signal, viewChild } from '@angular/core';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 
@@ -136,8 +137,14 @@ export class CasesPage {
       this.newCaseOpen.set(false);
       this.newCaseDialog()?.reset();
       this.messageService.add({ severity: 'success', summary: this.transloco.translate('cases.newCreated') });
-    } catch {
-      this.messageService.add({ severity: 'error', summary: this.transloco.translate('cases.newError') });
+    } catch (error) {
+      // A file that is too big has its own answer: "could not be created" would leave somebody
+      // retrying the same fax.
+      const tooLarge = error instanceof HttpErrorResponse && error.status === 413;
+      this.messageService.add({
+        severity: 'error',
+        summary: this.transloco.translate(tooLarge ? 'cases.newTooLarge' : 'cases.newError'),
+      });
     } finally {
       this.isCreating.set(false);
     }

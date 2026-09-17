@@ -29,6 +29,8 @@ export type NewCase = {
   tier: CaseTier | null;
   /** Who is to handle it, if whoever took the call already knows. */
   assigneeId: string | null;
+  /** What came with it — a scanned fax, a photo of a note. Travels in the same request. */
+  files: File[];
 };
 
 export type Case = {
@@ -120,6 +122,7 @@ export type CaseMessage = {
 /** What can happen to a case, as the trail writes it down. */
 export type CaseEventType =
   | 'ingested'
+  | 'created_manually'
   | 'follow_up_received'
   | 'triaged'
   | 'classification_corrected'

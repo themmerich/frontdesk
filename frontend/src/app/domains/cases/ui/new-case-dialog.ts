@@ -1,9 +1,10 @@
-import { Component, computed, inject, input, model, output, signal } from '@angular/core';
+import { Component, computed, inject, input, model, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslocoDirective, TranslocoService } from '@jsverse/transloco';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
+import { FileUpload, FileUploadHandlerEvent, FileUploadModule } from 'primeng/fileupload';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
@@ -36,11 +37,24 @@ const NOBODY = 'nobody';
  */
 @Component({
   selector: 'app-new-case-dialog',
-  imports: [FormsModule, TranslocoDirective, ButtonModule, DialogModule, FloatLabelModule, InputTextModule, SelectModule, TextareaModule],
+  imports: [
+    FormsModule,
+    TranslocoDirective,
+    ButtonModule,
+    DialogModule,
+    FileUploadModule,
+    FloatLabelModule,
+    InputTextModule,
+    SelectModule,
+    TextareaModule,
+  ],
   templateUrl: './new-case-dialog.html',
 })
 export class NewCaseDialog {
   private readonly transloco = inject(TranslocoService);
+
+  /** Emptied after every pick, so the button says "choose" rather than counting what it holds. */
+  private readonly fileUpload = viewChild(FileUpload);
 
   /** Open or not; the page owns it so the toolbar button can set it. */
   readonly visible = model.required<boolean>();
@@ -65,6 +79,9 @@ export class NewCaseDialog {
   protected readonly categoryId = signal<string>(NO_CATEGORY);
   protected readonly tier = signal<CaseTier | typeof FROM_TRIAGE>(FROM_TRIAGE);
   protected readonly assigneeId = signal<string>(NOBODY);
+
+  /** What is to go with the case; picked before it is written, sent in the same request. */
+  protected readonly files = signal<File[]>([]);
 
   protected readonly channelOptions = computed(() => {
     this.translation();
@@ -104,6 +121,16 @@ export class NewCaseDialog {
     () => this.contact().trim().length > 0 && this.subject().trim().length > 0 && this.text().trim().length > 0 && !this.busy(),
   );
 
+  /** Picked one after another rather than all at once: a second choice adds, it does not replace. */
+  protected onPickFiles(event: FileUploadHandlerEvent): void {
+    this.files.update((picked) => [...picked, ...(event.files as File[])]);
+    this.fileUpload()?.clear();
+  }
+
+  protected onDropFile(file: File): void {
+    this.files.update((picked) => picked.filter((candidate) => candidate !== file));
+  }
+
   protected onCreate(): void {
     if (!this.canCreate()) {
       return;
@@ -116,6 +143,7 @@ export class NewCaseDialog {
       categoryId: this.categoryId() === NO_CATEGORY ? null : this.categoryId(),
       tier: this.tier() === FROM_TRIAGE ? null : (this.tier() as CaseTier),
       assigneeId: this.assigneeId() === NOBODY ? null : this.assigneeId(),
+      files: this.files(),
     });
   }
 
@@ -131,5 +159,6 @@ export class NewCaseDialog {
     this.categoryId.set(NO_CATEGORY);
     this.tier.set(FROM_TRIAGE);
     this.assigneeId.set(NOBODY);
+    this.files.set([]);
   }
 }

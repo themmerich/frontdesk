@@ -6,12 +6,20 @@ import { CaseEvent } from '../model/case';
 import { CaseTimeline } from './case-timeline';
 
 const translations = {
-  cases: { tierAutomatic: 'Automatic', tierDraft: 'Draft', tierManual: 'Manual', tierInfo: 'Info', tierIgnore: 'Ignore' },
+  cases: {
+    tierAutomatic: 'Automatic',
+    tierDraft: 'Draft',
+    tierManual: 'Manual',
+    tierInfo: 'Info',
+    tierIgnore: 'Ignore',
+    channel: { mail: 'Mail', phone: 'Phone', fax: 'Fax', other: 'Other' },
+  },
   caseDetail: {
     history: 'History',
     noCategory: 'Without a category',
     events: {
       ingested: 'Came in',
+      created_manually: 'Written down by hand ({{channel}})',
       triaged: 'Assessed: {{tier}}, {{confidence}}, {{categoryName}}',
       classification_corrected: 'Corrected: {{tier}}, {{categoryName}}',
       draft_generated: 'Draft written by the AI',
@@ -103,6 +111,16 @@ describe('CaseTimeline', () => {
       'Draft edited',
       'Reply sent to kunde@example.com',
     ]);
+  });
+
+  it('says a case was written down by hand, and by which way it came in', () => {
+    const element = render([event('created_manually', { channel: 'phone' }, 'Anna Muster')]);
+
+    // The channel is the whole difference between this and an ingested mail, and it decides
+    // whether an answer can ever go out.
+    expect(entries(element)[0].text).toBe('Written down by hand (Phone)');
+    // Every type carries a mark of its own; a missing one leaves an empty circle.
+    expect(entries(element)[0].icon).toBe('text-xs! pi pi-plus');
   });
 
   it('names who took a step and when, and marks each step with its own icon', () => {
